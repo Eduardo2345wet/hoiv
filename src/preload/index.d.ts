@@ -24,6 +24,7 @@ export interface GameCatalogData {
   graphicalCultures2d?: string[]
   historyFiles?: Record<string, string>
   countryColors?: Record<string, [number, number, number]>
+  goalsShineShape?: string
 }
 
 export interface ElectronAPI {

@@ -2,6 +2,7 @@
 // y qué nombre de sprite usa cada foco/espíritu.
 import type { Project } from '../types'
 import { asciiSlug, safeFolderName } from '../../../shared/names'
+import { shineSprite } from '../../../shared/shine'
 
 export interface IconExportPlan {
   /** Archivos .dds a escribir: ruta dentro del mod + id del ícono de la biblioteca */
@@ -15,6 +16,12 @@ export interface IconExportPlan {
   ideaPicture: Map<string, string>
   /** Sprites (para detectar duplicados) */
   sprites: { name: string; owner: string }[]
+  /** interface/<mod>_goals_shine.gfx: un "_shine" por cada sprite propio de foco */
+  shineGfx: string
+  shinePath: string
+  /** Sprites de foco propios y sus _shine (para el validador) */
+  focusSprites: string[]
+  shineSprites: { name: string; owner: string }[]
 }
 
 export function planIconExport(project: Project): IconExportPlan {
@@ -42,6 +49,9 @@ export function planIconExport(project: Project): IconExportPlan {
   }
 
   const lines: string[] = []
+  const shineLines: string[] = []
+  const focusSprites: string[] = []
+  const shineSprites: IconExportPlan['shineSprites'] = []
   const sprite = (name: string, file: string, owner: string): void => {
     sprites.push({ name, owner })
     lines.push(`\tspriteType = {\n\t\tname = "${name}"\n\t\ttexturefile = "${file}"\n\t}`)
@@ -51,8 +61,13 @@ export function planIconExport(project: Project): IconExportPlan {
     if (f.icon.kind === 'game') focusIcon.set(f.uid, f.icon.gfx)
     else if (assets.has(f.icon.assetId)) {
       const name = `GFX_${mod}_${asciiSlug(f.id)}`
-      sprite(name, ddsFor('goals', f.icon.assetId), `foco "${f.name || f.id}"`)
+      const file = ddsFor('goals', f.icon.assetId)
+      sprite(name, file, `foco "${f.name || f.id}"`)
       focusIcon.set(f.uid, name)
+      // El árbol necesita también <nombre>_shine con el MISMO .dds (si no, muestra "?")
+      focusSprites.push(name)
+      shineSprites.push({ name: `${name}_shine`, owner: `foco "${f.name || f.id}"` })
+      shineLines.push(shineSprite(name, file))
     } else focusIcon.set(f.uid, 'GFX_goal_unknown')
   }
   for (const i of project.ideas) {
@@ -71,6 +86,11 @@ export function planIconExport(project: Project): IconExportPlan {
     gfxPath: `interface/${mod}_icons.gfx`,
     focusIcon,
     ideaPicture,
-    sprites
+    sprites,
+    // Los íconos del juego (GFX_goal_generic_*) ya tienen su _shine: no se genera nada
+    shineGfx: shineLines.length ? `spriteTypes = {\n${shineLines.join('\n\n')}\n}\n` : '',
+    shinePath: `interface/${mod}_goals_shine.gfx`,
+    focusSprites,
+    shineSprites
   }
 }

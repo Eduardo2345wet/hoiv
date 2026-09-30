@@ -58,6 +58,7 @@ export async function buildExtraFiles(
     })
   }
   if (plan.gfx) files.push({ path: plan.gfxPath, text: plan.gfx })
+  if (plan.shineGfx) files.push({ path: plan.shinePath, text: plan.shineGfx })
   // Países: textos (tags, countries, historia, OOB, personajes, localización) e imágenes
   files.push(...countryTextFiles(project, game))
   if (read) files.push(...(await countryImageFiles(project, read)))
@@ -78,6 +79,7 @@ export function plannedPaths(project: Project, game: GameCatalog | null = null):
   const plan = planIconExport(project)
   paths.push(...plan.dds.map((d) => d.path))
   if (plan.gfx) paths.push(plan.gfxPath)
+  if (plan.shineGfx) paths.push(plan.shinePath)
   paths.push(...countryTextFiles(project, game).map((f) => f.path))
   paths.push(...countryImagePaths(project))
   return paths

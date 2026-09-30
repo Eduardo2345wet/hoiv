@@ -4,6 +4,7 @@ import { generateAllFocusTrees } from '../generator/focusTree'
 import { generateIdeas } from '../generator/ideas'
 import { isKnownId, projectFlags, type GameCatalog } from '../catalog/catalog'
 import { planIconExport } from './gfx'
+import { SHINE_TEMPLATE, shineShape } from '../../../shared/shine'
 import { validateCountry } from '../countries/validateCountry'
 import { plannedPaths } from './exportMod'
 import { treeCountry } from '../countries/countryOps'
@@ -228,6 +229,34 @@ export function validateProject(
         severity: 'error',
         message: `El nombre de sprite "${name}" se repite (${owners.join(', ')}). Cambia uno de los ids.`
       })
+  // Sprites _shine de los focos (sin ellos el árbol muestra "?" con laureles)
+  const shineNames = new Set(plan.shineSprites.map((x) => x.name))
+  for (const name of plan.focusSprites)
+    if (!shineNames.has(`${name}_shine`))
+      issues.push({
+        severity: 'error',
+        message: `El sprite de foco "${name}" no tiene su "${name}_shine": en el árbol se vería "?".`
+      })
+  const shineCount = new Map<string, string[]>()
+  for (const sp of plan.shineSprites)
+    shineCount.set(sp.name, [...(shineCount.get(sp.name) ?? []), sp.owner])
+  for (const [name, owners] of shineCount)
+    if (owners.length > 1)
+      issues.push({
+        severity: 'error',
+        message: `El sprite "${name}" se repite (${owners.join(', ')}). Cambia el id de uno de los focos.`
+      })
+  if (
+    plan.shineSprites.length &&
+    game?.goalsShineShape &&
+    game.goalsShineShape !== shineShape(SHINE_TEMPLATE)
+  )
+    issues.push({
+      severity: 'aviso',
+      message:
+        'La plantilla de brillo (_shine) de los focos no coincide con interface/goals_shine.gfx de tu versión del juego. Los íconos pueden verse sin brillo o como "?"; avisa para actualizar la plantilla.'
+    })
+
   for (const d of plan.dds) {
     const a = project.icons.find((x) => x.id === d.assetId)
     if (a?.small)

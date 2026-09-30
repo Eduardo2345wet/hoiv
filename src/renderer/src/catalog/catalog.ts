@@ -28,6 +28,8 @@ export interface GameCatalog {
   historyFiles?: Record<string, string>
   /** tag → color RGB del juego */
   countryColors?: Record<string, [number, number, number]>
+  /** Forma de una entrada real de interface/goals_shine.gfx del juego */
+  goalsShineShape?: string
 }
 
 /** Marcas usadas en cualquier set_country_flag del proyecto + las creadas a mano */

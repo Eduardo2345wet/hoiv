@@ -56,6 +56,7 @@ No hace falta tener el juego instalado. No se necesitan compiladores: todo (incl
 <mod>/gfx/interface/goals/<mod>_*.dds        (íconos de focos, 100×88)
 <mod>/gfx/interface/ideas/<mod>_*.dds        (íconos de espíritus, 60×68)
 <mod>/interface/<mod>_icons.gfx              (registra los sprites)
+<mod>/interface/<mod>_goals_shine.gfx        (brillo "_shine" de cada ícono propio de foco)
 <mod>/localisation/english/<mod>_l_english.yml  (UTF-8 con BOM)
 
 Por cada país NUEVO:

@@ -2,6 +2,7 @@
 // Si no hay carpeta de HOI4, la interfaz usa una lista integrada corta.
 import fs from 'fs'
 import path from 'path'
+import { shineShape } from '../shared/shine'
 
 export interface Settings {
   gamePath: string | null
@@ -144,6 +145,8 @@ export interface GameCatalogResult {
   historyFiles: Record<string, string>
   /** tag → color RGB de common/countries */
   countryColors: Record<string, [number, number, number]>
+  /** Forma (claves en orden) de una entrada real de interface/goals_shine.gfx */
+  goalsShineShape?: string
 }
 
 const cache = new Map<string, GameCatalogResult>()
@@ -207,7 +210,27 @@ export function readGameCatalog(gamePath: string): GameCatalogResult | null {
       }
     }
 
+  // Primera entrada con animación de interface/goals_shine.gfx (para comparar con nuestra plantilla)
+  let goalsShineShape: string | undefined
+  try {
+    const gfx = fs.readFileSync(path.join(gamePath, 'interface', 'goals_shine.gfx'), 'utf-8')
+    const start = gfx.search(/spriteType\s*=\s*\{/)
+    if (start >= 0) {
+      let depth = 0
+      for (let i = gfx.indexOf('{', start); i < gfx.length; i++) {
+        if (gfx[i] === '{') depth++
+        else if (gfx[i] === '}' && --depth === 0) {
+          goalsShineShape = shineShape(gfx.slice(start, i + 1))
+          break
+        }
+      }
+    }
+  } catch {
+    // sin archivo: no se compara
+  }
+
   const result: GameCatalogResult = {
+    goalsShineShape,
     countryColors,
     countries: tags.map((t): [string, string] => [t, loc.get(t) ?? t]),
     ideas: ideas.map((i): [string, string] => [i, loc.get(i) ?? i]),
