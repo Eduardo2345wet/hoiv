@@ -7,7 +7,12 @@ import { safeFolderName } from '../../../shared/names'
 import { planIconExport } from './gfx'
 import { writeDDS } from './images'
 import { pngToRGBA, pngToRGBAResized } from './imageCanvas'
-import { countryImageFiles, countryTextFiles, type ImageReader } from './countryExport'
+import {
+  countryImageFiles,
+  countryImagePaths,
+  countryTextFiles,
+  type ImageReader
+} from './countryExport'
 import type { GameCatalog } from '../catalog/catalog'
 import { store } from '../store/appStore'
 
@@ -57,6 +62,25 @@ export async function buildExtraFiles(
   files.push(...countryTextFiles(project, game))
   if (read) files.push(...(await countryImageFiles(project, read)))
   return files
+}
+
+/**
+ * Rutas de TODOS los archivos que va a escribir el mod (sin leer imágenes),
+ * para detectar dos archivos con el mismo nombre antes de exportar.
+ */
+export function plannedPaths(project: Project, game: GameCatalog | null = null): string[] {
+  const mod = safeFolderName(project.modName)
+  const paths = ['descriptor.mod', `localisation/english/${mod}_l_english.yml`]
+  for (const t of generateAllFocusTrees(project))
+    if (project.focuses.some((f) => f.treeId === t.treeId))
+      paths.push(`common/national_focus/${t.tag}_focus.txt`)
+  if (project.ideas.length) paths.push(`common/ideas/${mod}_ideas.txt`)
+  const plan = planIconExport(project)
+  paths.push(...plan.dds.map((d) => d.path))
+  if (plan.gfx) paths.push(plan.gfxPath)
+  paths.push(...countryTextFiles(project, game).map((f) => f.path))
+  paths.push(...countryImagePaths(project))
+  return paths
 }
 
 export async function exportMod(project: Project): Promise<{ ok: boolean; message: string }> {

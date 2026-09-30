@@ -260,3 +260,14 @@ export async function countryImageFiles(project: Project, read: ImageReader): Pr
   }
   return files
 }
+
+/** Rutas de las imágenes de los países (sin generarlas) */
+export function countryImagePaths(project: Project): string[] {
+  const out: string[] = []
+  for (const c of project.countries) {
+    for (const [folder] of FLAG_FOLDERS)
+      for (const [name] of flagVariants(c)) out.push(`${folder}/${name}.tga`)
+    for (const l of c.leaders) out.push(`gfx/leaders/${c.tag}/${l.id}.dds`)
+  }
+  return out
+}

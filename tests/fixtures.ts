@@ -6,7 +6,7 @@ import { newCountry } from '../src/renderer/src/countries/countryOps'
 export function emptyProject(): Project {
   // Un país (MEX, nuevo) con su árbol de focos
   const country = {
-    ...newCountry({ mode: 'nuevo', tag: 'MEX', name: 'México' }),
+    ...newCountry({ mode: 'existente', tag: 'MEX', name: 'México' }),
     focusTreeId: 'arbol_1'
   }
   return {

@@ -4,6 +4,9 @@ import { generateAllFocusTrees } from '../generator/focusTree'
 import { generateIdeas } from '../generator/ideas'
 import { isKnownId, projectFlags, type GameCatalog } from '../catalog/catalog'
 import { planIconExport } from './gfx'
+import { validateCountry } from '../countries/validateCountry'
+import { plannedPaths } from './exportMod'
+import { treeCountry } from '../countries/countryOps'
 
 export type Severity = 'error' | 'aviso'
 export interface Issue {
@@ -239,6 +242,27 @@ export function validateProject(project: Project, game: GameCatalog | null = nul
       severity: 'error',
       message: `Llaves desbalanceadas en las ideas: ${ideaBraces}`
     })
+
+  // ---- Países ----
+  for (const c of project.countries ?? []) issues.push(...validateCountry(c, project, game))
+  for (const t of project.focusTrees ?? [])
+    if (!treeCountry(project, t.id) && project.focuses.some((f) => f.treeId === t.id))
+      issues.push({
+        severity: 'aviso',
+        message: `El árbol "${t.name}" no pertenece a ningún país: se exportará con el tag ${project.tag}. Asígnalo a un país en la pestaña Países.`
+      })
+
+  // ---- Archivos con el mismo nombre (Windows no distingue mayúsculas) ----
+  const seenPaths = new Map<string, string>()
+  for (const path of plannedPaths(project, game)) {
+    const key = path.toLowerCase()
+    if (seenPaths.has(key))
+      issues.push({
+        severity: 'error',
+        message: `Dos archivos del mod tendrían el mismo nombre: ${path}. Cambia el tag o el nombre de uno de los elementos.`
+      })
+    else seenPaths.set(key, path)
+  }
 
   return issues
 }

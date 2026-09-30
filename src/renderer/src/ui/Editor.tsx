@@ -334,7 +334,14 @@ export default function Editor(): JSX.Element {
           issues={issues}
           onClose={() => setIssues(null)}
           onExportAnyway={() => void doExport()}
+          onGoCountry={(uid, step) => {
+            setTab('paises')
+            setWizard({ uid, step })
+          }}
           onSelectFocus={(uid) => {
+            // Mostrar el árbol del foco con el problema
+            const tree = project.focuses.find((f) => f.uid === uid)?.treeId
+            if (tree) store.set({ activeTreeId: tree })
             setSelected(uid)
             setTab('focos')
           }}
