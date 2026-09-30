@@ -62,15 +62,21 @@ app.whenReady().then(() => {
 
   ipcMain.handle('save-project-dialog', async (_, content: string, defaultName = 'proyecto.json') => {
     const result = await dialog.showSaveDialog({
-      title: 'Guardar Proyecto',
+      title: 'Guardar proyecto',
       defaultPath: defaultName,
       filters: [{ name: 'HOI4 Mod Studio Project', extensions: ['json'] }]
     })
     if (!result.canceled && result.filePath) {
       fs.writeFileSync(result.filePath, content, 'utf-8')
-      return true
+      return result.filePath
     }
-    return false
+    return null
+  })
+
+  ipcMain.handle('save-project-to-path', async (_, filePath: string, content: string) => {
+    if (!filePath.toLowerCase().endsWith('.json')) return false
+    fs.writeFileSync(filePath, content, 'utf-8')
+    return true
   })
 
   ipcMain.handle('open-project-dialog', async () => {
