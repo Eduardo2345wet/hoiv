@@ -85,8 +85,9 @@ src/renderer/src/
   icons/             Emojis, elección automática, tamaños y dibujo con canvas
   store/             Estado central de la app (proyecto, selección, modo "elegir", diálogos)
   ui/                Pantallas y componentes
-  types.ts           Formato de proyecto.json (versión 2)
-  migrate.ts         Abre proyectos viejos (versión 1) sin error
+  countries/         Países: color, popularidades, tags, historia, validación y datos "por verificar"
+  types.ts           Formato de proyecto.json (versión 3)
+  migrate.ts         Abre proyectos viejos (versiones 1 y 2) sin error
 tests/               Pruebas automáticas
 ```
 
