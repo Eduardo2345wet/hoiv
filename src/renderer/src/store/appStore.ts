@@ -53,6 +53,8 @@ export interface AppState {
   prompt: PromptRequest | null
   /** Contenido del juego base leído de la carpeta de HOI4 (null = usar lista integrada) */
   game: GameCatalog | null
+  /** Carpeta del juego configurada (null = sin juego) */
+  gamePath: string | null
 }
 
 let state: AppState = {
@@ -65,7 +67,8 @@ let state: AppState = {
   activeTreeId: null,
   pick: null,
   prompt: null,
-  game: null
+  game: null,
+  gamePath: null
 }
 const listeners = new Set<() => void>()
 // Grupo abierto del historial (no forma parte del estado visible)

@@ -16,6 +16,11 @@ export interface Settings {
 export interface GameCatalogData {
   countries: [string, string][]
   ideas: [string, string][]
+  states?: { id: number; name: string; owner: string }[]
+  subideologies?: Record<string, string[]>
+  graphicalCultures?: string[]
+  graphicalCultures2d?: string[]
+  historyFiles?: Record<string, string>
 }
 
 export interface ElectronAPI {
@@ -31,6 +36,11 @@ export interface ElectronAPI {
   selectGameFolder: () => Promise<string | null>
   /** Lee países e ideas del juego (con caché); null si no hay carpeta o no es válida */
   readGameCatalog: (gamePath: string) => Promise<GameCatalogData | null>
+  /** Archivo de historia de un país del juego (nombre exacto y contenido) */
+  readCountryHistory: (
+    gamePath: string,
+    fileName: string
+  ) => Promise<{ fileName: string; text: string } | null>
   exportMod: (
     payload: ExportModPayload
   ) => Promise<{ success: boolean; error?: string; modFolder?: string }>

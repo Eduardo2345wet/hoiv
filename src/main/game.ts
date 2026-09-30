@@ -83,22 +83,139 @@ function readDir(dir: string): string[] {
   }
 }
 
-const cache = new Map<string, { countries: [string, string][]; ideas: [string, string][] }>()
+/** Lee todos los .txt de una carpeta como [nombre, contenido] */
+function readDirNamed(dir: string, ext = '.txt'): [string, string][] {
+  try {
+    return fs
+      .readdirSync(dir)
+      .filter((f) => f.endsWith(ext))
+      .map((f): [string, string] => [f, fs.readFileSync(path.join(dir, f), 'utf-8')])
+  } catch {
+    return []
+  }
+}
 
-export function readGameCatalog(
-  gamePath: string
-): { countries: [string, string][]; ideas: [string, string][] } | null {
+/** history/states/*.txt → id, clave de nombre y dueño */
+export function parseState(text: string): { id: number; nameKey: string; owner: string } | null {
+  const t = stripComments(text)
+  const id = t.match(/\bid\s*=\s*(\d+)/)
+  if (!id) return null
+  const name = t.match(/\bname\s*=\s*"?([A-Za-z0-9_]+)"?/)
+  const owner = t.match(/\bowner\s*=\s*([A-Z][A-Z0-9]{2})\b/)
+  return { id: Number(id[1]), nameKey: name?.[1] ?? '', owner: owner?.[1] ?? '' }
+}
+
+/** Claves "KEY:0 \"Texto\"" de un .yml de localización */
+export function parseLocalisation(text: string): Map<string, string> {
+  const m = new Map<string, string>()
+  for (const r of text.matchAll(/^\s*([A-Za-z0-9_.-]+):\d*\s*"(.*)"\s*$/gm)) m.set(r[1], r[2])
+  return m
+}
+
+/** common/ideologies → ideología → subideologías (ideologies = { X = { types = { sub = {} } } }) */
+export function parseSubideologies(text: string): Record<string, string[]> {
+  const out: Record<string, string[]> = {}
+  const tokens = stripComments(text).match(/"[^"]*"|[{}=]|[^\s{}=]+/g) ?? []
+  const stack: string[] = []
+  let lastKey: string | null = null
+  for (let i = 0; i < tokens.length; i++) {
+    const t = tokens[i]
+    if (t === '{') {
+      stack.push(lastKey ?? '')
+      // ideologies > X > types > SUB
+      if (stack.length === 4 && stack[0] === 'ideologies' && stack[2] === 'types' && lastKey)
+        (out[stack[1]] ??= []).push(lastKey)
+      lastKey = null
+    } else if (t === '}') {
+      stack.pop()
+      lastKey = null
+    } else if (t !== '=') lastKey = tokens[i + 1] === '=' ? t : null
+  }
+  return out
+}
+
+export interface GameCatalogResult {
+  countries: [string, string][]
+  ideas: [string, string][]
+  states: { id: number; name: string; owner: string }[]
+  subideologies: Record<string, string[]>
+  graphicalCultures: string[]
+  graphicalCultures2d: string[]
+  historyFiles: Record<string, string>
+}
+
+const cache = new Map<string, GameCatalogResult>()
+
+export function readGameCatalog(gamePath: string): GameCatalogResult | null {
   if (cache.has(gamePath)) return cache.get(gamePath)!
   const tagsDir = path.join(gamePath, 'common', 'country_tags')
   if (!fs.existsSync(tagsDir)) return null
+
+  // Localización en inglés (nombres de países y estados)
+  const loc = new Map<string, string>()
+  for (const [f, text] of readDirNamed(path.join(gamePath, 'localisation', 'english'), '.yml'))
+    if (/countries|state_names/.test(f)) for (const [k, v] of parseLocalisation(text)) loc.set(k, v)
+
   const tags = [...new Set(readDir(tagsDir).flatMap(parseCountryTags))].sort()
   const ideas = [
     ...new Set(readDir(path.join(gamePath, 'common', 'ideas')).flatMap(parseIdeaIds))
   ].sort()
-  const result = {
-    countries: tags.map((t): [string, string] => [t, t]),
-    ideas: ideas.map((i): [string, string] => [i, i])
+
+  const states = readDirNamed(path.join(gamePath, 'history', 'states'))
+    .map(([, t]) => parseState(t))
+    .filter((s): s is NonNullable<typeof s> => !!s)
+    .map((s) => ({ id: s.id, name: loc.get(s.nameKey) ?? s.nameKey, owner: s.owner }))
+    .sort((a, b) => a.id - b.id)
+
+  const subideologies: Record<string, string[]> = {}
+  for (const t of readDir(path.join(gamePath, 'common', 'ideologies')))
+    for (const [k, v] of Object.entries(parseSubideologies(t)))
+      subideologies[k] = [...(subideologies[k] ?? []), ...v]
+
+  const gc = new Set<string>()
+  const gc2 = new Set<string>()
+  for (const t of readDir(path.join(gamePath, 'common', 'countries'))) {
+    const a = t.match(/graphical_culture\s*=\s*([a-z0-9_]+)/)
+    const b = t.match(/graphical_culture_2d\s*=\s*([a-z0-9_]+)/)
+    if (a) gc.add(a[1])
+    if (b) gc2.add(b[1])
+  }
+
+  // "MEX - Mexico.txt" → MEX
+  const historyFiles: Record<string, string> = {}
+  try {
+    for (const f of fs.readdirSync(path.join(gamePath, 'history', 'countries'))) {
+      const m = f.match(/^([A-Z][A-Z0-9]{2})\s*-.*\.txt$/)
+      if (m) historyFiles[m[1]] = f
+    }
+  } catch {
+    // sin carpeta de historia
+  }
+
+  const result: GameCatalogResult = {
+    countries: tags.map((t): [string, string] => [t, loc.get(t) ?? t]),
+    ideas: ideas.map((i): [string, string] => [i, loc.get(i) ?? i]),
+    states,
+    subideologies,
+    graphicalCultures: [...gc].sort(),
+    graphicalCultures2d: [...gc2].sort(),
+    historyFiles
   }
   cache.set(gamePath, result)
   return result
+}
+
+/** Lee el archivo de historia de un país del juego (nombre EXACTO y contenido) */
+export function readCountryHistory(
+  gamePath: string,
+  fileName: string
+): { fileName: string; text: string } | null {
+  // Solo nombres simples dentro de history/countries (sin rutas)
+  if (fileName.includes('/') || fileName.includes('\\') || fileName.includes('..')) return null
+  try {
+    const text = fs.readFileSync(path.join(gamePath, 'history', 'countries', fileName), 'utf-8')
+    return { fileName, text }
+  } catch {
+    return null
+  }
 }

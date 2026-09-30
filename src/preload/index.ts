@@ -14,5 +14,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   setSettings: (s: unknown) => ipcRenderer.invoke('set-settings', s),
   selectGameFolder: () => ipcRenderer.invoke('select-game-folder'),
   readGameCatalog: (gamePath: string) => ipcRenderer.invoke('read-game-catalog', gamePath),
+  readCountryHistory: (gamePath: string, fileName: string) =>
+    ipcRenderer.invoke('read-country-history', gamePath, fileName),
   exportMod: (payload: ExportModPayload) => ipcRenderer.invoke('export-mod', payload)
 })

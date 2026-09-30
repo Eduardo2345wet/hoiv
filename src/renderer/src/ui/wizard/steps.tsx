@@ -11,6 +11,8 @@ import {
   type Project
 } from '../../types'
 import type { GameCatalog } from '../../catalog/catalog'
+import { useApp } from '../../store/appStore'
+import { applyParsedHistory, parseHistory } from '../../countries/history'
 import { getCatalogOptions } from '../../catalog/catalog'
 import {
   fromHex,
@@ -35,11 +37,28 @@ import { flagSrc } from '../FlagThumb'
 export interface StepProps {
   draft: Country
   set: (patch: Partial<Country>) => void
+  /** Cambiar el borrador sin marcar "historia cambiada" (datos leídos del juego) */
+  replaceDraft: (fn: (d: Country) => Country) => void
   project: Project
   game: GameCatalog | null
   /** El tag lo escribió el usuario (no se vuelve a proponer solo) */
   tagTouched: boolean
   setTagTouched: (v: boolean) => void
+}
+
+/** País existente sin historia del juego: no se pueden cambiar política ni capital */
+export function historyLocked(c: Country): boolean {
+  return c.mode === 'existente' && !c.existing.historyText
+}
+
+export function HistoryNotice({ draft }: { draft: Country }): JSX.Element | null {
+  if (!historyLocked(draft)) return null
+  return (
+    <div className="mb-3 rounded border border-sky-600/60 bg-sky-500/10 p-3 text-sm text-sky-200">
+      ℹ Para cambiar la política o el líder de un país existente, configura la carpeta de HOI4 en
+      Ajustes. Sin ella no se exporta la historia del país (se conserva la del juego).
+    </div>
+  )
 }
 
 const Field = ({
@@ -74,12 +93,45 @@ export function takenTags(
 export function IdentityStep({
   draft,
   set,
+  replaceDraft,
   project,
   game,
   tagTouched,
   setTagTouched
 }: StepProps): JSX.Element {
   const [query, setQuery] = useState('')
+  const gamePath = useApp((s) => s.gamePath)
+
+  /** Elegir un país del juego: si hay carpeta, lee su historia y precarga sus valores */
+  const pickGameCountry = async (tag: string, label: string): Promise<void> => {
+    setTagTouched(true)
+    replaceDraft((d) => ({
+      ...d,
+      tag,
+      names: { name: label, def: label, adj: d.names.adj },
+      existing: { ...d.existing, historyFile: null, historyText: null, historyEdited: false }
+    }))
+    const file = game?.historyFiles?.[tag]
+    if (!file || !gamePath || !window.electronAPI) return
+    const h = await window.electronAPI.readCountryHistory(gamePath, file)
+    if (!h) return
+    replaceDraft((d) =>
+      d.tag !== tag
+        ? d
+        : applyParsedHistory(
+            {
+              ...d,
+              existing: {
+                ...d.existing,
+                historyFile: h.fileName,
+                historyText: h.text,
+                historyEdited: false
+              }
+            },
+            parseHistory(h.text)
+          )
+    )
+  }
   const gameCountries = useMemo(
     () => getCatalogOptions('country', null, game).filter((o) => o.origen === 'juego'),
     [game]
@@ -107,7 +159,10 @@ export function IdentityStep({
           <button
             key={m}
             className={draft.mode === m ? 'btn-primary' : 'btn'}
-            onClick={() => set({ mode: m })}
+            // Al pasar a "existente" se quitan los líderes de ejemplo (se añaden a mano)
+            onClick={() =>
+              replaceDraft((d) => ({ ...d, mode: m, leaders: m === 'existente' ? [] : d.leaders }))
+            }
           >
             {m === 'nuevo' ? 'País nuevo' : 'Modificar uno existente'}
           </button>
@@ -129,13 +184,7 @@ export function IdentityStep({
             {results.map((o) => (
               <button
                 key={o.id}
-                onClick={() => {
-                  set({
-                    tag: o.id,
-                    names: { name: o.etiqueta, def: o.etiqueta, adj: draft.names.adj }
-                  })
-                  setTagTouched(true)
-                }}
+                onClick={() => void pickGameCountry(o.id, o.etiqueta)}
                 className={`flex w-full gap-2 px-2 py-1 text-left text-sm hover:bg-hoi-card ${draft.tag === o.id ? 'bg-hoi-accent/20' : ''}`}
               >
                 <span className="w-10 font-mono text-hoi-muted">{o.id}</span>
@@ -288,7 +337,18 @@ export function IdentityStep({
 }
 
 // ======================= Paso 2: Política =======================
-export function PoliticsStep({ draft, set }: StepProps): JSX.Element {
+export function PoliticsStep(props: StepProps): JSX.Element {
+  return (
+    <>
+      <HistoryNotice draft={props.draft} />
+      <fieldset disabled={historyLocked(props.draft)} className="disabled:opacity-50">
+        <PoliticsForm {...props} />
+      </fieldset>
+    </>
+  )
+}
+
+function PoliticsForm({ draft, set }: StepProps): JSX.Element {
   const [lastMoved, setLastMoved] = useState<Ideology>(draft.politics.ruling)
   const [showNames, setShowNames] = useState(false)
   const pol = draft.politics
@@ -455,7 +515,8 @@ export function PoliticsStep({ draft, set }: StepProps): JSX.Element {
 export function CapitalStep({ draft, set, game }: StepProps): JSX.Element {
   const state = game?.states?.find((s) => s.id === draft.capital)
   return (
-    <div className="flex flex-col gap-4">
+    <fieldset disabled={historyLocked(draft)} className="flex flex-col gap-4 disabled:opacity-60">
+      <HistoryNotice draft={draft} />
       <Field
         label="Capital (ID de estado)"
         hint="Es el número del estado en el juego. Más adelante se podrá elegir en el mapa."
@@ -505,7 +566,7 @@ export function CapitalStep({ draft, set, game }: StepProps): JSX.Element {
           evento de otro país.
         </div>
       )}
-    </div>
+    </fieldset>
   )
 }
 
@@ -656,6 +717,12 @@ export function LeaderStep({ draft, set, game }: StepProps): JSX.Element {
 
   return (
     <div className="flex flex-col gap-3">
+      {historyLocked(draft) && (
+        <p className="rounded border border-sky-600/60 bg-sky-500/10 p-2 text-xs text-sky-200">
+          ℹ Sin la carpeta de HOI4, los líderes que añadas se exportan como personajes pero no se
+          reclutan (hace falta la historia del país). Configúrala en Ajustes.
+        </p>
+      )}
       {!draft.leaders.length && (
         <p className="text-sm text-hoi-muted">Sin líderes: el juego usará uno genérico.</p>
       )}

@@ -5,11 +5,12 @@
 import { IDEOLOGIES, type Country, type Project } from '../types'
 import type { GameCatalog } from '../catalog/catalog'
 import { safeFolderName } from '../../../shared/names'
-import { namesFor, rulingLeader } from '../countries/countryOps'
+import { characterId, namesFor, rulingLeader } from '../countries/countryOps'
 import { BASIC_DIVISION_TEMPLATE, BASIC_TECHNOLOGIES, LEADER_EXPIRE } from '../countries/gameData'
 import { PORTRAIT_SIZE } from '../countries/placeholders'
 import { renderFlagPlaceholder, renderPortraitPlaceholder } from '../icons/renderer'
 import { locText } from '../generator/focusTree'
+import { patchHistory } from '../countries/history'
 import { writeDDS, writeTGA } from './images'
 import type { ModFile } from './exportMod'
 
@@ -38,7 +39,7 @@ export const countryFileName = (c: Country): string =>
   `${asciiName(c.names.name).replace(/ /g, '_')}.txt`
 /** Nombre de archivo de historia: "TAG - Nombre.txt" (como el juego) */
 export const historyFileName = (c: Country): string => `${c.tag} - ${asciiName(c.names.name)}.txt`
-export const characterId = (c: Country, leaderId: string): string => `${c.tag}_${leaderId}`
+export { characterId }
 
 /** Tamaños de bandera: [carpeta, ancho, alto] */
 export const FLAG_FOLDERS: [string, number, number][] = [
@@ -203,10 +204,15 @@ export function countryTextFiles(project: Project, game: GameCatalog | null = nu
   return files
 }
 
-/** País existente: solo historia (si hay carpeta del juego) — se completa en la Parte 4 */
+/**
+ * País existente: nunca country_tags ni common/countries. La historia solo se puede
+ * sobrescribir con el nombre EXACTO del archivo del juego, así que se exporta únicamente
+ * si se leyó de la carpeta del juego y el usuario cambió capital, política o líderes.
+ */
 export function existingCountryTextFiles(c: Country): ModFile[] {
-  void c
-  return []
+  const e = c.existing
+  if (!e.historyEdited || !e.historyText || !e.historyFile) return []
+  return [{ path: `history/countries/${e.historyFile}`, text: patchHistory(e.historyText, c) }]
 }
 
 // ======================= Imágenes =======================

@@ -78,10 +78,12 @@ export default function CountryWizard({
   const set = (patch: Partial<Country>): void =>
     setDraft((d) => {
       const next = { ...d, ...patch }
-      if (
-        d.mode === 'existente' &&
-        ('politics' in patch || 'capital' in patch || 'leaders' in patch)
-      )
+      // Líderes: solo cuentan como cambio de historia si hay historia del juego para reclutarlos
+      const touches =
+        'politics' in patch ||
+        'capital' in patch ||
+        ('leaders' in patch && !!d.existing.historyText)
+      if (d.mode === 'existente' && touches)
         next.existing = { ...next.existing, historyEdited: true }
       return next
     })
@@ -129,7 +131,9 @@ export default function CountryWizard({
     return () => window.removeEventListener('keydown', onKey)
   })
 
-  const props: StepProps = { draft, set, project, game, tagTouched, setTagTouched }
+  /** Cambiar el borrador sin marcar "historia cambiada" (datos leídos del juego) */
+  const replaceDraft = (fn: (d: Country) => Country): void => setDraft(fn)
+  const props: StepProps = { draft, set, replaceDraft, project, game, tagTouched, setTagTouched }
   const body = [
     <IdentityStep key="0" {...props} />,
     <PoliticsStep key="1" {...props} />,

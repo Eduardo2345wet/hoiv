@@ -4,7 +4,13 @@ import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import fs from 'fs'
 import path from 'path'
 import { handleExportMod } from './export'
-import { loadSettings, readGameCatalog, saveSettings, type Settings } from './game'
+import {
+  loadSettings,
+  readCountryHistory,
+  readGameCatalog,
+  saveSettings,
+  type Settings
+} from './game'
 
 function createWindow(): void {
   const mainWindow = new BrowserWindow({
@@ -119,6 +125,10 @@ app.whenReady().then(() => {
     return result.canceled ? null : result.filePaths[0]
   })
   ipcMain.handle('read-game-catalog', async (_, gamePath: string) => readGameCatalog(gamePath))
+
+  ipcMain.handle('read-country-history', async (_, gamePath: string, fileName: string) =>
+    readCountryHistory(gamePath, fileName)
+  )
 
   ipcMain.handle('export-mod', async (_, payload) => {
     return handleExportMod(payload)

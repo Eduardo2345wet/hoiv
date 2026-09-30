@@ -8,7 +8,7 @@ export async function loadGameSettings(): Promise<string | null> {
   const api = window.electronAPI
   if (!api) return null
   const s = await api.getSettings()
-  if (s.gamePath) store.set({ game: await api.readGameCatalog(s.gamePath) })
+  if (s.gamePath) store.set({ game: await api.readGameCatalog(s.gamePath), gamePath: s.gamePath })
   return s.gamePath
 }
 
@@ -33,13 +33,13 @@ export default function SettingsDialog({ onClose }: { onClose: () => void }): JS
     }
     await api.setSettings({ gamePath: dir })
     setGamePath(dir)
-    store.set({ game: cat })
+    store.set({ game: cat, gamePath: dir })
     setMsg(`✔ Leídos ${cat.countries.length} países y ${cat.ideas.length} espíritus del juego.`)
   }
   const clear = async (): Promise<void> => {
     await window.electronAPI?.setSettings({ gamePath: null })
     setGamePath(null)
-    store.set({ game: null })
+    store.set({ game: null, gamePath: null })
     setMsg('Se usará la lista integrada.')
   }
 

@@ -80,6 +80,9 @@ export function newLeader(name: string, ideology: Ideology, existingIds: string[
   }
 }
 
+/** Id del personaje: TAG_<id del líder> */
+export const characterId = (c: Country, leaderId: string): string => `${c.tag}_${leaderId}`
+
 /** Líder que se recluta: el de la ideología gobernante */
 export function rulingLeader(c: Country): Leader | undefined {
   return c.leaders.find((l) => l.ideology === c.politics.ruling)
