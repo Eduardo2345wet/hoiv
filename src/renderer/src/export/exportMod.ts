@@ -1,7 +1,7 @@
 // Prepara todos los archivos del mod y pide al proceso principal (Node) que
 // los escriba. La interfaz nunca toca el disco directamente.
 import type { Project } from '../types'
-import { generateFocusTree, generateLocalisation } from '../generator/focusTree'
+import { generateAllFocusTrees, generateLocalisation } from '../generator/focusTree'
 import { generateIdeas } from '../generator/ideas'
 import { safeFolderName } from '../../../shared/names'
 import { planIconExport } from './gfx'
@@ -28,6 +28,10 @@ export async function buildExtraFiles(
 ): Promise<ModFile[]> {
   const mod = safeFolderName(project.modName)
   const files: ModFile[] = []
+  // Un archivo por árbol de focos, con el tag de su país
+  for (const t of generateAllFocusTrees(project))
+    if (project.focuses.some((f) => f.treeId === t.treeId))
+      files.push({ path: `common/national_focus/${t.tag}_focus.txt`, text: t.text })
   if (project.ideas.length)
     files.push({
       path: `common/ideas/${mod}_ideas.txt`,
@@ -61,7 +65,8 @@ export async function exportMod(project: Project): Promise<{ ok: boolean; messag
     exportPath: folder,
     modName: project.modName,
     tag: project.tag,
-    focusTreeScript: generateFocusTree(project),
+    // Los árboles van en `files` (uno por país)
+    focusTreeScript: '',
     locYaml: generateLocalisation(project),
     files: await buildExtraFiles(project, pngToRGBA)
   })

@@ -21,6 +21,9 @@ import BlocklyEditor from './BlocklyEditor'
 import PreviewPanel from './PreviewPanel'
 import ValidationDialog from './ValidationDialog'
 import IdeasTab from './IdeasTab'
+import CountriesTab from './CountriesTab'
+import TreeSelector from './TreeSelector'
+import CountryWizard from './wizard/CountryWizard'
 import LibraryTab from './LibraryTab'
 import SettingsDialog from './SettingsDialog'
 import { validateProject, type Issue } from '../export/validator'
@@ -34,7 +37,7 @@ import {
   updateFocus
 } from './projectOps'
 
-type Tab = 'focos' | 'ideas' | 'iconos'
+type Tab = 'focos' | 'paises' | 'ideas' | 'iconos'
 
 export default function Editor(): JSX.Element {
   const project = useApp((s) => s.project) as Project
@@ -50,6 +53,13 @@ export default function Editor(): JSX.Element {
   const [status, setStatus] = useState('')
   const [showSettings, setShowSettings] = useState(false)
 
+  const storedTree = useApp((s) => s.activeTreeId)
+  const activeTree =
+    storedTree && project.focusTrees.some((t) => t.id === storedTree)
+      ? storedTree
+      : (project.focusTrees[0]?.id ?? null)
+  const treeFocuses = project.focuses.filter((f) => f.treeId === activeTree)
+  const [wizard, setWizard] = useState<{ uid?: string; step?: number } | null>(null)
   const selectedFocus = project.focuses.find((f) => f.uid === selected) ?? null
   const setSelected = (uid: string | null): void => store.set({ selectedUid: uid })
   const change = store.updateProject
@@ -119,7 +129,7 @@ export default function Editor(): JSX.Element {
   const addFocusAt = (x: number, y: number): void => {
     let uid = ''
     change((p) => {
-      const r = createFocus(p, x, y)
+      const r = createFocus(p, x, y, undefined, activeTree ?? undefined)
       uid = r.focus.uid
       return r.project
     })
@@ -129,7 +139,7 @@ export default function Editor(): JSX.Element {
   const addFocus = (): void => {
     let uid = ''
     change((p) => {
-      const r = createFocusBelow(p, selected)
+      const r = createFocusBelow(p, selected, undefined, activeTree ?? undefined)
       uid = r.focus.uid
       return r.project
     })
@@ -186,14 +196,15 @@ export default function Editor(): JSX.Element {
             {dirty && ' •'}
           </div>
           <div className="text-[11px] text-hoi-muted">
-            País: {project.tag} {filePath ? '' : '· sin guardar'}
+            {filePath ? 'Proyecto guardado' : 'Sin guardar todavía'}
           </div>
         </div>
-        <button className="btn" onClick={addFocus}>
-          <Plus size={16} /> Añadir foco
-        </button>
         {tab === 'focos' && (
           <>
+            <TreeSelector project={project} activeTreeId={activeTree} />
+            <button className="btn" onClick={addFocus}>
+              <Plus size={16} /> Añadir foco
+            </button>
             <div className="mx-1 h-6 w-px bg-hoi-border" />
             {toolBtn(
               'select',
@@ -248,10 +259,16 @@ export default function Editor(): JSX.Element {
       {/* Pestañas */}
       <nav className="flex shrink-0 border-b border-hoi-border bg-hoi-panel px-2">
         {tabBtn('focos', 'Árbol de focos')}
+        {tabBtn('paises', `Países (${project.countries.length})`)}
         {tabBtn('ideas', `Espíritus nacionales (${project.ideas.length})`)}
         {tabBtn('iconos', `Biblioteca de íconos (${project.icons.length})`)}
       </nav>
 
+      {tab === 'paises' && (
+        <div className="min-h-0 flex-1">
+          <CountriesTab project={project} onOpenWizard={(uid, step) => setWizard({ uid, step })} />
+        </div>
+      )}
       {tab === 'ideas' && (
         <div className="min-h-0 flex-1">
           <IdeasTab project={project} />
@@ -270,7 +287,7 @@ export default function Editor(): JSX.Element {
           <div className="min-w-0 flex-1">
             <FocusCanvas
               project={project}
-              focuses={project.focuses}
+              focuses={treeFocuses}
               selected={selected}
               tool={tool}
               onSelect={setSelected}
@@ -299,11 +316,19 @@ export default function Editor(): JSX.Element {
             <BlocklyEditor focus={selectedFocus} onChange={onBlocksChange} />
           </div>
           <aside className="w-[420px] border-l border-hoi-border bg-[#101013]">
-            <PreviewPanel project={project} />
+            <PreviewPanel project={project} treeId={activeTree} />
           </aside>
         </div>
       </div>
 
+      {wizard && (
+        <CountryWizard
+          project={project}
+          countryUid={wizard.uid}
+          initialStep={wizard.step}
+          onClose={() => setWizard(null)}
+        />
+      )}
       {issues && (
         <ValidationDialog
           issues={issues}

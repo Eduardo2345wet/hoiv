@@ -116,14 +116,25 @@ export function createFocus(
   p: Project,
   x: number,
   y: number,
-  name?: string
+  name?: string,
+  treeId?: string
 ): { project: Project; focus: Focus } {
-  let n = p.focuses.length + 1
-  while (p.focuses.some((f) => f.id === `${p.tag}_foco_${n}`)) n++
+  // Árbol: el indicado o el primero; si no hay ninguno, se crea uno
+  let base = p
+  let tree = treeId ?? p.focusTrees?.[0]?.id
+  if (!tree) {
+    tree = 'arbol_1'
+    base = { ...p, focusTrees: [...(p.focusTrees ?? []), { id: tree, name: 'Árbol de focos' }] }
+  }
+  // Prefijo del id: el tag del país dueño del árbol
+  const tag = base.countries?.find((c) => c.focusTreeId === tree)?.tag ?? p.tag
+  let n = base.focuses.length + 1
+  while (base.focuses.some((f) => f.id === `${tag}_foco_${n}`)) n++
   const uid = newUid()
   const focus: Focus = {
     uid,
-    id: name ? uniqueId(p, `${p.tag}_${slug(name)}`) : `${p.tag}_foco_${n}`,
+    treeId: tree,
+    id: name ? uniqueId(base, `${tag}_${slug(name)}`) : `${tag}_foco_${n}`,
     name: name ?? `Foco ${n}`,
     description: '',
     cost: 10,
@@ -136,7 +147,7 @@ export function createFocus(
     blocks: null,
     scripts: { ...EMPTY_SCRIPTS }
   }
-  let next: Project = { ...p, focuses: [...p.focuses, focus] }
+  let next: Project = { ...base, focuses: [...base.focuses, focus] }
   next = autoAsset(next, uid, 'focus', focus.name, focus.id)
   return { project: next, focus }
 }
@@ -145,13 +156,15 @@ export function createFocus(
 export function createFocusBelow(
   p: Project,
   parentUid: string | null,
-  name?: string
+  name?: string,
+  treeId?: string
 ): { project: Project; focus: Focus } {
   const parent = p.focuses.find((f) => f.uid === parentUid)
+  const tree = parent?.treeId ?? treeId ?? p.focusTrees?.[0]?.id
   const y = parent ? parent.y + 1 : 0
   let x = parent ? parent.x : 0
-  while (p.focuses.some((f) => f.x === x && f.y === y)) x++
-  return createFocus(p, x, y, name)
+  while (p.focuses.some((f) => f.treeId === tree && f.x === x && f.y === y)) x++
+  return createFocus(p, x, y, name, tree)
 }
 
 export function updateFocus(p: Project, uid: string, patch: Partial<Focus>): Project {
@@ -309,7 +322,7 @@ function uniqueId(p: Project, base: string, ignoreUid?: string): string {
 }
 
 export function ideaIdFor(p: Project, name: string, ignoreUid?: string): string {
-  return uniqueId(p, `${p.tag}_${slug(name)}`, ignoreUid)
+  return uniqueId(p, `${p.countries?.[0]?.tag ?? p.tag}_${slug(name)}`, ignoreUid)
 }
 
 export function createIdea(p: Project, name = 'Nuevo espíritu'): { project: Project; idea: Idea } {

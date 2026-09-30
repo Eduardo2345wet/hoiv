@@ -34,21 +34,11 @@ import { handleExportMod } from '../src/main/export'
 import { parseCountryTags, parseIdeaIds } from '../src/main/game'
 import type { Project } from '../src/renderer/src/types'
 
+import { emptyProject } from './fixtures'
+
 registerAllBlocks()
 // Dibujante falso: guarda la receta en el "png" para poder comprobarla
 setIconRenderer((r, t) => `fake:${t}:${r.emoji}:${r.color}`)
-
-function emptyProject(): Project {
-  return {
-    version: 2,
-    modName: 'Mi Mod',
-    tag: 'MEX',
-    focuses: [],
-    ideas: [],
-    icons: [],
-    countryFlags: []
-  }
-}
 
 /** Proyecto con 2 focos: B tiene "completó el foco A" y pone la marca "reforma" */
 function projectWithRefs(): Project {
@@ -466,7 +456,10 @@ describe('migración de proyecto.json', () => {
       ]
     }
     const p = migrateProject(v1)
-    expect(p.version).toBe(2)
+    expect(p.version).toBe(3)
+    expect(p.countries).toHaveLength(1)
+    expect(p.countries[0]).toMatchObject({ tag: 'GER', mode: 'existente', focusTreeId: 'arbol_1' })
+    expect(p.focuses[0].treeId).toBe('arbol_1')
     expect(p.focuses[0].icon).toEqual({
       kind: 'game',
       gfx: 'GFX_goal_generic_production'

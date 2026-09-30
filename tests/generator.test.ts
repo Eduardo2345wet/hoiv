@@ -13,6 +13,8 @@ import { createFocus, deleteFocus, togglePrerequisite } from '../src/renderer/sr
 import { handleExportMod } from '../src/main/export'
 import type { Project } from '../src/renderer/src/types'
 
+import { emptyProject } from './fixtures'
+
 registerAllBlocks()
 
 function workspaceWithBlocks(): Blockly.Workspace {
@@ -111,15 +113,7 @@ describe('generador PDX', () => {
 })
 
 export function sampleProject(): Project {
-  let p: Project = {
-    version: 2,
-    modName: 'Mi Mod México',
-    tag: 'MEX',
-    focuses: [],
-    ideas: [],
-    icons: [],
-    countryFlags: []
-  }
+  let p: Project = { ...emptyProject(), modName: 'Mi Mod México' }
   const ra = createFocus(p, 0, 0)
   const rb = createFocus(ra.project, 0, 1)
   p = rb.project

@@ -47,6 +47,8 @@ export interface AppState {
   dirty: boolean
   /** uid del foco seleccionado (el que se edita en Blockly) */
   selectedUid: string | null
+  /** Árbol de focos que se está editando (no entra en el historial) */
+  activeTreeId: string | null
   pick: PickRequest | null
   prompt: PromptRequest | null
   /** Contenido del juego base leído de la carpeta de HOI4 (null = usar lista integrada) */
@@ -60,6 +62,7 @@ let state: AppState = {
   filePath: null,
   dirty: false,
   selectedUid: null,
+  activeTreeId: null,
   pick: null,
   prompt: null,
   game: null
@@ -156,13 +159,15 @@ export const store = {
   /** Abre otro proyecto: el historial empieza vacío */
   openProject(project: Project | null, filePath: string | null): void {
     openGroup = null
+    const tree = project?.focusTrees[0]?.id ?? null
     store.set({
       project,
       filePath,
       dirty: false,
       past: [],
       future: [],
-      selectedUid: project?.focuses[0]?.uid ?? null
+      activeTreeId: tree,
+      selectedUid: project?.focuses.find((f) => f.treeId === tree)?.uid ?? null
     })
   },
 

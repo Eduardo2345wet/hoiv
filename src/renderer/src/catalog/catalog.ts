@@ -17,6 +17,15 @@ export interface CatalogOption {
 export interface GameCatalog {
   countries: [string, string][]
   ideas: [string, string][]
+  /** history/states: id, nombre y dueño en 1936 */
+  states?: { id: number; name: string; owner: string }[]
+  /** common/ideologies: ideología → subideologías */
+  subideologies?: Record<string, string[]>
+  /** Valores usados en common/countries */
+  graphicalCultures?: string[]
+  graphicalCultures2d?: string[]
+  /** tag → nombre exacto del archivo de history/countries */
+  historyFiles?: Record<string, string>
 }
 
 /** Marcas usadas en cualquier set_country_flag del proyecto + las creadas a mano */
@@ -60,13 +69,12 @@ export function getCatalogOptions(
         for (const fl of projectFlags(project)) mod.push({ id: fl, etiqueta: fl, origen: 'mod' })
         break
       case 'country':
-        mod.push({
-          id: project.tag,
-          etiqueta: `${project.modName} (mi país)`,
-          origen: 'mod'
-        })
+        for (const c of project.countries ?? [])
+          mod.push({ id: c.tag, etiqueta: c.names.name || c.tag, origen: 'mod', uid: c.uid })
         break
       case 'state':
+        for (const s of game?.states ?? [])
+          base.push([String(s.id), `${s.name}${s.owner ? ` (${s.owner})` : ''}`])
         // Preparado para elegir estados en el mapa más adelante
         break
     }

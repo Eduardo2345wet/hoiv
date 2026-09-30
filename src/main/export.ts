@@ -75,8 +75,10 @@ export async function handleExportMod(payload: ExportModPayload): Promise<Export
 
     // 3. common/national_focus/TAG_focus.txt (UTF-8 sin BOM)
     const focusDir = path.join(modFolder, 'common', 'national_focus')
-    fs.mkdirSync(focusDir, { recursive: true })
-    fs.writeFileSync(path.join(focusDir, `${tag}_focus.txt`), focusTreeScript, 'utf-8')
+    if (focusTreeScript) {
+      fs.mkdirSync(focusDir, { recursive: true })
+      fs.writeFileSync(path.join(focusDir, `${tag}_focus.txt`), focusTreeScript, 'utf-8')
+    }
 
     // 4. localisation/english/NOMBRE_l_english.yml en UTF-8 CON BOM (﻿)
     const locDir = path.join(modFolder, 'localisation', 'english')

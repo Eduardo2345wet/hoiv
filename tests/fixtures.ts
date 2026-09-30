@@ -1,12 +1,20 @@
 // Proyectos de ejemplo compartidos por las pruebas
 import type { Project } from '../src/renderer/src/types'
 import { createFocus } from '../src/renderer/src/ui/projectOps'
+import { newCountry } from '../src/renderer/src/countries/countryOps'
 
 export function emptyProject(): Project {
+  // Un país (MEX, nuevo) con su árbol de focos
+  const country = {
+    ...newCountry({ mode: 'nuevo', tag: 'MEX', name: 'México' }),
+    focusTreeId: 'arbol_1'
+  }
   return {
-    version: 2,
+    version: 3,
     modName: 'Mi Mod',
     tag: 'MEX',
+    countries: [country],
+    focusTrees: [{ id: 'arbol_1', name: 'Árbol de MEX' }],
     focuses: [],
     ideas: [],
     icons: [],

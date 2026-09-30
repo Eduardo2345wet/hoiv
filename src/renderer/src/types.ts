@@ -1,7 +1,7 @@
 // Tipos de datos del proyecto (lo que se guarda en proyecto.json)
 
 /** Versión actual del formato de proyecto.json (ver migrate.ts) */
-export const PROJECT_VERSION = 2
+export const PROJECT_VERSION = 3
 
 /** Texto ya generado de las 3 ranuras de Blockly de un foco */
 export interface FocusScripts {
@@ -41,6 +41,8 @@ export type IconRef = { kind: 'game'; gfx: string } | { kind: 'asset'; assetId: 
 export interface Focus {
   /** Identificador interno estable (no cambia aunque cambies el id) */
   uid: string
+  /** Árbol de focos al que pertenece */
+  treeId: string
   /** id que verá el juego, ej. GER_rearmar_ejercito */
   id: string
   name: string
@@ -83,10 +85,104 @@ export interface Idea {
   iconAuto: boolean
 }
 
+// ======================= Países =======================
+
+export type Ideology = 'democratic' | 'fascism' | 'communism' | 'neutrality'
+export const IDEOLOGIES: Ideology[] = ['democratic', 'fascism', 'communism', 'neutrality']
+export const IDEOLOGY_LABELS: Record<Ideology, string> = {
+  democratic: 'Democracia',
+  fascism: 'Fascismo',
+  communism: 'Comunismo',
+  neutrality: 'No alineado'
+}
+
+/** Nombre, nombre con artículo (TAG_DEF) y adjetivo (TAG_ADJ) */
+export interface CountryNames {
+  name: string
+  def: string
+  adj: string
+}
+
+export interface Party {
+  short: string
+  long: string
+}
+
+export interface Leader {
+  uid: string
+  /** Parte del id del personaje: TAG_<id> */
+  id: string
+  name: string
+  ideology: Ideology
+  subideology: string
+  /** PNG base64 156×210; null = retrato de relleno */
+  portrait: string | null
+  portraitSmall?: boolean
+}
+
+export interface CountryPolitics {
+  ruling: Ideology
+  /** Enteros que suman 100 */
+  popularities: Record<Ideology, number>
+  electionsAllowed: boolean
+  electionFrequency: number
+  /** "1932.1.1" */
+  lastElection: string
+  parties: Record<Ideology, Party>
+}
+
+export interface CountryFlags {
+  /** PNG base64 82×52; null = bandera de relleno */
+  main: string | null
+  mainSmall?: boolean
+  /** Banderas por ideología (las vacías usan la principal) */
+  byIdeology: Partial<Record<Ideology, string>>
+}
+
+/** Datos de un país EXISTENTE que se leen del juego */
+export interface ExistingCountryInfo {
+  /** Cambiar el nombre en el juego (localización en replace/) */
+  renameInGame: boolean
+  /** Nombre EXACTO del archivo de historia del juego, ej. "MEX - Mexico.txt" */
+  historyFile: string | null
+  /** Contenido original del archivo de historia (para copiar lo que no toqué) */
+  historyText: string | null
+  /** El usuario cambió capital, política o líder */
+  historyEdited: boolean
+}
+
+export interface Country {
+  uid: string
+  mode: 'nuevo' | 'existente'
+  tag: string
+  names: CountryNames
+  /** Nombres por ideología (vacío = usa el normal) */
+  ideologyNames: Record<Ideology, CountryNames>
+  /** RGB 0–255 */
+  color: [number, number, number]
+  graphicalCulture: string
+  graphicalCulture2d: string
+  politics: CountryPolitics
+  /** Id de estado (null = sin elegir) */
+  capital: number | null
+  flags: CountryFlags
+  leaders: Leader[]
+  focusTreeId: string | null
+  existing: ExistingCountryInfo
+}
+
+export interface FocusTree {
+  id: string
+  name: string
+}
+
 export interface Project {
   version: number
   modName: string
+  /** Tag con el que se creó el mod (compatibilidad); los países mandan */
   tag: string
+  countries: Country[]
+  focusTrees: FocusTree[]
   focuses: Focus[]
   ideas: Idea[]
   icons: IconAsset[]

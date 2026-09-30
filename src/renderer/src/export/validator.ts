@@ -1,6 +1,6 @@
 // Revisa el proyecto antes de exportar y devuelve avisos en español.
 import type { Project } from '../types'
-import { generateFocusTree } from '../generator/focusTree'
+import { generateAllFocusTrees } from '../generator/focusTree'
 import { generateIdeas } from '../generator/ideas'
 import { isKnownId, projectFlags, type GameCatalog } from '../catalog/catalog'
 import { planIconExport } from './gfx'
@@ -47,8 +47,7 @@ export function checkBraces(text: string): string | null {
 
 export function validateProject(project: Project, game: GameCatalog | null = null): Issue[] {
   const issues: Issue[] = []
-  const tagError = validateTag(project.tag)
-  if (tagError) issues.push({ severity: 'error', message: tagError })
+  // (los tags de los países se validan en countries/validateCountries.ts)
   if (!project.modName.trim())
     issues.push({ severity: 'error', message: 'El mod no tiene nombre.' })
   if (project.focuses.length === 0)
@@ -154,7 +153,7 @@ export function validateProject(project: Project, game: GameCatalog | null = nul
         focusUid: f.uid
       })
 
-    const pos = `${f.x},${f.y}`
+    const pos = `${f.treeId},${f.x},${f.y}`
     if (positions.has(pos))
       issues.push({
         severity: 'aviso',
@@ -223,12 +222,14 @@ export function validateProject(project: Project, game: GameCatalog | null = nul
         message: `El id "${id}" está repetido ${count} veces.`
       })
 
-  const braces = checkBraces(generateFocusTree(project))
-  if (braces)
-    issues.push({
-      severity: 'error',
-      message: `Llaves desbalanceadas: ${braces}`
-    })
+  for (const t of generateAllFocusTrees(project)) {
+    const braces = checkBraces(t.text)
+    if (braces)
+      issues.push({
+        severity: 'error',
+        message: `Llaves desbalanceadas en el árbol de ${t.tag}: ${braces}`
+      })
+  }
   const ideaBraces = project.ideas.length ? checkBraces(generateIdeas(project)) : null
   if (ideaBraces)
     issues.push({

@@ -6,6 +6,8 @@ import { PROJECT_VERSION, type Project } from '../types'
 import { createFocus } from './projectOps'
 import { migrateProject } from '../migrate'
 import { store } from '../store/appStore'
+import { newCountry } from '../countries/countryOps'
+import { getCatalogOptions } from '../catalog/catalog'
 
 function onOpen(project: Project, filePath: string | null): void {
   store.openProject(project, filePath)
@@ -21,16 +23,28 @@ export default function StartScreen(): JSX.Element {
     if (!modName.trim()) return setError('Escribe un nombre para el mod.')
     const tagError = validateTag(tag)
     if (tagError) return setError(tagError)
+    // El tag inicial crea el primer país (existente si el juego ya lo tiene) con su árbol
+    const known = getCatalogOptions('country', null, store.get().game).find((o) => o.id === tag)
+    const country = {
+      ...newCountry({
+        mode: known ? 'existente' : 'nuevo',
+        tag,
+        name: known?.etiqueta ?? modName.trim()
+      }),
+      focusTreeId: 'arbol_1'
+    }
     const empty: Project = {
       version: PROJECT_VERSION,
       modName: modName.trim(),
       tag,
+      countries: [country],
+      focusTrees: [{ id: 'arbol_1', name: `Árbol de ${country.names.name}` }],
       focuses: [],
       ideas: [],
       icons: [],
       countryFlags: []
     }
-    onOpen(createFocus(empty, 0, 0, 'Mi primer foco').project, null)
+    onOpen(createFocus(empty, 0, 0, 'Mi primer foco', 'arbol_1').project, null)
   }
 
   const open = async (): Promise<void> => {
