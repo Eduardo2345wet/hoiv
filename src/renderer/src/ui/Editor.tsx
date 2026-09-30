@@ -69,7 +69,10 @@ export default function Editor(): JSX.Element {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [statePick])
   const liveIssues = useMemo(
-    () => (tab === 'mapa' ? validateProject(project, game) : []),
+    () =>
+      tab === 'mapa'
+        ? validateProject(project, game, { map: store.get().map, gamePath: store.get().gamePath })
+        : [],
     [tab, project, game]
   )
   const lastValidatorMessage =
@@ -381,6 +384,10 @@ export default function Editor(): JSX.Element {
           issues={issues}
           onClose={() => setIssues(null)}
           onExportAnyway={() => void doExport()}
+          onGoState={(id) => {
+            setTab('mapa')
+            store.focusState(id)
+          }}
           onGoCountry={(uid, step) => {
             setTab('paises')
             setWizard({ uid, step })

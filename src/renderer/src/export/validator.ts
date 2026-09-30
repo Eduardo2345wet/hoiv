@@ -281,7 +281,21 @@ export function validateProject(
   }
 
   // ---- Mapa ----
-  if (mapCtx) issues.push(...validateMap(project, mapCtx))
+  if (mapCtx) {
+    issues.push(...validateMap(project, mapCtx))
+    // Con el mapa cargado ya sabemos qué países tienen estados: el aviso genérico sobra
+    const map = mapCtx.map
+    if (map) {
+      const owners = new Set(map.states.map((s) => project.stateEdits[s.id]?.owner ?? s.owner))
+      return issues.filter(
+        (i) =>
+          !(
+            i.message.includes('no aparece en la partida si no es dueño') &&
+            project.countries.some((c) => c.uid === i.countryUid && owners.has(c.tag))
+          )
+      )
+    }
+  }
 
   return issues
 }

@@ -10,6 +10,8 @@ interface Props {
   onSelectFocus: (uid: string) => void
   /** Abre el asistente del país en el paso indicado */
   onGoCountry: (countryUid: string, step: number) => void
+  /** Abre el mapa centrado en un estado */
+  onGoState: (stateId: number) => void
 }
 
 export default function ValidationDialog({
@@ -17,12 +19,14 @@ export default function ValidationDialog({
   onClose,
   onExportAnyway,
   onSelectFocus,
-  onGoCountry
+  onGoCountry,
+  onGoState
 }: Props): JSX.Element {
   const errors = issues.filter((i) => i.severity === 'error')
   const go = (i: Issue): void => {
     onClose()
-    if (i.countryUid) onGoCountry(i.countryUid, i.step ?? 0)
+    if (i.stateId) onGoState(i.stateId)
+    else if (i.countryUid) onGoCountry(i.countryUid, i.step ?? 0)
     else if (i.focusUid) onSelectFocus(i.focusUid)
   }
   return (
@@ -47,10 +51,16 @@ export default function ValidationDialog({
                 </span>
                 {i.message}
               </span>
-              {(i.focusUid || i.countryUid) && (
+              {(i.focusUid || i.countryUid || i.stateId) && (
                 <button
                   className="btn shrink-0 px-2 py-0.5 text-xs"
-                  title={i.countryUid ? `Abrir el paso "${STEPS[i.step ?? 0]}"` : 'Ir al foco'}
+                  title={
+                    i.stateId
+                      ? 'Centrar el mapa en el estado'
+                      : i.countryUid
+                        ? `Abrir el paso "${STEPS[i.step ?? 0]}"`
+                        : 'Ir al foco'
+                  }
                   onClick={() => go(i)}
                 >
                   Ir

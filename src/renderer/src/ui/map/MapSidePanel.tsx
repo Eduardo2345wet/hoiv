@@ -35,7 +35,11 @@ export default function MapSidePanel({ project, onOpenWizard, onGoTab }: Props):
         : [],
     [map, project, activeTag]
   )
-  const issues = useMemo(() => validateProject(project, game), [project, game])
+  const gamePath = useApp((s) => s.gamePath)
+  const issues = useMemo(
+    () => validateProject(project, game, { map, gamePath }),
+    [project, game, map, gamePath]
+  )
 
   // ---- Estado seleccionado ----
   if (state) {
