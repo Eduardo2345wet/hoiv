@@ -26,6 +26,8 @@ export interface GameCatalog {
   graphicalCultures2d?: string[]
   /** tag → nombre exacto del archivo de history/countries */
   historyFiles?: Record<string, string>
+  /** tag → color RGB del juego */
+  countryColors?: Record<string, [number, number, number]>
 }
 
 /** Marcas usadas en cualquier set_country_flag del proyecto + las creadas a mano */

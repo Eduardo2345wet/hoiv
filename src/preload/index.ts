@@ -16,5 +16,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
   readGameCatalog: (gamePath: string) => ipcRenderer.invoke('read-game-catalog', gamePath),
   readCountryHistory: (gamePath: string, fileName: string) =>
     ipcRenderer.invoke('read-country-history', gamePath, fileName),
+  loadMap: (gamePath: string) => ipcRenderer.invoke('load-map', gamePath),
+  onMapProgress: (cb: (p: { pct: number; message: string }) => void) => {
+    const listener = (_: unknown, p: { pct: number; message: string }): void => cb(p)
+    ipcRenderer.on('map-progress', listener)
+    return () => ipcRenderer.removeListener('map-progress', listener)
+  },
   exportMod: (payload: ExportModPayload) => ipcRenderer.invoke('export-mod', payload)
 })

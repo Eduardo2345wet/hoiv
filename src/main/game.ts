@@ -142,6 +142,8 @@ export interface GameCatalogResult {
   graphicalCultures: string[]
   graphicalCultures2d: string[]
   historyFiles: Record<string, string>
+  /** tag → color RGB de common/countries */
+  countryColors: Record<string, [number, number, number]>
 }
 
 const cache = new Map<string, GameCatalogResult>()
@@ -192,7 +194,21 @@ export function readGameCatalog(gamePath: string): GameCatalogResult | null {
     // sin carpeta de historia
   }
 
+  // Colores: country_tags (TAG = "countries/X.txt") → color = rgb { R G B } / { R G B }
+  const countryColors: Record<string, [number, number, number]> = {}
+  for (const t of readDir(tagsDir))
+    for (const m of stripComments(t).matchAll(/^\s*([A-Z][A-Z0-9]{2})\s*=\s*"([^"]+)"/gm)) {
+      try {
+        const txt = fs.readFileSync(path.join(gamePath, 'common', m[2]), 'utf-8')
+        const c = txt.match(/\bcolor\s*=\s*(?:rgb\s*)?\{\s*(\d+)\s+(\d+)\s+(\d+)/)
+        if (c) countryColors[m[1]] = [Number(c[1]), Number(c[2]), Number(c[3])]
+      } catch {
+        // archivo de país inexistente
+      }
+    }
+
   const result: GameCatalogResult = {
+    countryColors,
     countries: tags.map((t): [string, string] => [t, loc.get(t) ?? t]),
     ideas: ideas.map((i): [string, string] => [i, loc.get(i) ?? i]),
     states,

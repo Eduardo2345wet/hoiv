@@ -4,6 +4,7 @@ import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import fs from 'fs'
 import path from 'path'
 import { handleExportMod } from './export'
+import { loadRealMap } from './mapLoader'
 import {
   loadSettings,
   readCountryHistory,
@@ -129,6 +130,20 @@ app.whenReady().then(() => {
   ipcMain.handle('read-country-history', async (_, gamePath: string, fileName: string) =>
     readCountryHistory(gamePath, fileName)
   )
+
+  // ---- Mapa real (con progreso). Los arreglos viajan como arreglos tipados, no como JSON ----
+  ipcMain.handle('load-map', async (event, gamePath: string) => {
+    try {
+      const map = await loadRealMap(
+        gamePath,
+        path.join(app.getPath('userData'), 'cache'),
+        (pct, message) => event.sender.send('map-progress', { pct, message })
+      )
+      return { ok: true, map }
+    } catch (e) {
+      return { ok: false, error: e instanceof Error ? e.message : String(e) }
+    }
+  })
 
   ipcMain.handle('export-mod', async (_, payload) => {
     return handleExportMod(payload)

@@ -1,3 +1,5 @@
+import type { MapData } from '../shared/map/types'
+
 export interface ExportModPayload {
   exportPath: string
   modName: string
@@ -21,6 +23,7 @@ export interface GameCatalogData {
   graphicalCultures?: string[]
   graphicalCultures2d?: string[]
   historyFiles?: Record<string, string>
+  countryColors?: Record<string, [number, number, number]>
 }
 
 export interface ElectronAPI {
@@ -41,6 +44,10 @@ export interface ElectronAPI {
     gamePath: string,
     fileName: string
   ) => Promise<{ fileName: string; text: string } | null>
+  /** Carga el mapa real (con progreso por onMapProgress) */
+  loadMap: (gamePath: string) => Promise<{ ok: true; map: MapData } | { ok: false; error: string }>
+  /** Suscribirse al progreso de carga del mapa; devuelve la función para desuscribirse */
+  onMapProgress: (cb: (p: { pct: number; message: string }) => void) => () => void
   exportMod: (
     payload: ExportModPayload
   ) => Promise<{ success: boolean; error?: string; modFolder?: string }>

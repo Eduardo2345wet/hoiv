@@ -5,7 +5,7 @@ import { useSyncExternalStore } from 'react'
 import type { Project } from '../types'
 import type { CatalogKind, GameCatalog } from '../catalog/catalog'
 import type { MapData } from '../../../shared/map/types'
-import { DEMO_COUNTRY_NAMES } from '../../../shared/map/demo'
+import { DEMO_COUNTRY_NAMES, generateDemoMap } from '../../../shared/map/demo'
 
 /** Pedido genérico de "elige un elemento haciendo clic" (focos ahora, estados en el mapa después) */
 export interface PickRequest {
@@ -211,6 +211,25 @@ export const store = {
     const value: GameCatalog = { ideas: [], ...game, countries, states }
     catalogMemo = { game, map, value }
     return value
+  },
+
+  /** Carga el mapa: el REAL si hay carpeta del juego, si no el de DEMOSTRACIÓN */
+  async loadMap(forceDemo = false): Promise<void> {
+    const api = window.electronAPI
+    const gamePath = state.gamePath
+    if (forceDemo || !gamePath || !api) {
+      store.set({ map: generateDemoMap(), mapLoading: null, mapError: null })
+      return
+    }
+    store.set({ mapLoading: { pct: 0, message: 'Preparando…' }, mapError: null })
+    const off = api.onMapProgress((p) => store.set({ mapLoading: p }))
+    try {
+      const res = await api.loadMap(gamePath)
+      if (res.ok) store.set({ map: res.map, mapLoading: null })
+      else store.set({ mapLoading: null, mapError: res.error })
+    } finally {
+      off()
+    }
   },
 
   /** Centrar el mapa en un estado */
