@@ -1,6 +1,6 @@
 // Pantalla principal: barra superior, pestañas (focos, espíritus, biblioteca),
 // lienzo, panel del foco, bloques y vista previa
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   ArrowLeft,
   Download,
@@ -23,6 +23,7 @@ import ValidationDialog from './ValidationDialog'
 import IdeasTab from './IdeasTab'
 import CountriesTab from './CountriesTab'
 import TreeSelector from './TreeSelector'
+import MapTab from './map/MapTab'
 import CountryWizard from './wizard/CountryWizard'
 import LibraryTab from './LibraryTab'
 import SettingsDialog from './SettingsDialog'
@@ -37,7 +38,7 @@ import {
   updateFocus
 } from './projectOps'
 
-type Tab = 'focos' | 'paises' | 'ideas' | 'iconos'
+type Tab = 'focos' | 'mapa' | 'paises' | 'ideas' | 'iconos'
 
 export default function Editor(): JSX.Element {
   const project = useApp((s) => s.project) as Project
@@ -48,6 +49,31 @@ export default function Editor(): JSX.Element {
   const canUndo = useApp((s) => s.past.length > 0)
   const canRedo = useApp((s) => s.future.length > 0)
   const [tab, setTab] = useState<Tab>('focos')
+  // El mapa se monta la primera vez que se abre y luego se mantiene (no se recarga)
+  const [mapMounted, setMapMounted] = useState(false)
+  useEffect(() => {
+    if (tab === 'mapa') setMapMounted(true)
+  }, [tab])
+  // "🗺 Elegir en el mapa…": abrir la pestaña Mapa y volver a donde estaba al terminar
+  const statePick = useApp((s) => s.pick?.kind === 'state')
+  const prevTab = useRef<Tab | null>(null)
+  useEffect(() => {
+    if (statePick && tab !== 'mapa') {
+      prevTab.current = tab
+      setTab('mapa')
+    } else if (!statePick && prevTab.current) {
+      setTab(prevTab.current)
+      prevTab.current = null
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [statePick])
+  const liveIssues = useMemo(
+    () => (tab === 'mapa' ? validateProject(project, game) : []),
+    [tab, project, game]
+  )
+  const lastValidatorMessage =
+    (liveIssues.find((i) => i.severity === 'error') ?? liveIssues[0])?.message ??
+    'Validador: sin problemas'
   const [tool, setTool] = useState<Tool>('select')
   const [issues, setIssues] = useState<Issue[] | null>(null)
   const [status, setStatus] = useState('')
@@ -259,11 +285,22 @@ export default function Editor(): JSX.Element {
       {/* Pestañas */}
       <nav className="flex shrink-0 border-b border-hoi-border bg-hoi-panel px-2">
         {tabBtn('focos', 'Árbol de focos')}
+        {tabBtn('mapa', 'Mapa')}
         {tabBtn('paises', `Países (${project.countries.length})`)}
         {tabBtn('ideas', `Espíritus nacionales (${project.ideas.length})`)}
         {tabBtn('iconos', `Biblioteca de íconos (${project.icons.length})`)}
       </nav>
 
+      {mapMounted && (
+        <div className={tab === 'mapa' ? 'min-h-0 flex-1' : 'hidden'}>
+          <MapTab
+            project={project}
+            onOpenWizard={(uid, step) => setWizard({ uid, step })}
+            onGoTab={setTab}
+            lastValidatorMessage={lastValidatorMessage}
+          />
+        </div>
+      )}
       {tab === 'paises' && (
         <div className="min-h-0 flex-1">
           <CountriesTab project={project} onOpenWizard={(uid, step) => setWizard({ uid, step })} />
