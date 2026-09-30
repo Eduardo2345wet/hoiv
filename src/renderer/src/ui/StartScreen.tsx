@@ -2,14 +2,21 @@
 import { useState } from 'react'
 import { FolderOpen, Plus } from 'lucide-react'
 import { validateTag } from '../export/validator'
-import type { Project } from '../types'
+import { PROJECT_VERSION, type Project } from '../types'
 import { createFocus } from './projectOps'
+import { migrateProject } from '../migrate'
+import { store } from '../store/appStore'
 
-interface Props {
-  onOpen: (project: Project, filePath: string | null) => void
+function onOpen(project: Project, filePath: string | null): void {
+  store.set({
+    project,
+    filePath,
+    dirty: false,
+    selectedUid: project.focuses[0]?.uid ?? null
+  })
 }
 
-export default function StartScreen({ onOpen }: Props): JSX.Element {
+export default function StartScreen(): JSX.Element {
   const [showForm, setShowForm] = useState(false)
   const [modName, setModName] = useState('')
   const [tag, setTag] = useState('')
@@ -19,18 +26,24 @@ export default function StartScreen({ onOpen }: Props): JSX.Element {
     if (!modName.trim()) return setError('Escribe un nombre para el mod.')
     const tagError = validateTag(tag)
     if (tagError) return setError(tagError)
-    const first = createFocus(tag, [], 0, 0)
-    first.name = 'Mi primer foco'
-    onOpen({ version: 1, modName: modName.trim(), tag, focuses: [first] }, null)
+    const empty: Project = {
+      version: PROJECT_VERSION,
+      modName: modName.trim(),
+      tag,
+      focuses: [],
+      ideas: [],
+      icons: [],
+      countryFlags: []
+    }
+    onOpen(createFocus(empty, 0, 0, 'Mi primer foco').project, null)
   }
 
   const open = async (): Promise<void> => {
     const res = await window.electronAPI?.openProjectDialog()
     if (!res) return
     try {
-      const data = JSON.parse(res.content) as Project
-      if (!Array.isArray(data.focuses) || !data.tag) throw new Error()
-      onOpen(data, res.path)
+      // Migración automática: los proyectos viejos abren sin error
+      onOpen(migrateProject(JSON.parse(res.content)), res.path)
     } catch {
       setError('Ese archivo no es un proyecto válido de HOI4 Mod Studio.')
     }
@@ -40,7 +53,9 @@ export default function StartScreen({ onOpen }: Props): JSX.Element {
     <div className="flex h-screen w-screen flex-col items-center justify-center gap-8 bg-hoi-bg">
       <div className="text-center">
         <h1 className="text-4xl font-bold text-hoi-accent">HOI4 Mod Studio</h1>
-        <p className="mt-2 text-hoi-muted">Crea árboles de focos para Hearts of Iron IV sin escribir código</p>
+        <p className="mt-2 text-hoi-muted">
+          Crea árboles de focos para Hearts of Iron IV sin escribir código
+        </p>
       </div>
 
       {!showForm ? (

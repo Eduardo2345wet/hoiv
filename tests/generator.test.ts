@@ -27,8 +27,17 @@ function workspaceWithBlocks(): Blockly.Workspace {
               BODY: {
                 block: {
                   type: 'cond_not',
-                  inputs: { CHILDREN: { block: { type: 'cond_has_war', fields: { VALUE: 'yes' } } } },
-                  next: { block: { type: 'cond_date_after', fields: { YEAR: 1938, MONTH: 3, DAY: 1 } } }
+                  inputs: {
+                    CHILDREN: {
+                      block: { type: 'cond_has_war', fields: { VALUE: 'yes' } }
+                    }
+                  },
+                  next: {
+                    block: {
+                      type: 'cond_date_after',
+                      fields: { YEAR: 1938, MONTH: 3, DAY: 1 }
+                    }
+                  }
                 }
               }
             }
@@ -45,7 +54,9 @@ function workspaceWithBlocks(): Blockly.Workspace {
                     block: {
                       type: 'eff_if',
                       inputs: {
-                        LIMIT: { block: { type: 'cond_tag', fields: { TAG: 'ger' } } },
+                        LIMIT: {
+                          block: { type: 'cond_tag', fields: { TAG: 'ger' } }
+                        },
                         DO: {
                           block: {
                             type: 'eff_state_scope',
@@ -54,7 +65,10 @@ function workspaceWithBlocks(): Blockly.Workspace {
                               DO: {
                                 block: {
                                   type: 'eff_add_building_construction',
-                                  fields: { LEVEL: 2, BUILDING: 'arms_factory' }
+                                  fields: {
+                                    LEVEL: 2,
+                                    BUILDING: 'arms_factory'
+                                  }
                                 }
                               }
                             }
@@ -96,14 +110,24 @@ describe('generador PDX', () => {
   })
 })
 
-function sampleProject(): Project {
-  const a = createFocus('MEX', [], 0, 0)
-  const b = createFocus('MEX', [a], 0, 1)
+export function sampleProject(): Project {
+  let p: Project = {
+    version: 2,
+    modName: 'Mi Mod México',
+    tag: 'MEX',
+    focuses: [],
+    ideas: [],
+    icons: [],
+    countryFlags: []
+  }
+  const ra = createFocus(p, 0, 0)
+  const rb = createFocus(ra.project, 0, 1)
+  p = rb.project
+  const [a, b] = p.focuses
   a.name = 'Industria "moderna"'
   b.name = 'Ejército'
   b.scripts = { ...generateSlots(workspaceWithBlocks()) }
   a.scripts.reward = '\tadd_political_power = 100\n'
-  let p: Project = { version: 1, modName: 'Mi Mod México', tag: 'MEX', focuses: [a, b] }
   p = togglePrerequisite(p, a.uid, b.uid)
   return p
 }
@@ -176,7 +200,9 @@ describe('exportación', () => {
     const folder = path.join(dir, 'mi_mod_mexico')
     const outer = fs.readFileSync(path.join(dir, 'mi_mod_mexico.mod'))
     const desc = fs.readFileSync(path.join(folder, 'descriptor.mod'))
-    const loc = fs.readFileSync(path.join(folder, 'localisation/english/mi_mod_mexico_l_english.yml'))
+    const loc = fs.readFileSync(
+      path.join(folder, 'localisation/english/mi_mod_mexico_l_english.yml')
+    )
     expect(outer.toString()).toContain('path="')
     expect(desc[0]).not.toBe(0xef)
     expect([loc[0], loc[1], loc[2]]).toEqual([0xef, 0xbb, 0xbf])

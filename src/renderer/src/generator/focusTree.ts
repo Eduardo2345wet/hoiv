@@ -1,6 +1,7 @@
 // Convierte el proyecto completo en los textos finales del mod:
 // el archivo del árbol de focos y el archivo de localización.
 import type { Focus, Project } from '../types'
+import { planIconExport } from '../export/gfx'
 
 /** Añade un nivel de tabulación a cada línea no vacía */
 function indent(code: string, tabs: number): string {
@@ -18,10 +19,10 @@ function section(key: string, body: string): string {
   return `${key} = {\n${indent(clean.replace(/^\t/gm, ''), 1)}\n}\n`
 }
 
-function focusToScript(focus: Focus, byUid: Map<string, Focus>): string {
+function focusToScript(focus: Focus, byUid: Map<string, Focus>, icon: string): string {
   const lines: string[] = []
   lines.push(`id = ${focus.id}`)
-  lines.push(`icon = ${focus.icon}`)
+  lines.push(`icon = ${icon}`)
   lines.push(`x = ${focus.x}`)
   lines.push(`y = ${focus.y}`)
   lines.push(`cost = ${focus.cost}`)
@@ -31,7 +32,9 @@ function focusToScript(focus: Focus, byUid: Map<string, Focus>): string {
     lines.push(`prerequisite = { focus = ${p ? p.id : 'FOCO_BORRADO'} }`)
   }
   if (focus.mutuallyExclusive.length) {
-    const ids = focus.mutuallyExclusive.map((uid) => `focus = ${byUid.get(uid)?.id ?? 'FOCO_BORRADO'}`)
+    const ids = focus.mutuallyExclusive.map(
+      (uid) => `focus = ${byUid.get(uid)?.id ?? 'FOCO_BORRADO'}`
+    )
     lines.push(`mutually_exclusive = { ${ids.join(' ')} }`)
   }
   let body = lines.join('\n') + '\n'
@@ -56,7 +59,10 @@ export function generateFocusTree(project: Project): string {
     '}',
     'default = no'
   ].join('\n')
-  const focuses = project.focuses.map((f) => focusToScript(f, byUid)).join('\n\n')
+  const plan = planIconExport(project)
+  const focuses = project.focuses
+    .map((f) => focusToScript(f, byUid, plan.focusIcon.get(f.uid) ?? 'GFX_goal_unknown'))
+    .join('\n\n')
   return `focus_tree = {\n${indent(header, 1)}\n\n${indent(focuses, 1)}\n}\n`
 }
 
@@ -71,6 +77,10 @@ export function generateLocalisation(project: Project): string {
   for (const f of project.focuses) {
     lines.push(` ${f.id}:0 "${locText(f.name)}"`)
     lines.push(` ${f.id}_desc:0 "${locText(f.description)}"`)
+  }
+  for (const i of project.ideas) {
+    lines.push(` ${i.id}:0 "${locText(i.name)}"`)
+    lines.push(` ${i.id}_desc:0 "${locText(i.description)}"`)
   }
   return lines.join('\n') + '\n'
 }

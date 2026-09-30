@@ -64,7 +64,13 @@ export const effectBlocks = [
   {
     type: 'eff_add_ideas',
     message0: 'Añadir espíritu nacional %1',
-    args0: [{ type: 'field_input', name: 'IDEA', text: 'id_de_idea' }],
+    args0: [{ type: 'field_catalog', name: 'IDEA', kind: 'idea', value: '' }],
+    ...base
+  },
+  {
+    type: 'eff_remove_ideas',
+    message0: 'Quitar espíritu nacional %1',
+    args0: [{ type: 'field_catalog', name: 'IDEA', kind: 'idea', value: '' }],
     ...base
   },
   {
@@ -89,7 +95,7 @@ export const effectBlocks = [
     type: 'eff_declare_war_on',
     message0: 'Declarar la guerra a %1 con objetivo %2',
     args0: [
-      { type: 'field_input', name: 'TAG', text: 'FRA' },
+      { type: 'field_catalog', name: 'TAG', kind: 'country', value: 'FRA' },
       { type: 'field_dropdown', name: 'WARGOAL', options: WAR_GOALS }
     ],
     ...base
@@ -99,7 +105,7 @@ export const effectBlocks = [
     message0: 'Crear objetivo de guerra %1 contra %2',
     args0: [
       { type: 'field_dropdown', name: 'WARGOAL', options: WAR_GOALS },
-      { type: 'field_input', name: 'TAG', text: 'FRA' }
+      { type: 'field_catalog', name: 'TAG', kind: 'country', value: 'FRA' }
     ],
     ...base
   },
@@ -113,13 +119,13 @@ export const effectBlocks = [
   {
     type: 'eff_add_to_faction',
     message0: 'Añadir a %1 a mi facción',
-    args0: [{ type: 'field_input', name: 'TAG', text: 'ITA' }],
+    args0: [{ type: 'field_catalog', name: 'TAG', kind: 'country', value: 'ITA' }],
     ...base
   },
   {
     type: 'eff_puppet',
     message0: 'Convertir a %1 en títere',
-    args0: [{ type: 'field_input', name: 'TAG', text: 'AUS' }],
+    args0: [{ type: 'field_catalog', name: 'TAG', kind: 'country', value: 'AUS' }],
     ...base
   },
   {
@@ -184,8 +190,9 @@ export const effectBlocks = [
   },
   {
     type: 'eff_set_country_flag',
-    message0: 'Activar la bandera %1',
-    args0: [{ type: 'field_input', name: 'FLAG', text: 'mi_bandera' }],
+    message0: 'Poner la marca %1',
+    args0: [{ type: 'field_catalog', name: 'FLAG', kind: 'countryFlag', value: '' }],
+    tooltip: 'Marca = variable del script (set_country_flag), no la bandera del país',
     ...base
   },
   {

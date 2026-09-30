@@ -4,6 +4,7 @@ import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import fs from 'fs'
 import path from 'path'
 import { handleExportMod } from './export'
+import { loadSettings, readGameCatalog, saveSettings, type Settings } from './game'
 
 function createWindow(): void {
   const mainWindow = new BrowserWindow({
@@ -42,9 +43,14 @@ app.whenReady().then(() => {
 
   // IPC Handlers
   ipcMain.handle('select-folder', async () => {
-    const defaultModDir = path.join(app.getPath('documents'), 'Paradox Interactive', 'Hearts of Iron IV', 'mod')
+    const defaultModDir = path.join(
+      app.getPath('documents'),
+      'Paradox Interactive',
+      'Hearts of Iron IV',
+      'mod'
+    )
     const defaultPath = fs.existsSync(defaultModDir) ? defaultModDir : app.getPath('documents')
-    
+
     const result = await dialog.showOpenDialog({
       properties: ['openDirectory', 'createDirectory'],
       defaultPath
@@ -56,22 +62,30 @@ app.whenReady().then(() => {
   })
 
   ipcMain.handle('get-default-mod-path', async () => {
-    const defaultModDir = path.join(app.getPath('documents'), 'Paradox Interactive', 'Hearts of Iron IV', 'mod')
+    const defaultModDir = path.join(
+      app.getPath('documents'),
+      'Paradox Interactive',
+      'Hearts of Iron IV',
+      'mod'
+    )
     return defaultModDir
   })
 
-  ipcMain.handle('save-project-dialog', async (_, content: string, defaultName = 'proyecto.json') => {
-    const result = await dialog.showSaveDialog({
-      title: 'Guardar proyecto',
-      defaultPath: defaultName,
-      filters: [{ name: 'HOI4 Mod Studio Project', extensions: ['json'] }]
-    })
-    if (!result.canceled && result.filePath) {
-      fs.writeFileSync(result.filePath, content, 'utf-8')
-      return result.filePath
+  ipcMain.handle(
+    'save-project-dialog',
+    async (_, content: string, defaultName = 'proyecto.json') => {
+      const result = await dialog.showSaveDialog({
+        title: 'Guardar proyecto',
+        defaultPath: defaultName,
+        filters: [{ name: 'HOI4 Mod Studio Project', extensions: ['json'] }]
+      })
+      if (!result.canceled && result.filePath) {
+        fs.writeFileSync(result.filePath, content, 'utf-8')
+        return result.filePath
+      }
+      return null
     }
-    return null
-  })
+  )
 
   ipcMain.handle('save-project-to-path', async (_, filePath: string, content: string) => {
     if (!filePath.toLowerCase().endsWith('.json')) return false
@@ -92,6 +106,19 @@ app.whenReady().then(() => {
     }
     return null
   })
+
+  // ---- Ajustes y juego base (opcional) ----
+  const settingsFile = path.join(app.getPath('userData'), 'settings.json')
+  ipcMain.handle('get-settings', async () => loadSettings(settingsFile))
+  ipcMain.handle('set-settings', async (_, s: Settings) => saveSettings(settingsFile, s))
+  ipcMain.handle('select-game-folder', async () => {
+    const result = await dialog.showOpenDialog({
+      title: 'Carpeta de instalación de Hearts of Iron IV',
+      properties: ['openDirectory']
+    })
+    return result.canceled ? null : result.filePaths[0]
+  })
+  ipcMain.handle('read-game-catalog', async (_, gamePath: string) => readGameCatalog(gamePath))
 
   ipcMain.handle('export-mod', async (_, payload) => {
     return handleExportMod(payload)

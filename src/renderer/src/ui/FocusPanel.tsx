@@ -1,20 +1,18 @@
 // Panel lateral con los datos del foco seleccionado
-import { Trash2 } from "lucide-react";
-import type { Focus } from "../types";
-import { FOCUS_ICONS } from "./icons";
-import { ID_REGEX } from "../export/validator";
+import { Trash2 } from 'lucide-react'
+import type { Focus, Project } from '../types'
+import { ID_REGEX } from '../export/validator'
+import { store } from '../store/appStore'
+import { renameFocusId, setFocusName, updateFocus } from './projectOps'
+import IconField from './IconField'
 
 interface Props {
-  focus: Focus | null;
-  onChange: (patch: Partial<Focus>) => void;
-  onDelete: () => void;
+  project: Project
+  focus: Focus | null
+  onDelete: () => void
 }
 
-export default function FocusPanel({
-  focus,
-  onChange,
-  onDelete,
-}: Props): JSX.Element {
+export default function FocusPanel({ project, focus, onDelete }: Props): JSX.Element {
   if (!focus)
     return (
       <div className="p-4 text-sm text-hoi-muted">
@@ -23,9 +21,14 @@ export default function FocusPanel({
         <br />
         Haz doble clic en la cuadrícula para crear uno.
       </div>
-    );
+    )
 
-  const idOk = ID_REGEX.test(focus.id);
+  const uid = focus.uid
+  const patch = (p: Partial<Focus>): void => store.updateProject((pr) => updateFocus(pr, uid, p))
+  const idOk = ID_REGEX.test(focus.id)
+  const dup = project.focuses.some((f) => f.uid !== uid && f.id === focus.id)
+  const int = (v: string): number => Math.max(0, Math.round(Number(v)))
+
   return (
     <>
       {/* Encabezado fijo */}
@@ -35,36 +38,47 @@ export default function FocusPanel({
       {/* Contenido con scroll vertical */}
       <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto p-4">
         <div>
-          <label className="label">ID (interno, sin espacios)</label>
-          <input
-            className={`input font-mono ${idOk ? "" : "border-red-500"}`}
-            value={focus.id}
-            onChange={(e) =>
-              onChange({ id: e.target.value.replace(/\s/g, "_") })
-            }
-          />
-          {!idOk && (
-            <p className="mt-1 text-xs text-red-400">
-              Solo letras sin tildes, números y _
-            </p>
-          )}
-        </div>
-
-        <div>
           <label className="label">Nombre</label>
           <input
             className="input"
             value={focus.name}
-            onChange={(e) => onChange({ name: e.target.value })}
+            onChange={(e) => store.updateProject((p) => setFocusName(p, uid, e.target.value))}
           />
         </div>
 
         <div>
+          <label className="label">ID (interno, sin espacios)</label>
+          <input
+            className={`input font-mono ${idOk && !dup ? '' : 'border-red-500'}`}
+            value={focus.id}
+            onChange={(e) =>
+              store.updateProject((p) => renameFocusId(p, uid, e.target.value.replace(/\s/g, '_')))
+            }
+          />
+          {!idOk && (
+            <p className="mt-1 text-xs text-red-400">Solo letras sin tildes, números y _</p>
+          )}
+          {dup && <p className="mt-1 text-xs text-red-400">Ya hay otro foco con este id</p>}
+          <p className="mt-1 text-[10px] text-hoi-muted">
+            Al cambiarlo se actualizan sus referencias en los bloques.
+          </p>
+        </div>
+
+        <IconField
+          project={project}
+          target="focus"
+          ownerUid={uid}
+          ownerName={focus.name}
+          icon={focus.icon}
+          iconAuto={focus.iconAuto}
+        />
+
+        <div>
           <label className="label">Descripción</label>
           <textarea
-            className="input h-24 resize-none"
+            className="input h-20 resize-none"
             value={focus.description}
-            onChange={(e) => onChange({ description: e.target.value })}
+            onChange={(e) => patch({ description: e.target.value })}
           />
         </div>
 
@@ -75,15 +89,9 @@ export default function FocusPanel({
             min={1}
             className="input"
             value={focus.cost}
-            onChange={(e) =>
-              onChange({
-                cost: Math.max(0, Math.round(Number(e.target.value))),
-              })
-            }
+            onChange={(e) => patch({ cost: int(e.target.value) })}
           />
-          <p className="mt-1 text-xs text-hoi-muted">
-            = {focus.cost * 7} días en el juego
-          </p>
+          <p className="mt-1 text-xs text-hoi-muted">= {focus.cost * 7} días en el juego</p>
         </div>
 
         <div className="flex gap-2">
@@ -94,9 +102,7 @@ export default function FocusPanel({
               min={0}
               className="input"
               value={focus.x}
-              onChange={(e) =>
-                onChange({ x: Math.max(0, Math.round(Number(e.target.value))) })
-              }
+              onChange={(e) => patch({ x: int(e.target.value) })}
             />
           </div>
           <div className="flex-1">
@@ -106,43 +112,15 @@ export default function FocusPanel({
               min={0}
               className="input"
               value={focus.y}
-              onChange={(e) =>
-                onChange({ y: Math.max(0, Math.round(Number(e.target.value))) })
-              }
+              onChange={(e) => patch({ y: int(e.target.value) })}
             />
           </div>
         </div>
 
-        <div>
-          <label className="label">Ícono</label>
-          <div className="grid max-h-48 grid-cols-6 gap-1 overflow-y-auto rounded border border-hoi-border p-1">
-            {FOCUS_ICONS.map(([gfx, label, emoji]) => (
-              <button
-                key={gfx}
-                title={`${label}\n${gfx}`}
-                onClick={() => onChange({ icon: gfx })}
-                className={`rounded p-1 text-xl hover:bg-hoi-card ${
-                  focus.icon === gfx
-                    ? "bg-hoi-accent/30 ring-1 ring-hoi-accent"
-                    : ""
-                }`}
-              >
-                {emoji}
-              </button>
-            ))}
-          </div>
-          <p className="mt-1 break-all font-mono text-[10px] text-hoi-muted">
-            {focus.icon}
-          </p>
-        </div>
-
-        <button
-          className="btn mt-2 justify-center text-red-400"
-          onClick={onDelete}
-        >
+        <button className="btn mt-2 justify-center text-red-400" onClick={onDelete}>
           <Trash2 size={16} /> Borrar foco
         </button>
       </div>
     </>
-  );
+  )
 }

@@ -5,6 +5,7 @@ import * as Es from 'blockly/msg/es'
 import { registerConditionBlocks, conditionBlocks } from './conditions'
 import { registerEffectBlocks, effectBlocks } from './effects'
 import { registerSlotBlocks } from './slots'
+import { registerFieldCatalog } from './fieldCatalog'
 import { COLOR_CONDITION, COLOR_EFFECT, COLOR_STATE } from './checks'
 
 let registered = false
@@ -13,6 +14,7 @@ export function registerAllBlocks(): void {
   if (registered) return
   registered = true
   Blockly.setLocale(Es as unknown as { [key: string]: string })
+  registerFieldCatalog()
   registerSlotBlocks()
   registerConditionBlocks()
   registerEffectBlocks()

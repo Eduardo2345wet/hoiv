@@ -1,8 +1,9 @@
 // Lienzo del árbol de focos: cuadrícula con zoom, desplazamiento,
 // arrastre de focos (se ajustan a la cuadrícula) y conexión de líneas.
-import { useRef, useState } from 'react'
-import type { Focus } from '../types'
-import { iconEmoji } from './icons'
+import { useEffect, useRef, useState } from 'react'
+import type { Focus, Project } from '../types'
+import { store, useApp } from '../store/appStore'
+import IconThumb from './IconThumb'
 
 // Tamaño de una casilla de la cuadrícula en píxeles (x=1 en el juego = 1 casilla)
 export const CELL_W = 120
@@ -13,6 +14,7 @@ const NODE_H = 96
 export type Tool = 'select' | 'prereq' | 'exclusive'
 
 interface Props {
+  project: Project
   focuses: Focus[]
   selected: string | null
   tool: Tool
@@ -35,6 +37,19 @@ export default function FocusCanvas(props: Props): JSX.Element {
   const [zoom, setZoom] = useState(1)
   const [linkFrom, setLinkFrom] = useState<string | null>(null)
   const boxRef = useRef<HTMLDivElement>(null)
+  const [hover, setHover] = useState<string | null>(null)
+  // Modo selección genérico del store (ej. "completó el foco" → 🎯 Elegir en el árbol)
+  const pick = useApp((s) => (s.pick?.kind === 'focus' ? s.pick : null))
+
+  // Esc cancela el modo selección aunque el teclado esté en Blockly
+  useEffect(() => {
+    if (!pick) return
+    const onKey = (e: KeyboardEvent): void => {
+      if (e.key === 'Escape') store.cancelPick()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [pick])
   // Qué se está arrastrando ahora mismo
   const drag = useRef<
     | { kind: 'pan'; sx: number; sy: number; px: number; py: number }
@@ -45,7 +60,10 @@ export default function FocusCanvas(props: Props): JSX.Element {
   /** Convierte coordenadas del ratón a coordenadas del lienzo (sin zoom/desplazamiento) */
   const toWorld = (clientX: number, clientY: number): { x: number; y: number } => {
     const r = boxRef.current!.getBoundingClientRect()
-    return { x: (clientX - r.left - pan.x) / zoom, y: (clientY - r.top - pan.y) / zoom }
+    return {
+      x: (clientX - r.left - pan.x) / zoom,
+      y: (clientY - r.top - pan.y) / zoom
+    }
   }
 
   const onWheel = (e: React.WheelEvent): void => {
@@ -54,13 +72,28 @@ export default function FocusCanvas(props: Props): JSX.Element {
     const my = e.clientY - r.top
     const next = Math.min(2.5, Math.max(0.25, zoom * (e.deltaY < 0 ? 1.1 : 1 / 1.1)))
     // Mantener el punto bajo el ratón en su sitio al hacer zoom
-    setPan({ x: mx - ((mx - pan.x) * next) / zoom, y: my - ((my - pan.y) * next) / zoom })
+    setPan({
+      x: mx - ((mx - pan.x) * next) / zoom,
+      y: my - ((my - pan.y) * next) / zoom
+    })
     setZoom(next)
   }
 
   const onBackgroundDown = (e: React.PointerEvent): void => {
     ;(e.target as Element).setPointerCapture?.(e.pointerId)
-    drag.current = { kind: 'pan', sx: e.clientX, sy: e.clientY, px: pan.x, py: pan.y }
+    drag.current = {
+      kind: 'pan',
+      sx: e.clientX,
+      sy: e.clientY,
+      px: pan.x,
+      py: pan.y
+    }
+    if (pick && e.button === 0) {
+      // Clic en vacío: cancelar sin cambios
+      store.cancelPick()
+      drag.current = null
+      return
+    }
     if (e.button === 0) {
       props.onSelect(null)
       setLinkFrom(null)
@@ -71,6 +104,10 @@ export default function FocusCanvas(props: Props): JSX.Element {
     e.stopPropagation()
     boxRef.current?.focus()
     if (e.button !== 0) return
+    if (pick) {
+      store.finishPick(f.uid)
+      return
+    }
     if (tool !== 'select') {
       // Modo conexión: primer clic = origen, segundo clic = destino
       if (!linkFrom) setLinkFrom(f.uid)
@@ -83,7 +120,12 @@ export default function FocusCanvas(props: Props): JSX.Element {
     props.onSelect(f.uid)
     const w = toWorld(e.clientX, e.clientY)
     ;(e.currentTarget as Element).setPointerCapture(e.pointerId)
-    drag.current = { kind: 'node', uid: f.uid, offX: w.x - cx(f.x), offY: w.y - cy(f.y) }
+    drag.current = {
+      kind: 'node',
+      uid: f.uid,
+      offX: w.x - cx(f.x),
+      offY: w.y - cy(f.y)
+    }
   }
 
   const onPointerMove = (e: React.PointerEvent): void => {
@@ -128,7 +170,7 @@ export default function FocusCanvas(props: Props): JSX.Element {
       tabIndex={0}
       className="relative h-full w-full overflow-hidden outline-none"
       style={{
-        cursor: tool === 'select' ? 'default' : 'crosshair',
+        cursor: pick || tool !== 'select' ? 'crosshair' : 'default',
         backgroundColor: '#141417',
         backgroundImage:
           'linear-gradient(#26262e 1px, transparent 1px), linear-gradient(90deg, #26262e 1px, transparent 1px)',
@@ -145,7 +187,10 @@ export default function FocusCanvas(props: Props): JSX.Element {
     >
       <div
         className="absolute left-0 top-0"
-        style={{ transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`, transformOrigin: '0 0' }}
+        style={{
+          transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
+          transformOrigin: '0 0'
+        }}
       >
         {/* Líneas (debajo de las cajas) */}
         <svg width={width} height={height} className="absolute left-0 top-0 overflow-visible">
@@ -181,7 +226,14 @@ export default function FocusCanvas(props: Props): JSX.Element {
               onClick={() => props.onUnlinkExclusive(a.uid, b.uid)}
             >
               <title>Mutuamente excluyente (clic para borrar)</title>
-              <line x1={cx(a.x)} y1={cy(a.y)} x2={cx(b.x)} y2={cy(b.y)} stroke="transparent" strokeWidth={12} />
+              <line
+                x1={cx(a.x)}
+                y1={cy(a.y)}
+                x2={cx(b.x)}
+                y2={cy(b.y)}
+                stroke="transparent"
+                strokeWidth={12}
+              />
               <line
                 x1={cx(a.x)}
                 y1={cy(a.y)}
@@ -199,24 +251,41 @@ export default function FocusCanvas(props: Props): JSX.Element {
         {focuses.map((f) => {
           const isSel = f.uid === selected
           const isLink = f.uid === linkFrom
+          const excluded = !!pick?.exclude.includes(f.uid)
+          const pickHover = !!pick && !excluded && hover === f.uid
+          const border = pickHover
+            ? 'border-amber-400 bg-amber-500/20'
+            : isLink
+              ? 'border-sky-400'
+              : isSel && !pick
+                ? 'border-hoi-accent'
+                : 'border-hoi-border'
           return (
             <div
               key={f.uid}
               onPointerDown={(e) => onNodeDown(e, f)}
+              onPointerEnter={() => setHover(f.uid)}
+              onPointerLeave={() => setHover((h) => (h === f.uid ? null : h))}
               onDoubleClick={(e) => e.stopPropagation()}
-              className={`absolute flex flex-col items-center justify-center rounded-md border-2 bg-hoi-card px-1 text-center shadow-lg ${
-                isLink ? 'border-sky-400' : isSel ? 'border-hoi-accent' : 'border-hoi-border'
+              className={`absolute flex flex-col items-center justify-center rounded-md border-2 bg-hoi-card px-1 text-center shadow-lg ${border} ${
+                excluded ? 'opacity-30' : ''
               }`}
               style={{
                 left: cx(f.x) - NODE_W / 2,
                 top: cy(f.y) - NODE_H / 2,
                 width: NODE_W,
                 height: NODE_H,
-                cursor: tool === 'select' ? 'grab' : 'pointer'
+                cursor: pick
+                  ? excluded
+                    ? 'not-allowed'
+                    : 'crosshair'
+                  : tool === 'select'
+                    ? 'grab'
+                    : 'pointer'
               }}
             >
-              <div className="text-3xl leading-none">{iconEmoji(f.icon)}</div>
-              <div className="mt-1 line-clamp-2 text-[11px] font-medium leading-tight">
+              <IconThumb icon={f.icon} project={props.project} height={46} />
+              <div className="mt-0.5 line-clamp-2 text-[11px] font-medium leading-tight">
                 {f.name || <span className="text-red-400">sin nombre</span>}
               </div>
               <div className="text-[10px] text-hoi-muted">{f.cost} sem.</div>
@@ -225,7 +294,12 @@ export default function FocusCanvas(props: Props): JSX.Element {
         })}
       </div>
 
-      {tool !== 'select' && (
+      {pick && (
+        <div className="pointer-events-none absolute left-1/2 top-2 -translate-x-1/2 rounded bg-amber-500 px-3 py-1 text-sm font-semibold text-black shadow">
+          🎯 Haz clic en el foco que necesitas · Esc para cancelar
+        </div>
+      )}
+      {!pick && tool !== 'select' && (
         <div className="pointer-events-none absolute left-1/2 top-2 -translate-x-1/2 rounded bg-black/70 px-3 py-1 text-xs">
           {linkFrom
             ? 'Ahora haz clic en el segundo foco (Esc para cancelar)'
@@ -235,8 +309,8 @@ export default function FocusCanvas(props: Props): JSX.Element {
         </div>
       )}
       <div className="pointer-events-none absolute bottom-2 left-2 text-[11px] text-hoi-muted">
-        Doble clic: nuevo foco · Arrastrar fondo: mover · Rueda: zoom ({Math.round(zoom * 100)}%) · Supr:
-        borrar · Clic en una línea: quitarla
+        Doble clic: nuevo foco · Arrastrar fondo: mover · Rueda: zoom ({Math.round(zoom * 100)}%) ·
+        Supr: borrar · Clic en una línea: quitarla
       </div>
     </div>
   )

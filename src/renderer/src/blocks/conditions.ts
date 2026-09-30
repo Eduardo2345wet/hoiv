@@ -27,33 +27,51 @@ export const conditionBlocks = [
   {
     type: 'cond_has_completed_focus',
     message0: 'completó el foco %1',
-    args0: [{ type: 'field_input', name: 'FOCUS', text: 'id_del_foco' }],
+    args0: [{ type: 'field_catalog', name: 'FOCUS', kind: 'focus', value: '' }],
     tooltip: 'Se completó el foco con este id',
     ...base
   },
   {
     type: 'cond_has_war',
     message0: 'está en guerra %1',
-    args0: [{ type: 'field_dropdown', name: 'VALUE', options: [['sí', 'yes'], ['no', 'no']] }],
+    args0: [
+      {
+        type: 'field_dropdown',
+        name: 'VALUE',
+        options: [
+          ['sí', 'yes'],
+          ['no', 'no']
+        ]
+      }
+    ],
     ...base
   },
   {
     type: 'cond_is_in_faction',
     message0: 'está en una facción %1',
-    args0: [{ type: 'field_dropdown', name: 'VALUE', options: [['sí', 'yes'], ['no', 'no']] }],
+    args0: [
+      {
+        type: 'field_dropdown',
+        name: 'VALUE',
+        options: [
+          ['sí', 'yes'],
+          ['no', 'no']
+        ]
+      }
+    ],
     ...base
   },
   {
     type: 'cond_tag',
     message0: 'el país es %1',
-    args0: [{ type: 'field_input', name: 'TAG', text: 'GER' }],
+    args0: [{ type: 'field_catalog', name: 'TAG', kind: 'country', value: 'GER' }],
     tooltip: 'Etiqueta de 3 letras del país',
     ...base
   },
   {
     type: 'cond_has_idea',
     message0: 'tiene el espíritu nacional %1',
-    args0: [{ type: 'field_input', name: 'IDEA', text: 'id_de_idea' }],
+    args0: [{ type: 'field_catalog', name: 'IDEA', kind: 'idea', value: '' }],
     ...base
   },
   {
@@ -64,17 +82,39 @@ export const conditionBlocks = [
   },
   {
     type: 'cond_has_country_flag',
-    message0: 'tiene la bandera %1',
-    args0: [{ type: 'field_input', name: 'FLAG', text: 'mi_bandera' }],
+    message0: 'tiene la marca %1',
+    args0: [{ type: 'field_catalog', name: 'FLAG', kind: 'countryFlag', value: '' }],
+    tooltip: 'Marca = variable del script (has_country_flag), no la bandera del país',
     ...base
   },
   {
     type: 'cond_date_after',
     message0: 'la fecha es posterior a %1 . %2 . %3',
     args0: [
-      { type: 'field_number', name: 'YEAR', value: 1938, min: 1936, max: 1999, precision: 1 },
-      { type: 'field_number', name: 'MONTH', value: 1, min: 1, max: 12, precision: 1 },
-      { type: 'field_number', name: 'DAY', value: 1, min: 1, max: 31, precision: 1 }
+      {
+        type: 'field_number',
+        name: 'YEAR',
+        value: 1938,
+        min: 1936,
+        max: 1999,
+        precision: 1
+      },
+      {
+        type: 'field_number',
+        name: 'MONTH',
+        value: 1,
+        min: 1,
+        max: 12,
+        precision: 1
+      },
+      {
+        type: 'field_number',
+        name: 'DAY',
+        value: 1,
+        min: 1,
+        max: 31,
+        precision: 1
+      }
     ],
     tooltip: 'Año . mes . día',
     ...base

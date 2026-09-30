@@ -56,6 +56,7 @@ g['eff_add_political_power'] = (b) => `add_political_power = ${f(b, 'AMOUNT')}\n
 g['eff_add_stability'] = (b) => `add_stability = ${pct(b, 'PERCENT')}\n`
 g['eff_add_war_support'] = (b) => `add_war_support = ${pct(b, 'PERCENT')}\n`
 g['eff_add_ideas'] = (b) => `add_ideas = ${id(b, 'IDEA')}\n`
+g['eff_remove_ideas'] = (b) => `remove_ideas = ${id(b, 'IDEA')}\n`
 g['eff_add_state_core'] = (b) => `add_state_core = ${f(b, 'STATE')}\n`
 g['eff_add_state_claim'] = (b) => `add_state_claim = ${f(b, 'STATE')}\n`
 g['eff_transfer_state'] = (b) => `transfer_state = ${f(b, 'STATE')}\n`
@@ -77,7 +78,9 @@ g['eff_army_experience'] = (b) => `army_experience = ${f(b, 'AMOUNT')}\n`
 g['eff_country_event'] = (b) => {
   const days = Number(f(b, 'DAYS'))
   const d = days > 0 ? `\n\tdays = ${days}\n` : ' '
-  return days > 0 ? `country_event = {\n\tid = ${id(b, 'EVENT')}${d}}\n` : `country_event = ${id(b, 'EVENT')}\n`
+  return days > 0
+    ? `country_event = {\n\tid = ${id(b, 'EVENT')}${d}}\n`
+    : `country_event = ${id(b, 'EVENT')}\n`
 }
 g['eff_set_country_flag'] = (b) => `set_country_flag = ${id(b, 'FLAG')}\n`
 g['eff_if'] = (b) => {

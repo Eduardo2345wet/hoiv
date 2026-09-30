@@ -1,47 +1,54 @@
-// Pantalla principal: barra superior, lienzo, panel del foco, bloques y vista previa
+// Pantalla principal: barra superior, pestañas (focos, espíritus, biblioteca),
+// lienzo, panel del foco, bloques y vista previa
 import { useCallback, useEffect, useState } from 'react'
-import { ArrowLeft, Download, GitBranch, MousePointer2, Plus, Save, Slash } from 'lucide-react'
-import type { Focus, FocusScripts, Project } from '../types'
+import {
+  ArrowLeft,
+  Download,
+  GitBranch,
+  MousePointer2,
+  Plus,
+  Save,
+  Settings,
+  Slash
+} from 'lucide-react'
+import type { FocusScripts, Project } from '../types'
+import { store, useApp } from '../store/appStore'
 import FocusCanvas, { type Tool } from './FocusCanvas'
 import FocusPanel from './FocusPanel'
 import BlocklyEditor from './BlocklyEditor'
 import PreviewPanel from './PreviewPanel'
 import ValidationDialog from './ValidationDialog'
+import IdeasTab from './IdeasTab'
+import LibraryTab from './LibraryTab'
+import SettingsDialog from './SettingsDialog'
 import { validateProject, type Issue } from '../export/validator'
 import { exportMod } from '../export/exportMod'
 import {
   createFocus,
+  createFocusBelow,
   deleteFocus,
   toggleExclusive,
   togglePrerequisite,
   updateFocus
 } from './projectOps'
 
-interface Props {
-  project: Project
-  filePath: string | null
-  onProjectChange: (p: Project | ((prev: Project) => Project)) => void
-  onFilePathChange: (path: string) => void
-  onClose: () => void
-}
+type Tab = 'focos' | 'ideas' | 'iconos'
 
-export default function Editor(props: Props): JSX.Element {
-  const { project, filePath, onProjectChange: setProject } = props
-  const [selected, setSelected] = useState<string | null>(project.focuses[0]?.uid ?? null)
+export default function Editor(): JSX.Element {
+  const project = useApp((s) => s.project) as Project
+  const filePath = useApp((s) => s.filePath)
+  const dirty = useApp((s) => s.dirty)
+  const selected = useApp((s) => s.selectedUid)
+  const game = useApp((s) => s.game)
+  const [tab, setTab] = useState<Tab>('focos')
   const [tool, setTool] = useState<Tool>('select')
   const [issues, setIssues] = useState<Issue[] | null>(null)
   const [status, setStatus] = useState('')
-  const [dirty, setDirty] = useState(false)
+  const [showSettings, setShowSettings] = useState(false)
 
   const selectedFocus = project.focuses.find((f) => f.uid === selected) ?? null
-
-  const change = useCallback(
-    (fn: (p: Project) => Project) => {
-      setProject(fn)
-      setDirty(true)
-    },
-    [setProject]
-  )
+  const setSelected = (uid: string | null): void => store.set({ selectedUid: uid })
+  const change = store.updateProject
 
   const flash = (msg: string): void => {
     setStatus(msg)
@@ -51,18 +58,19 @@ export default function Editor(props: Props): JSX.Element {
   // ---- Guardar proyecto.json ----
   const save = useCallback(async () => {
     const api = window.electronAPI
-    if (!api) return
-    const json = JSON.stringify(project, null, 2)
-    if (filePath) {
-      await api.saveProjectToPath(filePath, json)
+    const s = store.get()
+    if (!api || !s.project) return
+    const json = JSON.stringify(s.project, null, 2)
+    if (s.filePath) {
+      await api.saveProjectToPath(s.filePath, json)
     } else {
       const path = await api.saveProjectDialog(json, 'proyecto.json')
       if (!path) return
-      props.onFilePathChange(path)
+      store.set({ filePath: path })
     }
-    setDirty(false)
+    store.set({ dirty: false })
     flash('✔ Proyecto guardado')
-  }, [project, filePath, props])
+  }, [])
 
   // Ctrl+S para guardar
   useEffect(() => {
@@ -84,24 +92,31 @@ export default function Editor(props: Props): JSX.Element {
     else if (res.message !== 'Exportación cancelada.') alert('❌ ' + res.message)
   }
   const startExport = (): void => {
-    const found = validateProject(project)
+    const found = validateProject(project, game)
     if (found.length) setIssues(found)
     else void doExport()
   }
 
   // ---- Acciones del árbol ----
   const addFocusAt = (x: number, y: number): void => {
-    const f = createFocus(project.tag, project.focuses, x, y)
-    change((p) => ({ ...p, focuses: [...p.focuses, f] }))
-    setSelected(f.uid)
+    let uid = ''
+    change((p) => {
+      const r = createFocus(p, x, y)
+      uid = r.focus.uid
+      return r.project
+    })
+    setSelected(uid)
     setTool('select')
   }
   const addFocus = (): void => {
-    // Busca la primera casilla libre en la fila de abajo del foco seleccionado
-    const y = selectedFocus ? selectedFocus.y + 1 : 0
-    let x = selectedFocus ? selectedFocus.x : 0
-    while (project.focuses.some((f) => f.x === x && f.y === y)) x++
-    addFocusAt(x, y)
+    let uid = ''
+    change((p) => {
+      const r = createFocusBelow(p, selected)
+      uid = r.focus.uid
+      return r.project
+    })
+    setSelected(uid)
+    setTab('focos')
   }
   const removeFocus = (uid: string): void => {
     const f = project.focuses.find((x) => x.uid === uid)
@@ -113,17 +128,23 @@ export default function Editor(props: Props): JSX.Element {
     if (tool === 'prereq') change((p) => togglePrerequisite(p, from, to))
     else change((p) => toggleExclusive(p, from, to))
   }
-  const patchSelected = (patch: Partial<Focus>): void => {
-    if (selected) change((p) => updateFocus(p, selected, patch))
-  }
   const onBlocksChange = useCallback(
-    (uid: string, blocks: unknown, scripts: FocusScripts) => change((p) => updateFocus(p, uid, { blocks, scripts })),
-    [change]
+    (uid: string, blocks: unknown, scripts: FocusScripts) =>
+      store.updateProject((p) => updateFocus(p, uid, { blocks, scripts })),
+    []
   )
 
   const toolBtn = (t: Tool, label: string, icon: JSX.Element, title: string): JSX.Element => (
     <button title={title} className={tool === t ? 'btn-primary' : 'btn'} onClick={() => setTool(t)}>
       {icon} {label}
+    </button>
+  )
+  const tabBtn = (t: Tab, label: string): JSX.Element => (
+    <button
+      onClick={() => setTab(t)}
+      className={`px-3 py-2 text-sm ${tab === t ? 'border-b-2 border-hoi-accent text-hoi-accent' : 'text-hoi-muted hover:text-hoi-text'}`}
+    >
+      {label}
     </button>
   )
 
@@ -134,26 +155,58 @@ export default function Editor(props: Props): JSX.Element {
         <button
           className="btn"
           title="Volver al inicio"
-          onClick={() => (!dirty || confirm('Hay cambios sin guardar. ¿Salir igualmente?')) && props.onClose()}
+          onClick={() =>
+            (!dirty || confirm('Hay cambios sin guardar. ¿Salir igualmente?')) &&
+            store.set({
+              project: null,
+              filePath: null,
+              selectedUid: null,
+              dirty: false
+            })
+          }
         >
           <ArrowLeft size={16} />
         </button>
-        <div className="mr-4">
+        <div className="mr-2">
           <div className="font-semibold text-hoi-accent">
             {project.modName}
             {dirty && ' •'}
           </div>
-          <div className="text-[11px] text-hoi-muted">País: {project.tag}</div>
+          <div className="text-[11px] text-hoi-muted">
+            País: {project.tag} {filePath ? '' : '· sin guardar'}
+          </div>
         </div>
         <button className="btn" onClick={addFocus}>
           <Plus size={16} /> Añadir foco
         </button>
-        <div className="mx-2 h-6 w-px bg-hoi-border" />
-        {toolBtn('select', 'Mover', <MousePointer2 size={16} />, 'Seleccionar y arrastrar focos')}
-        {toolBtn('prereq', 'Prerrequisito', <GitBranch size={16} />, 'Conectar: padre → hijo (línea normal)')}
-        {toolBtn('exclusive', 'Excluyente', <Slash size={16} />, 'Conectar focos mutuamente excluyentes (línea roja)')}
+        {tab === 'focos' && (
+          <>
+            <div className="mx-1 h-6 w-px bg-hoi-border" />
+            {toolBtn(
+              'select',
+              'Mover',
+              <MousePointer2 size={16} />,
+              'Seleccionar y arrastrar focos'
+            )}
+            {toolBtn(
+              'prereq',
+              'Prerrequisito',
+              <GitBranch size={16} />,
+              'Conectar: padre → hijo (línea normal)'
+            )}
+            {toolBtn(
+              'exclusive',
+              'Excluyente',
+              <Slash size={16} />,
+              'Conectar focos mutuamente excluyentes (línea roja)'
+            )}
+          </>
+        )}
         <div className="flex-1" />
         <span className="text-sm text-emerald-400">{status}</span>
+        <button className="btn" title="Ajustes" onClick={() => setShowSettings(true)}>
+          <Settings size={16} />
+        </button>
         <button className="btn" onClick={() => void save()} title="Ctrl+S">
           <Save size={16} /> Guardar
         </button>
@@ -162,39 +215,61 @@ export default function Editor(props: Props): JSX.Element {
         </button>
       </header>
 
-      {/* Parte de arriba: árbol + panel del foco */}
-      <div className="flex min-h-0 flex-[55]">
-        <div className="min-w-0 flex-1">
-          <FocusCanvas
-            focuses={project.focuses}
-            selected={selected}
-            tool={tool}
-            onSelect={setSelected}
-            onMove={(uid, x, y) => change((p) => updateFocus(p, uid, { x, y }))}
-            onLink={onLink}
-            onUnlinkPrereq={(a, b) => change((p) => togglePrerequisite(p, a, b))}
-            onUnlinkExclusive={(a, b) => change((p) => toggleExclusive(p, a, b))}
-            onAddAt={addFocusAt}
-            onDelete={removeFocus}
-          />
-        </div>
-        <aside className="flex min-h-0 w-80 flex-col border-l border-hoi-border bg-hoi-panel">
-          <FocusPanel
-            focus={selectedFocus}
-            onChange={patchSelected}
-            onDelete={() => selected && removeFocus(selected)}
-          />
-        </aside>
-      </div>
+      {/* Pestañas */}
+      <nav className="flex shrink-0 border-b border-hoi-border bg-hoi-panel px-2">
+        {tabBtn('focos', 'Árbol de focos')}
+        {tabBtn('ideas', `Espíritus nacionales (${project.ideas.length})`)}
+        {tabBtn('iconos', `Biblioteca de íconos (${project.icons.length})`)}
+      </nav>
 
-      {/* Parte de abajo: bloques + vista previa */}
-      <div className="flex min-h-0 flex-[45] border-t border-hoi-border">
-        <div className="min-w-0 flex-1">
-          <BlocklyEditor focus={selectedFocus} onChange={onBlocksChange} />
+      {tab === 'ideas' && (
+        <div className="min-h-0 flex-1">
+          <IdeasTab project={project} />
         </div>
-        <aside className="w-[420px] border-l border-hoi-border bg-[#101013]">
-          <PreviewPanel project={project} />
-        </aside>
+      )}
+      {tab === 'iconos' && (
+        <div className="min-h-0 flex-1">
+          <LibraryTab project={project} />
+        </div>
+      )}
+
+      {/* El árbol se mantiene montado (Blockly no se reinicia al cambiar de pestaña) */}
+      <div className={tab === 'focos' ? 'flex min-h-0 flex-1 flex-col' : 'hidden'}>
+        {/* Parte de arriba: árbol + panel del foco */}
+        <div className="flex min-h-0 flex-[55]">
+          <div className="min-w-0 flex-1">
+            <FocusCanvas
+              project={project}
+              focuses={project.focuses}
+              selected={selected}
+              tool={tool}
+              onSelect={setSelected}
+              onMove={(uid, x, y) => change((p) => updateFocus(p, uid, { x, y }))}
+              onLink={onLink}
+              onUnlinkPrereq={(a, b) => change((p) => togglePrerequisite(p, a, b))}
+              onUnlinkExclusive={(a, b) => change((p) => toggleExclusive(p, a, b))}
+              onAddAt={addFocusAt}
+              onDelete={removeFocus}
+            />
+          </div>
+          <aside className="flex min-h-0 w-80 flex-col border-l border-hoi-border bg-hoi-panel">
+            <FocusPanel
+              project={project}
+              focus={selectedFocus}
+              onDelete={() => selected && removeFocus(selected)}
+            />
+          </aside>
+        </div>
+
+        {/* Parte de abajo: bloques + vista previa */}
+        <div className="flex min-h-0 flex-[45] border-t border-hoi-border">
+          <div className="min-w-0 flex-1">
+            <BlocklyEditor focus={selectedFocus} onChange={onBlocksChange} />
+          </div>
+          <aside className="w-[420px] border-l border-hoi-border bg-[#101013]">
+            <PreviewPanel project={project} />
+          </aside>
+        </div>
       </div>
 
       {issues && (
@@ -202,9 +277,13 @@ export default function Editor(props: Props): JSX.Element {
           issues={issues}
           onClose={() => setIssues(null)}
           onExportAnyway={() => void doExport()}
-          onSelectFocus={setSelected}
+          onSelectFocus={(uid) => {
+            setSelected(uid)
+            setTab('focos')
+          }}
         />
       )}
+      {showSettings && <SettingsDialog onClose={() => setShowSettings(false)} />}
     </div>
   )
 }

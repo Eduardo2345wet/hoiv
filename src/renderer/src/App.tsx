@@ -1,33 +1,27 @@
 // Componente raíz: muestra la pantalla de inicio o el editor
-import { useState } from 'react'
-import type { Project } from './types'
+import { useEffect } from 'react'
+import { useApp } from './store/appStore'
 import StartScreen from './ui/StartScreen'
 import Editor from './ui/Editor'
+import PromptDialog from './ui/PromptDialog'
+import { loadGameSettings } from './ui/SettingsDialog'
+import { setIconRenderer } from './icons/renderer'
+import { renderEmojiToPng } from './icons/canvasRender'
+
+// Los íconos con emoji se dibujan con canvas (solo en la interfaz)
+setIconRenderer(renderEmojiToPng)
 
 export default function App(): JSX.Element {
-  const [project, setProject] = useState<Project | null>(null)
-  const [filePath, setFilePath] = useState<string | null>(null)
+  const hasProject = useApp((s) => !!s.project)
 
-  if (!project)
-    return (
-      <StartScreen
-        onOpen={(p, path) => {
-          setProject(p)
-          setFilePath(path)
-        }}
-      />
-    )
+  useEffect(() => {
+    void loadGameSettings()
+  }, [])
 
   return (
-    <Editor
-      project={project}
-      filePath={filePath}
-      onProjectChange={(p) => setProject((prev) => (typeof p === 'function' ? p(prev!) : p))}
-      onFilePathChange={setFilePath}
-      onClose={() => {
-        setProject(null)
-        setFilePath(null)
-      }}
-    />
+    <>
+      {hasProject ? <Editor /> : <StartScreen />}
+      <PromptDialog />
+    </>
   )
 }

@@ -17,6 +17,8 @@ export default function BlocklyEditor({ focus, onChange }: Props): JSX.Element {
   const divRef = useRef<HTMLDivElement>(null)
   const wsRef = useRef<Blockly.WorkspaceSvg | null>(null)
   const uidRef = useRef<string | null>(null)
+  /** Último estado de bloques que guardamos nosotros (para detectar cambios hechos desde fuera) */
+  const lastSaved = useRef<unknown>(null)
   const onChangeRef = useRef(onChange)
   onChangeRef.current = onChange
 
@@ -32,7 +34,13 @@ export default function BlocklyEditor({ focus, onChange }: Props): JSX.Element {
       media: './blockly-media/',
       trashcan: true,
       grid: { spacing: 24, length: 2, colour: '#2a2a32', snap: true },
-      zoom: { controls: true, wheel: true, startScale: 0.75, maxScale: 2, minScale: 0.3 },
+      zoom: {
+        controls: true,
+        wheel: true,
+        startScale: 0.75,
+        maxScale: 2,
+        minScale: 0.3
+      },
       move: { scrollbars: true, drag: true, wheel: false }
     })
     wsRef.current = ws
@@ -41,6 +49,7 @@ export default function BlocklyEditor({ focus, onChange }: Props): JSX.Element {
     ws.addChangeListener((e) => {
       if (e.isUiEvent || !uidRef.current) return
       const blocks = Blockly.serialization.workspaces.save(ws)
+      lastSaved.current = blocks
       onChangeRef.current(uidRef.current, blocks, generateSlots(ws))
     })
     const ro = new ResizeObserver(() => Blockly.svgResize(ws))
@@ -48,6 +57,10 @@ export default function BlocklyEditor({ focus, onChange }: Props): JSX.Element {
     return () => {
       ro.disconnect()
       ws.dispose()
+      // El próximo espacio de trabajo tiene que volver a cargar el foco
+      wsRef.current = null
+      uidRef.current = null
+      lastSaved.current = null
     }
   }, [])
 
@@ -56,21 +69,28 @@ export default function BlocklyEditor({ focus, onChange }: Props): JSX.Element {
     const ws = wsRef.current
     if (!ws) return
     const uid = focus?.uid ?? null
-    if (uid === uidRef.current) return
+    // Mismo foco y los bloques son los que guardamos nosotros → nada que recargar.
+    // (Si cambiaron desde fuera, por ejemplo al renombrar un foco, se recargan.)
+    if (uid === uidRef.current && (!focus || focus.blocks === lastSaved.current || !focus.blocks))
+      return
     uidRef.current = null // evita guardar mientras cargamos
     Blockly.Events.disable()
     try {
       ws.clear()
       if (focus?.blocks) Blockly.serialization.workspaces.load(focus.blocks as object, ws)
       // Asegurar que existen las 3 ranuras
-      if (focus && Object.values(SLOT_TYPES).some((t) => ws.getBlocksByType(t, false).length === 0)) {
+      if (
+        focus &&
+        Object.values(SLOT_TYPES).some((t) => ws.getBlocksByType(t, false).length === 0)
+      ) {
         ws.clear()
         createSlots(ws)
       }
     } finally {
       Blockly.Events.enable()
     }
-    ws.scrollCenter()
+    if (uid !== uidRef.current) ws.scrollCenter()
+    lastSaved.current = focus?.blocks ?? null
     uidRef.current = uid
   }, [focus])
 

@@ -2,13 +2,22 @@
 import { useMemo, useState } from 'react'
 import type { Project } from '../types'
 import { generateFocusTree, generateLocalisation } from '../generator/focusTree'
+import { generateIdeas } from '../generator/ideas'
+import { planIconExport } from '../export/gfx'
 
-type Tab = 'tree' | 'loc'
+type Tab = 'tree' | 'loc' | 'ideas' | 'gfx'
 
 export default function PreviewPanel({ project }: { project: Project }): JSX.Element {
   const [tab, setTab] = useState<Tab>('tree')
   const text = useMemo(
-    () => (tab === 'tree' ? generateFocusTree(project) : generateLocalisation(project)),
+    () =>
+      tab === 'tree'
+        ? generateFocusTree(project)
+        : tab === 'loc'
+          ? generateLocalisation(project)
+          : tab === 'ideas'
+            ? generateIdeas(project)
+            : planIconExport(project).gfx || '(sin íconos propios)',
     [project, tab]
   )
   const tabClass = (t: Tab): string =>
@@ -20,7 +29,13 @@ export default function PreviewPanel({ project }: { project: Project }): JSX.Ele
           {project.tag}_focus.txt
         </button>
         <button className={tabClass('loc')} onClick={() => setTab('loc')}>
-          localización .yml
+          .yml
+        </button>
+        <button className={tabClass('ideas')} onClick={() => setTab('ideas')}>
+          ideas
+        </button>
+        <button className={tabClass('gfx')} onClick={() => setTab('gfx')}>
+          .gfx
         </button>
       </div>
       <pre className="flex-1 select-text overflow-auto whitespace-pre p-3 font-mono text-[11px] leading-snug text-emerald-200">

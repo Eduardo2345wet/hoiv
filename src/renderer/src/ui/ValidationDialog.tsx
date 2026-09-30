@@ -8,14 +8,21 @@ interface Props {
   onSelectFocus: (uid: string) => void
 }
 
-export default function ValidationDialog({ issues, onClose, onExportAnyway, onSelectFocus }: Props): JSX.Element {
+export default function ValidationDialog({
+  issues,
+  onClose,
+  onExportAnyway,
+  onSelectFocus
+}: Props): JSX.Element {
   const errors = issues.filter((i) => i.severity === 'error')
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
       <div className="max-h-[80vh] w-[560px] overflow-hidden rounded-lg border border-hoi-border bg-hoi-panel shadow-2xl">
         <div className="border-b border-hoi-border p-4">
           <h2 className="text-lg font-semibold">
-            {errors.length ? `❌ Hay ${errors.length} error(es) que arreglar` : '⚠️ Revisa estos avisos'}
+            {errors.length
+              ? `❌ Hay ${errors.length} error(es) que arreglar`
+              : '⚠️ Revisa estos avisos'}
           </h2>
           <p className="text-xs text-hoi-muted">Haz clic en un problema para ir al foco.</p>
         </div>

@@ -1,6 +1,7 @@
 // Escribe los archivos del mod en disco (se ejecuta en el proceso principal de Electron).
 import fs from 'fs'
 import path from 'path'
+import { safeFolderName } from '../shared/names'
 
 export interface ExportModPayload {
   exportPath: string
@@ -8,6 +9,7 @@ export interface ExportModPayload {
   tag: string
   focusTreeScript: string
   locYaml: string
+  files?: { path: string; text?: string; bom?: boolean; data?: Uint8Array }[]
 }
 
 export interface ExportResult {
@@ -16,16 +18,7 @@ export interface ExportResult {
   modFolder?: string
 }
 
-/** Nombre de carpeta seguro: sin tildes, espacios ni símbolos */
-export function safeFolderName(modName: string): string {
-  const base = modName
-    .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '')
-    .replace(/[^a-zA-Z0-9_-]+/g, '_')
-    .replace(/^_+|_+$/g, '')
-    .toLowerCase()
-  return base || 'mi_mod'
-}
+export { safeFolderName }
 
 /**
  * Detecta si la carpeta elegida es (o está dentro de) la instalación del juego.
@@ -36,7 +29,8 @@ export function isGameInstallFolder(folder: string): boolean {
   if (lower.includes('/steamapps/common/')) return true
   let dir = folder
   for (let i = 0; i < 6; i++) {
-    if (fs.existsSync(path.join(dir, 'hoi4.exe')) || fs.existsSync(path.join(dir, 'hoi4'))) return true
+    if (fs.existsSync(path.join(dir, 'hoi4.exe')) || fs.existsSync(path.join(dir, 'hoi4')))
+      return true
     const parent = path.dirname(dir)
     if (parent === dir) break
     dir = parent
@@ -73,7 +67,11 @@ export async function handleExportMod(payload: ExportModPayload): Promise<Export
 
     // 2. NOMBRE.mod fuera de la carpeta, con la ruta absoluta (barras "/")
     const absPath = modFolder.replace(/\\/g, '/')
-    fs.writeFileSync(path.join(exportPath, `${baseName}.mod`), `${descriptor}path="${absPath}"\n`, 'utf-8')
+    fs.writeFileSync(
+      path.join(exportPath, `${baseName}.mod`),
+      `${descriptor}path="${absPath}"\n`,
+      'utf-8'
+    )
 
     // 3. common/national_focus/TAG_focus.txt (UTF-8 sin BOM)
     const focusDir = path.join(modFolder, 'common', 'national_focus')
@@ -84,6 +82,17 @@ export async function handleExportMod(payload: ExportModPayload): Promise<Export
     const locDir = path.join(modFolder, 'localisation', 'english')
     fs.mkdirSync(locDir, { recursive: true })
     fs.writeFileSync(path.join(locDir, `${baseName}_l_english.yml`), '﻿' + locYaml, 'utf-8')
+
+    // 5. Archivos extra (ideas, íconos .dds, .gfx). Solo rutas dentro del mod.
+    for (const f of payload.files ?? []) {
+      const rel = f.path.replace(/\\/g, '/')
+      if (rel.startsWith('/') || rel.split('/').includes('..') || /^[a-z]:/i.test(rel))
+        return { success: false, error: `Ruta no permitida: ${f.path}` }
+      const target = path.join(modFolder, ...rel.split('/'))
+      fs.mkdirSync(path.dirname(target), { recursive: true })
+      if (f.data) fs.writeFileSync(target, Buffer.from(f.data))
+      else fs.writeFileSync(target, (f.bom ? '\uFEFF' : '') + (f.text ?? ''), 'utf-8')
+    }
 
     return { success: true, modFolder }
   } catch (err: unknown) {

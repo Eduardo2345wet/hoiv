@@ -10,5 +10,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.invoke('save-project-to-path', filePath, content),
   openProjectDialog: () => ipcRenderer.invoke('open-project-dialog'),
   getDefaultModPath: () => ipcRenderer.invoke('get-default-mod-path'),
+  getSettings: () => ipcRenderer.invoke('get-settings'),
+  setSettings: (s: unknown) => ipcRenderer.invoke('set-settings', s),
+  selectGameFolder: () => ipcRenderer.invoke('select-game-folder'),
+  readGameCatalog: (gamePath: string) => ipcRenderer.invoke('read-game-catalog', gamePath),
   exportMod: (payload: ExportModPayload) => ipcRenderer.invoke('export-mod', payload)
 })

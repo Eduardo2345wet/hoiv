@@ -1,6 +1,9 @@
 // Revisa el proyecto antes de exportar y devuelve avisos en español.
 import type { Project } from '../types'
 import { generateFocusTree } from '../generator/focusTree'
+import { generateIdeas } from '../generator/ideas'
+import { isKnownId, projectFlags, type GameCatalog } from '../catalog/catalog'
+import { planIconExport } from './gfx'
 
 export type Severity = 'error' | 'aviso'
 export interface Issue {
@@ -18,7 +21,8 @@ export const ID_REGEX = /^[A-Za-z0-9_]+$/
 export function validateTag(tag: string): string | null {
   if (!TAG_REGEX.test(tag))
     return 'El tag debe tener 3 caracteres: una letra mayúscula seguida de 2 letras mayúsculas o números (ej. GER, MX1).'
-  if (FORBIDDEN_TAGS.includes(tag)) return `"${tag}" es una palabra reservada del juego, elige otro tag.`
+  if (FORBIDDEN_TAGS.includes(tag))
+    return `"${tag}" es una palabra reservada del juego, elige otro tag.`
   return null
 }
 
@@ -41,13 +45,17 @@ export function checkBraces(text: string): string | null {
   return null
 }
 
-export function validateProject(project: Project): Issue[] {
+export function validateProject(project: Project, game: GameCatalog | null = null): Issue[] {
   const issues: Issue[] = []
   const tagError = validateTag(project.tag)
   if (tagError) issues.push({ severity: 'error', message: tagError })
-  if (!project.modName.trim()) issues.push({ severity: 'error', message: 'El mod no tiene nombre.' })
+  if (!project.modName.trim())
+    issues.push({ severity: 'error', message: 'El mod no tiene nombre.' })
   if (project.focuses.length === 0)
-    issues.push({ severity: 'error', message: 'El árbol no tiene ningún foco.' })
+    issues.push({
+      severity: 'error',
+      message: 'El árbol no tiene ningún foco.'
+    })
 
   const uids = new Set(project.focuses.map((f) => f.uid))
   const ids = new Set(project.focuses.map((f) => f.id))
@@ -58,7 +66,12 @@ export function validateProject(project: Project): Issue[] {
     const label = f.name.trim() || f.id || '(sin id)'
     seen.set(f.id, (seen.get(f.id) ?? 0) + 1)
 
-    if (!f.id.trim()) issues.push({ severity: 'error', message: 'Hay un foco sin id.', focusUid: f.uid })
+    if (!f.id.trim())
+      issues.push({
+        severity: 'error',
+        message: 'Hay un foco sin id.',
+        focusUid: f.uid
+      })
     else if (!ID_REGEX.test(f.id))
       issues.push({
         severity: 'error',
@@ -66,9 +79,17 @@ export function validateProject(project: Project): Issue[] {
         focusUid: f.uid
       })
     if (!f.name.trim())
-      issues.push({ severity: 'error', message: `El foco "${f.id}" no tiene nombre.`, focusUid: f.uid })
+      issues.push({
+        severity: 'error',
+        message: `El foco "${f.id}" no tiene nombre.`,
+        focusUid: f.uid
+      })
     if (!(f.cost > 0))
-      issues.push({ severity: 'error', message: `El foco "${label}" debe costar al menos 1 semana.`, focusUid: f.uid })
+      issues.push({
+        severity: 'error',
+        message: `El foco "${label}" debe costar al menos 1 semana.`,
+        focusUid: f.uid
+      })
 
     for (const p of f.prerequisites)
       if (!uids.has(p))
@@ -85,15 +106,53 @@ export function validateProject(project: Project): Issue[] {
           focusUid: f.uid
         })
 
-    // Condiciones "completó el foco X" que apuntan a un id que no existe
+    // Referencias a cosas que no existen (siempre AVISO, nunca error)
     const script = f.scripts.available + f.scripts.bypass + f.scripts.reward
     for (const m of script.matchAll(/has_completed_focus = (\S+)/g))
       if (!ids.has(m[1]))
         issues.push({
           severity: 'aviso',
-          message: `El foco "${label}" usa "completó el foco ${m[1]}", pero ese foco no existe.`,
+          message: `El foco "${label}" usa "completó el foco ${m[1]}", pero ese foco ya no existe.`,
           focusUid: f.uid
         })
+    for (const m of script.matchAll(/\b(?:has_idea|add_ideas|remove_ideas) = (\S+)/g))
+      if (!isKnownId('idea', m[1], project, game))
+        issues.push({
+          severity: 'aviso',
+          message: `El foco "${label}" usa el espíritu "${m[1]}", que no está ni en el mod ni en el juego.`,
+          focusUid: f.uid
+        })
+    for (const m of script.matchAll(/\b(?:tag|target|add_to_faction|puppet) = ([A-Za-z0-9]+)\s/g))
+      if (!isKnownId('country', m[1], project, game))
+        issues.push({
+          severity: 'aviso',
+          message: `El foco "${label}" usa el país "${m[1]}", que no está en la lista (¿es de otro mod?).`,
+          focusUid: f.uid
+        })
+    for (const m of script.matchAll(/has_country_flag = (\S+)/g))
+      if (!projectFlags(project).includes(m[1]))
+        issues.push({
+          severity: 'aviso',
+          message: `El foco "${label}" comprueba la marca "${m[1]}", pero nada la pone (set_country_flag).`,
+          focusUid: f.uid
+        })
+    if (/= *(\n|$)/.test(script))
+      issues.push({
+        severity: 'error',
+        message: `El foco "${label}" tiene un bloque con un campo sin elegir.`,
+        focusUid: f.uid
+      })
+
+    // Íconos
+    if (
+      f.icon.kind === 'asset' &&
+      !project.icons.some((a) => a.id === (f.icon as { assetId: string }).assetId)
+    )
+      issues.push({
+        severity: 'aviso',
+        message: `El foco "${label}" no tiene ícono.`,
+        focusUid: f.uid
+      })
 
     const pos = `${f.x},${f.y}`
     if (positions.has(pos))
@@ -105,14 +164,77 @@ export function validateProject(project: Project): Issue[] {
     else positions.set(pos, label)
 
     if (!f.scripts.reward.trim())
-      issues.push({ severity: 'aviso', message: `El foco "${label}" no tiene recompensa.`, focusUid: f.uid })
+      issues.push({
+        severity: 'aviso',
+        message: `El foco "${label}" no tiene recompensa.`,
+        focusUid: f.uid
+      })
+  }
+
+  // ---- Espíritus nacionales ----
+  for (const i of project.ideas) {
+    const label = i.name.trim() || i.id
+    seen.set(i.id, (seen.get(i.id) ?? 0) + 1)
+    if (!ID_REGEX.test(i.id))
+      issues.push({
+        severity: 'error',
+        message: `El id de espíritu "${i.id}" no es válido (letras sin tildes, números y _).`
+      })
+    if (!i.name.trim())
+      issues.push({
+        severity: 'error',
+        message: `El espíritu "${i.id}" no tiene nombre.`
+      })
+    if (
+      !i.icon ||
+      (i.icon.kind === 'asset' &&
+        !project.icons.some((a) => a.id === (i.icon as { assetId: string }).assetId))
+    )
+      issues.push({
+        severity: 'aviso',
+        message: `El espíritu "${label}" no tiene ícono.`
+      })
+  }
+
+  // ---- Íconos ----
+  const plan = planIconExport(project)
+  const spriteCount = new Map<string, string[]>()
+  for (const sp of plan.sprites)
+    spriteCount.set(sp.name, [...(spriteCount.get(sp.name) ?? []), sp.owner])
+  for (const [name, owners] of spriteCount)
+    if (owners.length > 1)
+      issues.push({
+        severity: 'error',
+        message: `El nombre de sprite "${name}" se repite (${owners.join(', ')}). Cambia uno de los ids.`
+      })
+  for (const d of plan.dds) {
+    const a = project.icons.find((x) => x.id === d.assetId)
+    if (a?.small)
+      issues.push({
+        severity: 'aviso',
+        message: `El ícono "${a.name}" es más chico que el tamaño final: se verá borroso.`
+      })
   }
 
   for (const [id, count] of seen)
-    if (count > 1 && id) issues.push({ severity: 'error', message: `El id "${id}" está repetido ${count} veces.` })
+    if (count > 1 && id)
+      issues.push({
+        severity: 'error',
+        message: `El id "${id}" está repetido ${count} veces.`
+      })
 
   const braces = checkBraces(generateFocusTree(project))
-  if (braces) issues.push({ severity: 'error', message: `Llaves desbalanceadas: ${braces}` })
+  if (braces)
+    issues.push({
+      severity: 'error',
+      message: `Llaves desbalanceadas: ${braces}`
+    })
+  const ideaBraces = project.ideas.length ? checkBraces(generateIdeas(project)) : null
+  if (ideaBraces)
+    issues.push({
+      severity: 'error',
+      message: `Llaves desbalanceadas en las ideas: ${ideaBraces}`
+    })
 
   return issues
 }
