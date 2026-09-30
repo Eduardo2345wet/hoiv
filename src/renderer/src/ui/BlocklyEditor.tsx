@@ -89,6 +89,8 @@ export default function BlocklyEditor({ focus, onChange }: Props): JSX.Element {
     } finally {
       Blockly.Events.enable()
     }
+    // El deshacer de Blockly es solo de este foco
+    ws.clearUndo()
     if (uid !== uidRef.current) ws.scrollCenter()
     lastSaved.current = focus?.blocks ?? null
     uidRef.current = uid

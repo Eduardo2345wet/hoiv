@@ -7,9 +7,11 @@ import {
   GitBranch,
   MousePointer2,
   Plus,
+  Redo2,
   Save,
   Settings,
-  Slash
+  Slash,
+  Undo2
 } from 'lucide-react'
 import type { FocusScripts, Project } from '../types'
 import { store, useApp } from '../store/appStore'
@@ -40,6 +42,8 @@ export default function Editor(): JSX.Element {
   const dirty = useApp((s) => s.dirty)
   const selected = useApp((s) => s.selectedUid)
   const game = useApp((s) => s.game)
+  const canUndo = useApp((s) => s.past.length > 0)
+  const canRedo = useApp((s) => s.future.length > 0)
   const [tab, setTab] = useState<Tab>('focos')
   const [tool, setTool] = useState<Tool>('select')
   const [issues, setIssues] = useState<Issue[] | null>(null)
@@ -72,13 +76,27 @@ export default function Editor(): JSX.Element {
     flash('✔ Proyecto guardado')
   }, [])
 
-  // Ctrl+S para guardar
+  // Atajos: Ctrl+S guardar, Ctrl+Z deshacer, Ctrl+Y / Ctrl+Shift+Z rehacer
   useEffect(() => {
     const onKey = (e: KeyboardEvent): void => {
-      if (e.ctrlKey && e.key.toLowerCase() === 's') {
+      if (!(e.ctrlKey || e.metaKey)) return
+      const k = e.key.toLowerCase()
+      if (k === 's') {
         e.preventDefault()
         void save()
+        return
       }
+      if (k !== 'z' && k !== 'y') return
+      // Dentro del editor de bloques manda el deshacer de Blockly (no se mezclan)
+      const target = e.target as HTMLElement | null
+      if (
+        e.defaultPrevented ||
+        target?.closest?.('.injectionDiv, .blocklyWidgetDiv, .blocklyDropDownDiv')
+      )
+        return
+      e.preventDefault()
+      if (k === 'y' || (k === 'z' && e.shiftKey)) store.redo()
+      else store.undo()
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
@@ -130,7 +148,7 @@ export default function Editor(): JSX.Element {
   }
   const onBlocksChange = useCallback(
     (uid: string, blocks: unknown, scripts: FocusScripts) =>
-      store.updateProject((p) => updateFocus(p, uid, { blocks, scripts })),
+      store.updateBlocks(uid, { blocks, scripts }),
     []
   )
 
@@ -157,12 +175,7 @@ export default function Editor(): JSX.Element {
           title="Volver al inicio"
           onClick={() =>
             (!dirty || confirm('Hay cambios sin guardar. ¿Salir igualmente?')) &&
-            store.set({
-              project: null,
-              filePath: null,
-              selectedUid: null,
-              dirty: false
-            })
+            store.openProject(null, null)
           }
         >
           <ArrowLeft size={16} />
@@ -202,6 +215,23 @@ export default function Editor(): JSX.Element {
             )}
           </>
         )}
+        <div className="mx-1 h-6 w-px bg-hoi-border" />
+        <button
+          className="btn disabled:opacity-40"
+          title="Deshacer (Ctrl+Z)"
+          disabled={!canUndo}
+          onClick={() => store.undo()}
+        >
+          <Undo2 size={16} />
+        </button>
+        <button
+          className="btn disabled:opacity-40"
+          title="Rehacer (Ctrl+Y)"
+          disabled={!canRedo}
+          onClick={() => store.redo()}
+        >
+          <Redo2 size={16} />
+        </button>
         <div className="flex-1" />
         <span className="text-sm text-emerald-400">{status}</span>
         <button className="btn" title="Ajustes" onClick={() => setShowSettings(true)}>
@@ -244,7 +274,9 @@ export default function Editor(): JSX.Element {
               selected={selected}
               tool={tool}
               onSelect={setSelected}
-              onMove={(uid, x, y) => change((p) => updateFocus(p, uid, { x, y }))}
+              onMove={(uid, x, y) =>
+                change((p) => updateFocus(p, uid, { x, y }), { group: `drag:${uid}` })
+              }
               onLink={onLink}
               onUnlinkPrereq={(a, b) => change((p) => togglePrerequisite(p, a, b))}
               onUnlinkExclusive={(a, b) => change((p) => toggleExclusive(p, a, b))}

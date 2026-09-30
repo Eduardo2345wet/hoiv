@@ -180,7 +180,11 @@ export default function FocusCanvas(props: Props): JSX.Element {
       onWheel={onWheel}
       onPointerDown={onBackgroundDown}
       onPointerMove={onPointerMove}
-      onPointerUp={() => (drag.current = null)}
+      onPointerUp={() => {
+        // Soltar un foco cierra el paso de deshacer del arrastre
+        if (drag.current?.kind === 'node') store.endGroup()
+        drag.current = null
+      }}
       onDoubleClick={onDoubleClick}
       onKeyDown={onKeyDown}
       onContextMenu={(e) => e.preventDefault()}

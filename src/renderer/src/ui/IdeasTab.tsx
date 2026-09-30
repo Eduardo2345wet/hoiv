@@ -78,7 +78,8 @@ function IdeaEditor({
   onDeleted: () => void
 }): JSX.Element {
   const uid = idea.uid
-  const patch = (p: Partial<Idea>): void => store.updateProject((pr) => updateIdea(pr, uid, p))
+  const patch = (p: Partial<Idea>, field = Object.keys(p)[0]): void =>
+    store.updateProject((pr) => updateIdea(pr, uid, p), { group: `field:${uid}:${field}` })
   const dup =
     project.ideas.some((i) => i.uid !== uid && i.id === idea.id) ||
     project.focuses.some((f) => f.id === idea.id)
@@ -95,7 +96,11 @@ function IdeaEditor({
           <input
             className="input"
             value={idea.name}
-            onChange={(e) => store.updateProject((p) => setIdeaName(p, uid, e.target.value))}
+            onChange={(e) =>
+              store.updateProject((p) => setIdeaName(p, uid, e.target.value), {
+                group: `field:${uid}:name`
+              })
+            }
           />
         </div>
         <div>

@@ -8,12 +8,7 @@ import { migrateProject } from '../migrate'
 import { store } from '../store/appStore'
 
 function onOpen(project: Project, filePath: string | null): void {
-  store.set({
-    project,
-    filePath,
-    dirty: false,
-    selectedUid: project.focuses[0]?.uid ?? null
-  })
+  store.openProject(project, filePath)
 }
 
 export default function StartScreen(): JSX.Element {

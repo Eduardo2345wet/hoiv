@@ -24,7 +24,9 @@ export default function FocusPanel({ project, focus, onDelete }: Props): JSX.Ele
     )
 
   const uid = focus.uid
-  const patch = (p: Partial<Focus>): void => store.updateProject((pr) => updateFocus(pr, uid, p))
+  // group: escribir en un campo cuenta como UN paso de deshacer
+  const patch = (p: Partial<Focus>, field = Object.keys(p)[0]): void =>
+    store.updateProject((pr) => updateFocus(pr, uid, p), { group: `field:${uid}:${field}` })
   const idOk = ID_REGEX.test(focus.id)
   const dup = project.focuses.some((f) => f.uid !== uid && f.id === focus.id)
   const int = (v: string): number => Math.max(0, Math.round(Number(v)))
@@ -42,7 +44,11 @@ export default function FocusPanel({ project, focus, onDelete }: Props): JSX.Ele
           <input
             className="input"
             value={focus.name}
-            onChange={(e) => store.updateProject((p) => setFocusName(p, uid, e.target.value))}
+            onChange={(e) =>
+              store.updateProject((p) => setFocusName(p, uid, e.target.value), {
+                group: `field:${uid}:name`
+              })
+            }
           />
         </div>
 
@@ -52,7 +58,12 @@ export default function FocusPanel({ project, focus, onDelete }: Props): JSX.Ele
             className={`input font-mono ${idOk && !dup ? '' : 'border-red-500'}`}
             value={focus.id}
             onChange={(e) =>
-              store.updateProject((p) => renameFocusId(p, uid, e.target.value.replace(/\s/g, '_')))
+              store.updateProject(
+                (p) => renameFocusId(p, uid, e.target.value.replace(/\s/g, '_')),
+                {
+                  group: `field:${uid}:id`
+                }
+              )
             }
           />
           {!idOk && (

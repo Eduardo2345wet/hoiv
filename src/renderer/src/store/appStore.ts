@@ -23,8 +23,26 @@ export interface PromptRequest {
   callback: (value: string | null) => void
 }
 
+/** Opciones de un cambio del proyecto para el historial de deshacer */
+export interface ChangeOptions {
+  /**
+   * Cambios continuos con la misma clave se agrupan en UN paso:
+   * - arrastrar un foco: 'drag:<uid>' hasta que se llama a endGroup() al soltar
+   * - escribir en un campo: 'field:<...>' hasta salir del campo o 500 ms sin teclear
+   */
+  group?: string
+}
+
+/** Máximo de pasos de deshacer */
+export const HISTORY_LIMIT = 100
+/** Tiempo sin teclear que cierra un grupo de escritura */
+export const GROUP_IDLE_MS = 500
+
 export interface AppState {
   project: Project | null
+  /** Historial (snapshots del proyecto; son inmutables, así que comparten memoria) */
+  past: Project[]
+  future: Project[]
   filePath: string | null
   dirty: boolean
   /** uid del foco seleccionado (el que se edita en Blockly) */
@@ -37,6 +55,8 @@ export interface AppState {
 
 let state: AppState = {
   project: null,
+  past: [],
+  future: [],
   filePath: null,
   dirty: false,
   selectedUid: null,
@@ -45,6 +65,8 @@ let state: AppState = {
   game: null
 }
 const listeners = new Set<() => void>()
+// Grupo abierto del historial (no forma parte del estado visible)
+let openGroup: { key: string; time: number } | null = null
 
 export const store = {
   get: (): AppState => state,
@@ -57,11 +79,91 @@ export const store = {
     return () => listeners.delete(l)
   },
 
-  /** Cambia el proyecto (marca "sin guardar") */
-  updateProject(fn: (p: Project) => Project): void {
+  /** Cambia el proyecto (marca "sin guardar") y lo registra en el historial */
+  updateProject(fn: (p: Project) => Project, opts: ChangeOptions = {}): void {
     if (!state.project) return
     const next = fn(state.project)
-    if (next !== state.project) store.set({ project: next, dirty: true })
+    if (next === state.project) return
+    const now = Date.now()
+    const g = openGroup
+    const sameGroup =
+      !!opts.group &&
+      !!g &&
+      g.key === opts.group &&
+      (opts.group.startsWith('drag:') || now - g.time < GROUP_IDLE_MS)
+    openGroup = opts.group ? { key: opts.group, time: now } : null
+    if (sameGroup) {
+      // Mismo paso: no se guarda un snapshot nuevo
+      store.set({ project: next, dirty: true, future: [] })
+      return
+    }
+    const past = [...state.past, state.project].slice(-HISTORY_LIMIT)
+    store.set({ project: next, dirty: true, past, future: [] })
+  },
+
+  /** Cierra el grupo abierto (al soltar un arrastre o salir de un campo) */
+  endGroup(): void {
+    openGroup = null
+  },
+
+  /**
+   * Cambios de Blockly: tienen su propio deshacer, así que NO van al historial de la app.
+   * Para que deshacer otra cosa no borre lo hecho en los bloques, el nuevo estado de los
+   * bloques se copia también en los snapshots que tenían los mismos bloques de antes.
+   */
+  updateBlocks(uid: string, patch: Partial<Project['focuses'][number]>): void {
+    const p = state.project
+    if (!p) return
+    const prev = p.focuses.find((f) => f.uid === uid)
+    if (!prev) return
+    const apply = (snap: Project): Project =>
+      snap.focuses.some((f) => f.uid === uid && f.blocks === prev.blocks)
+        ? {
+            ...snap,
+            focuses: snap.focuses.map((f) =>
+              f.uid === uid && f.blocks === prev.blocks ? { ...f, ...patch } : f
+            )
+          }
+        : snap
+    store.set({
+      project: { ...p, focuses: p.focuses.map((f) => (f.uid === uid ? { ...f, ...patch } : f)) },
+      past: state.past.map(apply),
+      future: state.future.map(apply),
+      dirty: true
+    })
+  },
+
+  canUndo: (): boolean => state.past.length > 0,
+  canRedo: (): boolean => state.future.length > 0,
+  undo(): void {
+    if (!state.project || !state.past.length) return
+    openGroup = null
+    const prev = state.past[state.past.length - 1]
+    store.set({
+      project: prev,
+      past: state.past.slice(0, -1),
+      future: [state.project, ...state.future],
+      dirty: true
+    })
+  },
+  redo(): void {
+    if (!state.project || !state.future.length) return
+    openGroup = null
+    const [next, ...rest] = state.future
+    store.set({ project: next, past: [...state.past, state.project], future: rest, dirty: true })
+  },
+
+  /** Abre otro proyecto: el historial empieza vacío */
+  openProject(project: Project | null, filePath: string | null): void {
+    openGroup = null
+    store.set({
+      project,
+      filePath,
+      dirty: false,
+      past: [],
+      future: [],
+      selectedUid: project?.focuses[0]?.uid ?? null
+    })
   },
 
   // ---- Modo selección genérico ----
