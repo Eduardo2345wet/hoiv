@@ -6,7 +6,10 @@ import { generateIdeas } from '../generator/ideas'
 import { safeFolderName } from '../../../shared/names'
 import { planIconExport } from './gfx'
 import { writeDDS } from './images'
-import { pngToRGBA } from './imageCanvas'
+import { pngToRGBA, pngToRGBAResized } from './imageCanvas'
+import { countryImageFiles, countryTextFiles, type ImageReader } from './countryExport'
+import type { GameCatalog } from '../catalog/catalog'
+import { store } from '../store/appStore'
 
 export interface ModFile {
   /** Ruta dentro de la carpeta del mod, con "/" */
@@ -24,7 +27,10 @@ export async function buildExtraFiles(
     width: number
     height: number
     rgba: Uint8Array | Uint8ClampedArray
-  }>
+  }>,
+  /** Lector de imágenes a un tamaño dado (banderas y retratos de los países) */
+  read?: ImageReader,
+  game: GameCatalog | null = null
 ): Promise<ModFile[]> {
   const mod = safeFolderName(project.modName)
   const files: ModFile[] = []
@@ -47,6 +53,9 @@ export async function buildExtraFiles(
     })
   }
   if (plan.gfx) files.push({ path: plan.gfxPath, text: plan.gfx })
+  // Países: textos (tags, countries, historia, OOB, personajes, localización) e imágenes
+  files.push(...countryTextFiles(project, game))
+  if (read) files.push(...(await countryImageFiles(project, read)))
   return files
 }
 
@@ -68,7 +77,7 @@ export async function exportMod(project: Project): Promise<{ ok: boolean; messag
     // Los árboles van en `files` (uno por país)
     focusTreeScript: '',
     locYaml: generateLocalisation(project),
-    files: await buildExtraFiles(project, pngToRGBA)
+    files: await buildExtraFiles(project, pngToRGBA, pngToRGBAResized, store.get().game)
   })
   if (!result.success) return { ok: false, message: result.error ?? 'Error desconocido' }
   return { ok: true, message: `Mod exportado en:\n${result.modFolder}` }

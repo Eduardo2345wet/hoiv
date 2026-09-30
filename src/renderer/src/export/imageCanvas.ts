@@ -55,3 +55,14 @@ export async function pngToRGBA(
     rgba: ctx.getImageData(0, 0, c.width, c.height).data
   }
 }
+
+/** PNG base64 → píxeles RGBA redimensionados a w×h (para banderas medianas y chicas) */
+export async function pngToRGBAResized(
+  dataUrl: string,
+  w: number,
+  h: number
+): Promise<{ width: number; height: number; rgba: Uint8ClampedArray }> {
+  const img = await loadImage(dataUrl)
+  const c = resizeImage(img, w, h, 'rellenar')
+  return { width: w, height: h, rgba: c.getContext('2d')!.getImageData(0, 0, w, h).data }
+}

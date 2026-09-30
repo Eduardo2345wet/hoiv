@@ -42,7 +42,12 @@ export function writeDDS(
   return out
 }
 
-/** TGA de 32 bits sin compresión (para banderas), origen arriba a la izquierda */
+/**
+ * TGA de 32 bits SIN compresión (banderas), igual que las del juego base:
+ * cabecera de 18 bytes, descriptor 0x08 (8 bits de alfa, origen abajo-izquierda)
+ * y las filas guardadas de ABAJO hacia ARRIBA (así no salen de cabeza aunque el
+ * juego ignore el bit de origen).
+ */
 export function writeTGA(
   width: number,
   height: number,
@@ -50,18 +55,25 @@ export function writeTGA(
 ): Uint8Array {
   if (rgba.length !== width * height * 4) throw new Error('Tamaño de píxeles incorrecto')
   const out = new Uint8Array(18 + width * height * 4)
-  out[2] = 2 // color verdadero sin comprimir
+  out[0] = 0 // idLength
+  out[1] = 0 // colorMapType
+  out[2] = 2 // imageType: color verdadero sin comprimir
+  // 3..7: especificación del mapa de color en 0; 8..11: origen X/Y en 0
   out[12] = width & 0xff
-  out[13] = width >> 8
+  out[13] = (width >> 8) & 0xff
   out[14] = height & 0xff
-  out[15] = height >> 8
+  out[15] = (height >> 8) & 0xff
   out[16] = 32 // bits por píxel
-  out[17] = 0x28 // 8 bits de alfa + origen arriba
-  for (let i = 0, o = 18; i < rgba.length; i += 4, o += 4) {
-    out[o] = rgba[i + 2]
-    out[o + 1] = rgba[i + 1]
-    out[o + 2] = rgba[i]
-    out[o + 3] = rgba[i + 3]
+  out[17] = 0x08 // 8 bits de alfa, origen abajo-izquierda
+  let o = 18
+  for (let y = height - 1; y >= 0; y--) {
+    for (let x = 0; x < width; x++) {
+      const i = (y * width + x) * 4
+      out[o++] = rgba[i + 2] // B
+      out[o++] = rgba[i + 1] // G
+      out[o++] = rgba[i] // R
+      out[o++] = rgba[i + 3] // A
+    }
   }
   return out
 }

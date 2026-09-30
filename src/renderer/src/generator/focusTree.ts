@@ -77,7 +77,7 @@ export function generateFocusTree(project: Project, treeId?: string): string {
 }
 
 /** Escapa un texto para ponerlo entre comillas en un .yml de Paradox */
-function locText(text: string): string {
+export function locText(text: string): string {
   return text.replace(/\r?\n/g, '\\n').replace(/"/g, '\\"')
 }
 
