@@ -9,12 +9,21 @@ import {
   type Project
 } from '../types'
 import { asciiSlug } from '../../../shared/names'
+import { hsvToRgb } from './color'
 import {
   BUILTIN_GRAPHICAL_CULTURES,
   BUILTIN_GRAPHICAL_CULTURES_2D,
   BUILTIN_SUBIDEOLOGIES,
   DEFAULT_PARTIES
 } from './gameData'
+
+/** Color inicial distinto para cada tag (tono según el tag) */
+export function colorForTag(tag: string): [number, number, number] {
+  let n = 0
+  for (const ch of tag) n = (n * 31 + ch.charCodeAt(0)) % 100003
+  // Ángulo áureo: tags parecidos dan tonos bien separados
+  return hsvToRgb([(n * 137.508) % 360, 0.55, 0.75])
+}
 
 const emptyNames = (): CountryNames => ({ name: '', def: '', adj: '' })
 
@@ -32,7 +41,7 @@ export function newCountry(opts: { mode: Country['mode']; tag: string; name: str
       communism: emptyNames(),
       neutrality: emptyNames()
     },
-    color: [120, 120, 160],
+    color: colorForTag(opts.tag),
     graphicalCulture: BUILTIN_GRAPHICAL_CULTURES[0],
     graphicalCulture2d: BUILTIN_GRAPHICAL_CULTURES_2D[0],
     politics: {

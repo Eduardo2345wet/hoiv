@@ -18,9 +18,15 @@ export default function Modal({
 }: Props): JSX.Element {
   return (
     <div
+      data-modal
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/60"
       onPointerDown={(e) => e.target === e.currentTarget && onClose()}
-      onKeyDown={(e) => e.key === 'Escape' && onClose()}
+      onKeyDown={(e) => {
+        // Esc cierra solo la ventana de más arriba
+        if (e.key !== 'Escape') return
+        e.stopPropagation()
+        onClose()
+      }}
     >
       <div
         className="flex max-h-[92vh] flex-col overflow-hidden rounded-lg border border-hoi-border bg-hoi-panel shadow-2xl"

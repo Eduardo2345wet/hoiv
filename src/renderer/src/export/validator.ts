@@ -11,6 +11,9 @@ export interface Issue {
   message: string
   /** uid del foco afectado (para seleccionarlo al hacer clic) */
   focusUid?: string
+  /** País afectado y paso del asistente donde se arregla (botón "Ir") */
+  countryUid?: string
+  step?: number
 }
 
 export const TAG_REGEX = /^[A-Z][A-Z0-9]{2}$/

@@ -10,12 +10,17 @@ const MAX_BYTES = 5 * 1024 * 1024
 const ACCEPTED = ['image/png', 'image/jpeg', 'image/webp']
 
 interface Props {
-  target: IconTarget
+  target?: IconTarget
+  /** Tamaño final fijo (banderas 82×52, retratos 156×210); si no, el del ícono */
+  size?: { w: number; h: number }
+  title?: string
+  /** Para imágenes que no son íconos de la biblioteca: devuelve el PNG final */
+  onAcceptImage?: (png: string, small: boolean) => void
   /** Si se da, se puede cambiar el tipo (biblioteca) */
   allowTargetChange?: boolean
   /** Archivo ya elegido (por ejemplo, soltado sobre la biblioteca) */
   initialFile?: File
-  onAccept: (asset: IconAsset) => void
+  onAccept?: (asset: IconAsset) => void
   onClose: () => void
 }
 
@@ -33,7 +38,10 @@ export function readImageFile(file: File): Promise<string> {
 }
 
 export default function ImageUploader({
-  target: initialTarget,
+  target: initialTarget = 'focus',
+  size,
+  title = 'Subir imagen',
+  onAcceptImage,
   allowTargetChange,
   initialFile,
   onAccept,
@@ -47,7 +55,7 @@ export default function ImageUploader({
   const [png, setPng] = useState('')
   const [error, setError] = useState<string | null>(null)
   const drag = useRef<{ x: number; y: number; ox: number; oy: number } | null>(null)
-  const { w, h } = ICON_SIZES[target]
+  const { w, h } = size ?? ICON_SIZES[target]
 
   useEffect(() => {
     if (img) setPng(resizeImage(img, w, h, mode, offset).toDataURL('image/png'))
@@ -75,7 +83,7 @@ export default function ImageUploader({
 
   return (
     <Modal
-      title="Subir imagen"
+      title={title}
       width={620}
       onClose={onClose}
       footer={
@@ -86,20 +94,22 @@ export default function ImageUploader({
           <button
             className="btn-primary"
             disabled={!img}
-            onClick={() =>
-              img &&
-              onAccept({
-                id: newUid(),
-                name: name || 'imagen',
-                target,
-                png,
-                width: w,
-                height: h,
-                small
-              })
-            }
+            onClick={() => {
+              if (!img) return
+              if (onAcceptImage) onAcceptImage(png, small)
+              else
+                onAccept?.({
+                  id: newUid(),
+                  name: name || 'imagen',
+                  target,
+                  png,
+                  width: w,
+                  height: h,
+                  small
+                })
+            }}
           >
-            Guardar ícono
+            {onAcceptImage ? 'Usar esta imagen' : 'Guardar ícono'}
           </button>
         </>
       }
@@ -140,8 +150,16 @@ export default function ImageUploader({
                 </select>
               </>
             )}
-            <label className="label">Nombre</label>
-            <input className="input mb-2" value={name} onChange={(e) => setName(e.target.value)} />
+            {!onAcceptImage && (
+              <>
+                <label className="label">Nombre</label>
+                <input
+                  className="input mb-2"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                />
+              </>
+            )}
             <label className="label">Modo</label>
             <div className="mb-2 flex gap-2">
               <button
