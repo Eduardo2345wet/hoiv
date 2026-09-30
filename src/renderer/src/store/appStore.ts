@@ -4,6 +4,8 @@
 import { useSyncExternalStore } from 'react'
 import type { Project } from '../types'
 import type { CatalogKind, GameCatalog } from '../catalog/catalog'
+import type { MapData } from '../../../shared/map/types'
+import { DEMO_COUNTRY_NAMES } from '../../../shared/map/demo'
 
 /** Pedido genérico de "elige un elemento haciendo clic" (focos ahora, estados en el mapa después) */
 export interface PickRequest {
@@ -55,6 +57,16 @@ export interface AppState {
   game: GameCatalog | null
   /** Carpeta del juego configurada (null = sin juego) */
   gamePath: string | null
+  // ---- Mapa (no se guarda en el proyecto ni en el historial) ----
+  map: MapData | null
+  /** Carga en curso del mapa real: porcentaje y mensaje */
+  mapLoading: { pct: number; message: string } | null
+  mapError: string | null
+  /** País activo del mapa (tag) y estado seleccionado */
+  activeTag: string | null
+  selectedStateId: number | null
+  /** Pedido para centrar la vista del mapa en un estado (lo consume el mapa) */
+  focusStateRequest: { id: number; n: number } | null
 }
 
 let state: AppState = {
@@ -68,11 +80,18 @@ let state: AppState = {
   pick: null,
   prompt: null,
   game: null,
-  gamePath: null
+  gamePath: null,
+  map: null,
+  mapLoading: null,
+  mapError: null,
+  activeTag: null,
+  selectedStateId: null,
+  focusStateRequest: null
 }
 const listeners = new Set<() => void>()
 // Grupo abierto del historial (no forma parte del estado visible)
 let openGroup: { key: string; time: number } | null = null
+let catalogMemo: { game: GameCatalog | null; map: MapData; value: GameCatalog } | null = null
 
 export const store = {
   get: (): AppState => state,
@@ -171,6 +190,34 @@ export const store = {
       future: [],
       activeTreeId: tree,
       selectedUid: project?.focuses.find((f) => f.treeId === tree)?.uid ?? null
+    })
+  },
+
+  /**
+   * Catálogo del juego + lo que aporta el mapa cargado (estados con nombre y dueño,
+   * y los países ficticios del mapa de demostración).
+   */
+  catalogGame(): GameCatalog | null {
+    const { game, map } = state
+    if (!map) return game
+    // Memo: el mismo objeto mientras no cambien el juego ni el mapa (lo usa useApp)
+    if (catalogMemo && catalogMemo.game === game && catalogMemo.map === map)
+      return catalogMemo.value
+    const states = map.states.map((s) => ({ id: s.id, name: s.name, owner: s.owner }))
+    const countries =
+      map.source === 'demo'
+        ? [...(game?.countries ?? []), ...Object.entries(DEMO_COUNTRY_NAMES)]
+        : (game?.countries ?? [])
+    const value: GameCatalog = { ideas: [], ...game, countries, states }
+    catalogMemo = { game, map, value }
+    return value
+  },
+
+  /** Centrar el mapa en un estado */
+  focusState(id: number): void {
+    store.set({
+      focusStateRequest: { id, n: (state.focusStateRequest?.n ?? 0) + 1 },
+      selectedStateId: id
     })
   },
 

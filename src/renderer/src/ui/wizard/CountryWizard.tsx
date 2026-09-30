@@ -47,7 +47,7 @@ export default function CountryWizard({
   initialStep = 0,
   onClose
 }: Props): JSX.Element {
-  const game = useApp((s) => s.game)
+  const game = useApp(() => store.catalogGame())
   const editing = project.countries.find((c) => c.uid === countryUid)
   const initial = useMemo<Country>(() => {
     if (editing) return structuredClone(editing)

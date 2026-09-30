@@ -101,7 +101,7 @@ export async function exportMod(project: Project): Promise<{ ok: boolean; messag
     // Los árboles van en `files` (uno por país)
     focusTreeScript: '',
     locYaml: generateLocalisation(project),
-    files: await buildExtraFiles(project, pngToRGBA, pngToRGBAResized, store.get().game)
+    files: await buildExtraFiles(project, pngToRGBA, pngToRGBAResized, store.catalogGame())
   })
   if (!result.success) return { ok: false, message: result.error ?? 'Error desconocido' }
   return { ok: true, message: `Mod exportado en:\n${result.modFolder}` }

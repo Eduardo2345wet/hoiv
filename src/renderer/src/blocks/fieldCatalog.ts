@@ -35,7 +35,9 @@ export function buildMenu(kind: CatalogKind, current: string | null): Option[] {
   // En "completó el foco" no se ofrece el foco que estoy editando
   const editingId =
     kind === 'focus' ? project?.focuses.find((f) => f.uid === s.selectedUid)?.id : undefined
-  const opts = getCatalogOptions(kind, project, s.game).filter((o) => o.id !== editingId)
+  const opts = getCatalogOptions(kind, project, store.catalogGame()).filter(
+    (o) => o.id !== editingId
+  )
 
   const menu: Option[] = []
   if (kind === 'focus') menu.push(['🎯 Elegir en el árbol…', SPECIAL.pickTree])

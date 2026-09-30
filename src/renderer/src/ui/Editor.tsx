@@ -44,7 +44,7 @@ export default function Editor(): JSX.Element {
   const filePath = useApp((s) => s.filePath)
   const dirty = useApp((s) => s.dirty)
   const selected = useApp((s) => s.selectedUid)
-  const game = useApp((s) => s.game)
+  const game = useApp(() => store.catalogGame())
   const canUndo = useApp((s) => s.past.length > 0)
   const canRedo = useApp((s) => s.future.length > 0)
   const [tab, setTab] = useState<Tab>('focos')

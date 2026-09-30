@@ -51,6 +51,8 @@ export function migrateProject(raw: any): Project {
   p.icons = Array.isArray(p.icons) ? p.icons : []
   p.countryFlags = Array.isArray(p.countryFlags) ? p.countryFlags : []
   p.countries = Array.isArray(p.countries) ? p.countries : []
+  // v3 → v4: cambios del mapa (vacío al principio)
+  p.stateEdits = p.stateEdits && typeof p.stateEdits === 'object' ? p.stateEdits : {}
   p.modName = p.modName ?? 'mod'
   p.version = PROJECT_VERSION
   return p as Project

@@ -10,7 +10,7 @@ export function emptyProject(): Project {
     focusTreeId: 'arbol_1'
   }
   return {
-    version: 3,
+    version: 4,
     modName: 'Mi Mod',
     tag: 'MEX',
     countries: [country],
@@ -18,7 +18,8 @@ export function emptyProject(): Project {
     focuses: [],
     ideas: [],
     icons: [],
-    countryFlags: []
+    countryFlags: [],
+    stateEdits: {}
   }
 }
 

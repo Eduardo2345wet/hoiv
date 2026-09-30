@@ -42,7 +42,8 @@ export default function StartScreen(): JSX.Element {
       focuses: [],
       ideas: [],
       icons: [],
-      countryFlags: []
+      countryFlags: [],
+      stateEdits: {}
     }
     onOpen(createFocus(empty, 0, 0, 'Mi primer foco', 'arbol_1').project, null)
   }

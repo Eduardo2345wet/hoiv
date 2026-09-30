@@ -14,7 +14,7 @@ interface Props {
 }
 
 export default function CountriesTab({ project, onOpenWizard }: Props): JSX.Element {
-  const game = useApp((s) => s.game)
+  const game = useApp(() => store.catalogGame())
 
   const duplicate = (uid: string): void => {
     const src = project.countries.find((c) => c.uid === uid)!

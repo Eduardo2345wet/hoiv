@@ -1,7 +1,7 @@
 // Tipos de datos del proyecto (lo que se guarda en proyecto.json)
 
 /** Versión actual del formato de proyecto.json (ver migrate.ts) */
-export const PROJECT_VERSION = 3
+export const PROJECT_VERSION = 4
 
 /** Texto ya generado de las 3 ranuras de Blockly de un foco */
 export interface FocusScripts {
@@ -176,6 +176,13 @@ export interface FocusTree {
   name: string
 }
 
+/** Cambios a un estado del mapa (lo único que se guarda del mapa: nunca el mapa entero) */
+export interface StateEdit {
+  owner?: string
+  addCores?: string[]
+  removeCores?: string[]
+}
+
 export interface Project {
   version: number
   modName: string
@@ -186,6 +193,8 @@ export interface Project {
   focuses: Focus[]
   ideas: Idea[]
   icons: IconAsset[]
+  /** Cambios de estados por id de estado */
+  stateEdits: Record<string, StateEdit>
   /** Marcas creadas a mano con "+ Crear nueva…" (además de las usadas en set_country_flag) */
   countryFlags: string[]
 }
