@@ -178,7 +178,7 @@ export default function Editor(props: Props): JSX.Element {
             onDelete={removeFocus}
           />
         </div>
-        <aside className="w-80 overflow-y-auto border-l border-hoi-border bg-hoi-panel">
+        <aside className="flex min-h-0 w-80 flex-col border-l border-hoi-border bg-hoi-panel">
           <FocusPanel
             focus={selectedFocus}
             onChange={patchSelected}
