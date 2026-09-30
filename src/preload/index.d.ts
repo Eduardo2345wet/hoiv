@@ -48,6 +48,14 @@ export interface ElectronAPI {
   loadMap: (gamePath: string) => Promise<{ ok: true; map: MapData } | { ok: false; error: string }>
   /** Suscribirse al progreso de carga del mapa; devuelve la función para desuscribirse */
   onMapProgress: (cb: (p: { pct: number; message: string }) => void) => () => void
+  /** Parchea (sin escribir) los archivos de estado modificados y los verifica */
+  planStatePatches: (
+    gamePath: string,
+    requests: { file: string; targets: { id: number; owner: string; cores: string[] }[] }[]
+  ) => Promise<{
+    files: { path: string; data: Uint8Array }[]
+    errors: { file: string; id?: number; message: string }[]
+  }>
   exportMod: (
     payload: ExportModPayload
   ) => Promise<{ success: boolean; error?: string; modFolder?: string }>

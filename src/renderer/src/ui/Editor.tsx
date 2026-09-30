@@ -29,6 +29,7 @@ import LibraryTab from './LibraryTab'
 import SettingsDialog from './SettingsDialog'
 import { validateProject, type Issue } from '../export/validator'
 import { exportMod } from '../export/exportMod'
+import { planStateExport, type StateExportPlan } from '../export/statesExport'
 import {
   createFocus,
   createFocusBelow,
@@ -139,14 +140,23 @@ export default function Editor(): JSX.Element {
   }, [save])
 
   // ---- Exportar ----
+  // Estados del mapa ya parchados (se preparan al validar y se usan al exportar)
+  const statePlan = useRef<StateExportPlan>({ files: [], errors: [] })
   const doExport = async (): Promise<void> => {
     setIssues(null)
-    const res = await exportMod(project)
+    const res = await exportMod(project, statePlan.current.files)
     if (res.ok) alert('✔ ' + res.message)
     else if (res.message !== 'Exportación cancelada.') alert('❌ ' + res.message)
   }
-  const startExport = (): void => {
-    const found = validateProject(project, game)
+  const startExport = async (): Promise<void> => {
+    const { map, gamePath } = store.get()
+    // Parche de los estados modificados (solo mapa real); sus errores van al validador
+    statePlan.current = await planStateExport(project, map, gamePath)
+    const found = validateProject(project, game, {
+      map,
+      gamePath,
+      patchErrors: statePlan.current.errors
+    })
     if (found.length) setIssues(found)
     else void doExport()
   }
@@ -277,7 +287,7 @@ export default function Editor(): JSX.Element {
         <button className="btn" onClick={() => void save()} title="Ctrl+S">
           <Save size={16} /> Guardar
         </button>
-        <button className="btn-primary" onClick={startExport}>
+        <button className="btn-primary" onClick={() => void startExport()}>
           <Download size={16} /> Exportar mod
         </button>
       </header>

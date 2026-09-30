@@ -22,5 +22,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.on('map-progress', listener)
     return () => ipcRenderer.removeListener('map-progress', listener)
   },
+  planStatePatches: (gamePath: string, requests: unknown) =>
+    ipcRenderer.invoke('plan-state-patches', gamePath, requests),
   exportMod: (payload: ExportModPayload) => ipcRenderer.invoke('export-mod', payload)
 })

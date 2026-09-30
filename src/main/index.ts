@@ -5,6 +5,7 @@ import fs from 'fs'
 import path from 'path'
 import { handleExportMod } from './export'
 import { loadRealMap } from './mapLoader'
+import { planStatePatches, type StatePatchRequest } from './statesExport'
 import {
   loadSettings,
   readCountryHistory,
@@ -144,6 +145,10 @@ app.whenReady().then(() => {
       return { ok: false, error: e instanceof Error ? e.message : String(e) }
     }
   })
+
+  ipcMain.handle('plan-state-patches', async (_, gamePath: string, requests: StatePatchRequest[]) =>
+    planStatePatches(gamePath, requests)
+  )
 
   ipcMain.handle('export-mod', async (_, payload) => {
     return handleExportMod(payload)

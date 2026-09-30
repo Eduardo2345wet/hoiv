@@ -7,6 +7,8 @@ import { planIconExport } from './gfx'
 import { validateCountry } from '../countries/validateCountry'
 import { plannedPaths } from './exportMod'
 import { treeCountry } from '../countries/countryOps'
+import { validateMap } from '../map/validateMap'
+import type { MapData } from '../../../shared/map/types'
 
 export type Severity = 'error' | 'aviso'
 export interface Issue {
@@ -14,6 +16,8 @@ export interface Issue {
   message: string
   /** uid del foco afectado (para seleccionarlo al hacer clic) */
   focusUid?: string
+  /** Estado del mapa afectado (botón "Ir" centra el mapa en él) */
+  stateId?: number
   /** País afectado y paso del asistente donde se arregla (botón "Ir") */
   countryUid?: string
   step?: number
@@ -51,7 +55,19 @@ export function checkBraces(text: string): string | null {
   return null
 }
 
-export function validateProject(project: Project, game: GameCatalog | null = null): Issue[] {
+/** Contexto del mapa para validar los cambios de estados */
+export interface MapContext {
+  map: MapData | null
+  gamePath: string | null
+  /** Errores del parche de archivos de estado (proceso principal) */
+  patchErrors?: { file: string; id?: number; message: string }[]
+}
+
+export function validateProject(
+  project: Project,
+  game: GameCatalog | null = null,
+  mapCtx: MapContext | null = null
+): Issue[] {
   const issues: Issue[] = []
   // (los tags de los países se validan en countries/validateCountries.ts)
   if (!project.modName.trim())
@@ -263,6 +279,9 @@ export function validateProject(project: Project, game: GameCatalog | null = nul
       })
     else seenPaths.set(key, path)
   }
+
+  // ---- Mapa ----
+  if (mapCtx) issues.push(...validateMap(project, mapCtx))
 
   return issues
 }

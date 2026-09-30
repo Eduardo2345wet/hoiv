@@ -83,7 +83,11 @@ export function plannedPaths(project: Project, game: GameCatalog | null = null):
   return paths
 }
 
-export async function exportMod(project: Project): Promise<{ ok: boolean; message: string }> {
+/** Exporta el mod; `extraFiles` = archivos ya preparados (estados parchados del mapa) */
+export async function exportMod(
+  project: Project,
+  extraFiles: ModFile[] = []
+): Promise<{ ok: boolean; message: string }> {
   const api = window.electronAPI
   if (!api)
     return {
@@ -101,7 +105,10 @@ export async function exportMod(project: Project): Promise<{ ok: boolean; messag
     // Los árboles van en `files` (uno por país)
     focusTreeScript: '',
     locYaml: generateLocalisation(project),
-    files: await buildExtraFiles(project, pngToRGBA, pngToRGBAResized, store.catalogGame())
+    files: [
+      ...(await buildExtraFiles(project, pngToRGBA, pngToRGBAResized, store.catalogGame())),
+      ...extraFiles
+    ]
   })
   if (!result.success) return { ok: false, message: result.error ?? 'Error desconocido' }
   return { ok: true, message: `Mod exportado en:\n${result.modFolder}` }
