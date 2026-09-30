@@ -1,6 +1,6 @@
 # HOI4 Mod Studio
 
-App de escritorio (Windows) para crear **países**, **árboles de focos** y **espíritus nacionales** de Hearts of Iron IV sin escribir código.
+App de escritorio (Windows) para crear **países**, editar el **mapa**, **árboles de focos** y **espíritus nacionales** de Hearts of Iron IV sin escribir código.
 
 ## Instalar (solo la primera vez)
 
@@ -37,6 +37,8 @@ No hace falta tener el juego instalado. No se necesitan compiladores: todo (incl
   ("Industrializar" → 🏭). Puedes cambiarlo por otro emoji, subir una imagen o usar uno del juego.
 - **Países**: pestaña Países → "Crear país" abre un asistente de 6 pasos (identidad, política,
   capital, bandera, líder y resumen). Puedes crear un país **nuevo** o **modificar uno existente**.
+- **Mapa**: pestaña Mapa tipo Paint para repartir estados entre países (pincel, cubeta,
+  capital, cores, borrador, cuentagotas). Sin el juego instalado usa un **mapa de demostración**.
 - **Deshacer / Rehacer**: Ctrl+Z / Ctrl+Y (o Ctrl+Shift+Z) y los botones de la barra.
   Dentro del editor de bloques, Ctrl+Z deshace solo los bloques.
 - **Ajustes (⚙)**: carpeta del juego OPCIONAL, solo se LEE: más países y espíritus, estados
@@ -67,6 +69,9 @@ Por cada país NUEVO:
 <mod>/common/characters/<mod>_TAG_characters.txt
 <mod>/localisation/english/<mod>_countries_l_english.yml
 
+Por cada estado que cambies en el mapa REAL (mismo nombre que en el juego, cambios mínimos):
+<mod>/history/states/<archivo original>.txt
+
 Por cada país EXISTENTE solo lo que cambies (banderas subidas, líderes nuevos,
 historia con el nombre exacto del juego si hay carpeta, nombre en localisation/english/replace/).
 ```
@@ -76,7 +81,7 @@ historia con el nombre exacto del juego si hay carpeta, nombre en localisation/e
 ```
 src/main/            Proceso principal de Electron (ventanas, archivos, exportar, leer el juego)
 src/preload/         Puente seguro entre la interfaz y Node
-src/shared/          Nombres seguros de archivos (compartido)
+src/shared/          Compartido: nombres de archivo y el mapa (BMP, CSV, estados, demo, parche)
 src/renderer/src/
   blocks/            Bloques de Blockly y el campo FieldCatalog (menú con catálogo)
   catalog/           Catálogo central (focos, ideas, marcas, países, estados) y modificadores
@@ -85,9 +90,10 @@ src/renderer/src/
   icons/             Emojis, elección automática, tamaños y dibujo con canvas
   store/             Estado central de la app (proyecto, selección, modo "elegir", diálogos)
   ui/                Pantallas y componentes
+  map/               Mapa: colores, renderizadores WebGL2/Canvas 2D, herramientas y validación
   countries/         Países: color, popularidades, tags, historia, validación y datos "por verificar"
-  types.ts           Formato de proyecto.json (versión 3)
-  migrate.ts         Abre proyectos viejos (versiones 1 y 2) sin error
+  types.ts           Formato de proyecto.json (versión 4)
+  migrate.ts         Abre proyectos viejos (versiones 1 a 3) sin error
 tests/               Pruebas automáticas
 ```
 
@@ -106,8 +112,39 @@ tests/               Pruebas automáticas
 5. **Exportar mod**: si hay errores, el botón **Ir** te lleva al paso que hay que corregir.
 6. Revisa en la carpeta del mod los archivos de la lista de arriba.
 
-Para que el país aparezca en la partida debe ser dueño de al menos un estado (llegará con el
-editor de mapa). Mientras tanto puedes liberarlo desde un foco de otro país (efecto `release`).
+Para que el país aparezca en la partida debe ser dueño de al menos un estado: píntaselos en
+la pestaña **Mapa** (ver abajo).
+
+## Probar el editor de mapa (sin tener HOI4)
+
+1. Pestaña **Mapa**: sin carpeta del juego se abre el **Mapa de demostración** (etiqueta azul):
+   40 estados y 4 países ficticios (DMA, DMB, DMC, DMD).
+2. En la tarjeta de arriba a la izquierda: **Elegir país** (por ejemplo tu país del mod) o **+ Crear país**.
+3. Herramientas (con su tecla):
+   - **Pincel (B)**: arrastra sobre el mapa; cada estado bajo el cursor pasa a tu país.
+     Opciones: "Dar core al pintar" y "Quitar cores del dueño anterior".
+   - **Cubeta (G)**: clic en un estado → pinta todos los conectados con el mismo dueño.
+   - **Fijar capital (C)**: clic en un estado de tu país (si no es suyo, te explica por qué).
+   - **Core (K)**: clic agrega un core; **Shift+clic** lo quita.
+   - **Borrador (E)**: el estado vuelve a su dueño y cores originales.
+   - **Cuentagotas (I)**: el dueño del estado pasa a ser el país activo.
+   - **Seleccionar (V)**: ver la información del estado en el panel derecho.
+4. **Ctrl+Z / Ctrl+Y**: cada pincelada completa es un solo paso.
+5. Rueda = zoom, botón central o espacio + arrastre = mover, doble clic = acercar, **F** = ajustar.
+   Abajo a la derecha está el minimapa (clic para moverte). Arriba a la derecha, el modo de vista
+   (Político, Estados, Cores del país activo, Cambios).
+6. **🖼 Referencia**: sube un PNG para calcar encima del mapa (solo visual).
+7. En el asistente de país (paso Capital) y en los bloques que piden un estado, usa
+   **🗺 Elegir en el mapa…**.
+8. **Exportar mod**: el validador avisa que los cambios del mapa de demostración NO se exportan.
+
+## Con la carpeta del juego
+
+1. **⚙ Ajustes** → elige la carpeta de instalación de HOI4.
+2. Pestaña **Mapa** → **Recargar mapa**: verás la barra de progreso ("Leyendo provincias… 40 %").
+   La segunda vez abre desde la caché en segundos.
+3. Pinta, y al exportar se generan SOLO los archivos de `history/states/` que cambiaste, con el
+   mismo nombre que en el juego y solo las líneas `owner` / `add_core_of` modificadas.
 
 ## Probar el mod en el juego
 
