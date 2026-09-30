@@ -12,6 +12,7 @@ export interface JominiParser {
 const asArray = <T>(v: T | T[] | undefined): T[] =>
   v === undefined ? [] : Array.isArray(v) ? v : [v]
 const DATE_KEY = /^\d{1,4}\.\d{1,2}\.\d{1,2}$/
+// por verificar: claves que cuentan como "cambio con fecha" de dueño o cores
 const CHANGE_KEYS = ['owner', 'add_core_of', 'remove_core_of', 'controller', 'transfer_state']
 
 export function statesFromParsed(parsed: any, file: string): MapState[] {

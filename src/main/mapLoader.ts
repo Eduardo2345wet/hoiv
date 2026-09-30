@@ -56,6 +56,7 @@ export async function loadRealMap(
         .filter((f) => f.endsWith('.txt'))
         .sort()
     : []
+  // por verificar: los nombres de estado están en localisation/english/*state_names*.yml
   const locFiles = fs.existsSync(locDir)
     ? fs.readdirSync(locDir).filter((f) => /state_names/.test(f))
     : []
