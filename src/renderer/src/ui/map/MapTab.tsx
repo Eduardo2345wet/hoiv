@@ -124,7 +124,17 @@ export default function MapTab({
         e.altKey
       )
         return
-      if (document.querySelector('[data-modal]')) return
+      if (e.key === 'Escape' && pick) {
+        store.cancelPick()
+        return
+      }
+      // Hay una ventana visible encima (las ocultas, como el asistente mientras eliges, no cuentan)
+      if (
+        [...document.querySelectorAll<HTMLElement>('[data-modal]')].some(
+          (m) => m.getClientRects().length > 0
+        )
+      )
+        return
       const k = e.key.toUpperCase()
       const found = TOOLS.find((x) => x.key === k)
       if (found) setTool(found.id)

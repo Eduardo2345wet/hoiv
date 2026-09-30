@@ -11,7 +11,7 @@ import {
   type Project
 } from '../../types'
 import type { GameCatalog } from '../../catalog/catalog'
-import { useApp } from '../../store/appStore'
+import { store, useApp } from '../../store/appStore'
 import { applyParsedHistory, parseHistory } from '../../countries/history'
 import { getCatalogOptions } from '../../catalog/catalog'
 import {
@@ -532,6 +532,20 @@ export function CapitalStep({ draft, set, game }: StepProps): JSX.Element {
             set({ capital: n >= 1 ? n : null })
           }}
         />
+        <button
+          type="button"
+          className="btn ml-2 text-xs"
+          title="Abre la pestaña Mapa: haz clic en el estado y vuelves aquí"
+          onClick={() =>
+            store.startPick({
+              kind: 'state',
+              exclude: [],
+              onPick: (id) => set({ capital: Number(id) })
+            })
+          }
+        >
+          🗺 Elegir en el mapa…
+        </button>
         <datalist id="estados-juego">
           {game?.states?.slice(0, 2000).map((s) => (
             <option key={s.id} value={s.id}>

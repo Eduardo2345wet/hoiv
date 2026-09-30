@@ -116,6 +116,7 @@ export default function CountryWizard({
   useEffect(() => {
     const onKey = (e: KeyboardEvent): void => {
       const t = e.target as HTMLElement
+      if (store.get().pick) return
       if (
         e.key === 'Enter' &&
         !editing &&
@@ -150,8 +151,11 @@ export default function CountryWizard({
     />
   ][step]
 
+  // Mientras se elige la capital en el mapa, el asistente se oculta (conserva el borrador)
+  const pickingState = useApp((s) => s.pick?.kind === 'state')
   return (
     <div
+      className={pickingState ? 'hidden' : ''}
       // Esc: pregunta antes de cerrar si hay cambios (si hay otra ventana encima, la cierra ella)
       onKeyDownCapture={(e) => {
         if (e.key !== 'Escape' || nestedOpen()) return

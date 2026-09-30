@@ -77,7 +77,7 @@ export const conditionBlocks = [
   {
     type: 'cond_owns_state',
     message0: 'posee el estado %1',
-    args0: [{ type: 'field_number', name: 'STATE', value: 1, min: 1, precision: 1 }],
+    args0: [{ type: 'field_catalog', name: 'STATE', kind: 'state', value: '1' }],
     ...base
   },
   {

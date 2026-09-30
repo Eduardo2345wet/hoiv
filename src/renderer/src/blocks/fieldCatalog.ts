@@ -14,7 +14,8 @@ export const SPECIAL = {
   separator: '__sep__',
   create: '__crear__',
   other: '__otro__',
-  pickTree: '__arbol__'
+  pickTree: '__arbol__',
+  pickMap: '__mapa__'
 } as const
 const SPECIAL_VALUES: string[] = Object.values(SPECIAL)
 
@@ -41,6 +42,7 @@ export function buildMenu(kind: CatalogKind, current: string | null): Option[] {
 
   const menu: Option[] = []
   if (kind === 'focus') menu.push(['🎯 Elegir en el árbol…', SPECIAL.pickTree])
+  if (kind === 'state') menu.push(['🗺 Elegir en el mapa…', SPECIAL.pickMap])
   if (current && !opts.some((o) => o.id === current)) {
     const why = kind === 'focus' || kind === 'idea' ? 'ya no existe' : 'no está en la lista'
     menu.push([`⚠ ${current} (${why})`, current])
@@ -118,6 +120,12 @@ export class FieldCatalog extends Blockly.FieldDropdown {
       return
     }
 
+    if (v === SPECIAL.pickMap) {
+      // Abre la pestaña Mapa en modo selección y vuelve al terminar
+      store.startPick({ kind: 'state', exclude: [], onPick: (id) => set(id) })
+      return
+    }
+
     if (v === SPECIAL.other) {
       store.openPrompt({
         message: 'Escribe el ID (para cosas de otros mods o DLC que no estén en la lista):',
@@ -125,9 +133,13 @@ export class FieldCatalog extends Blockly.FieldDropdown {
         validate: (t) =>
           this.kind === 'country'
             ? validateTag(t)
-            : CATALOG_VALUE_REGEX.test(t)
-              ? null
-              : 'Solo letras sin tildes, números, _ . y -',
+            : this.kind === 'state'
+              ? /^[1-9]\d*$/.test(t)
+                ? null
+                : 'El ID de estado es un número entero mayor o igual a 1'
+              : CATALOG_VALUE_REGEX.test(t)
+                ? null
+                : 'Solo letras sin tildes, números, _ . y -',
         callback: set
       })
       return

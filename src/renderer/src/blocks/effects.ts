@@ -76,19 +76,19 @@ export const effectBlocks = [
   {
     type: 'eff_add_state_core',
     message0: 'Obtener núcleo en el estado %1',
-    args0: [{ type: 'field_number', name: 'STATE', value: 1, min: 1, precision: 1 }],
+    args0: [{ type: 'field_catalog', name: 'STATE', kind: 'state', value: '1' }],
     ...base
   },
   {
     type: 'eff_add_state_claim',
     message0: 'Reclamar el estado %1',
-    args0: [{ type: 'field_number', name: 'STATE', value: 1, min: 1, precision: 1 }],
+    args0: [{ type: 'field_catalog', name: 'STATE', kind: 'state', value: '1' }],
     ...base
   },
   {
     type: 'eff_transfer_state',
     message0: 'Recibir el estado %1',
-    args0: [{ type: 'field_number', name: 'STATE', value: 1, min: 1, precision: 1 }],
+    args0: [{ type: 'field_catalog', name: 'STATE', kind: 'state', value: '1' }],
     ...base
   },
   {
@@ -132,7 +132,7 @@ export const effectBlocks = [
     type: 'eff_state_scope',
     message0: 'En el estado %1 hacer: %2 %3',
     args0: [
-      { type: 'field_number', name: 'STATE', value: 1, min: 1, precision: 1 },
+      { type: 'field_catalog', name: 'STATE', kind: 'state', value: '1' },
       { type: 'input_dummy' },
       { type: 'input_statement', name: 'DO', check: CHECK_STATE_EFFECT }
     ],
