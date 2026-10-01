@@ -102,7 +102,9 @@ describe('interfaz tipo NX (partes 1 a 4)', () => {
     await newProject(page, 'Solo focos', 'Lienzo en blanco')
     await page.click('button:text-is("Focos")')
     await page.click('button:has-text("Añadir foco")')
-    await page.waitForSelector('text=Primero crea un país')
+    await page.waitForSelector('text=¿De qué país es este árbol de focos?')
+    await page.waitForSelector('text=Todos los países del juego')
+    await page.click('button:has-text("Cerrar"), [data-modal]', { position: { x: 5, y: 5 } })
     // La cinta cambia la vista principal: Países muestra su pestaña
     await page.click('button:text-is("Países")')
     await page.waitForSelector('button:has-text("Crear país")')

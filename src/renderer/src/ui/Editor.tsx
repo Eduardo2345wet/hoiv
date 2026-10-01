@@ -19,9 +19,9 @@ import { registerCommands } from './commands'
 import { validateProject, type Issue } from '../export/validator'
 import { exportMod } from '../export/exportMod'
 import { planStateExport, type StateExportPlan } from '../export/statesExport'
-import { createTreeForCountry } from '../countries/countryOps'
-import { suggestTag } from '../countries/tags'
+import { giveTreeToChosenCountry } from './countryFlow'
 import { colorForTag } from '../countries/countryOps'
+import { suggestTag } from '../countries/tags'
 import { createQuickCountry } from '../map/quickCountry'
 import {
   createFocus,
@@ -156,35 +156,7 @@ export default function Editor(): JSX.Element {
     if (activeTree) return activeTree
     const p = store.get().project!
     if (p.focusTrees.length) return p.focusTrees[0].id
-    const owners = p.countries.filter((c) => !c.technical)
-    if (!owners.length) {
-      store.toast('Primero crea un país (País rápido o el asistente): cada árbol es de un país.', {
-        kind: 'error'
-      })
-      return null
-    }
-    const uid =
-      owners.length === 1
-        ? owners[0].uid
-        : await store.askUser({
-            title: 'Árbol de focos',
-            message: '¿A qué país pertenece este árbol de focos?',
-            buttons: [
-              ...owners
-                .slice(0, 5)
-                .map((c) => ({ label: `${c.names.name} (${c.tag})`, value: c.uid })),
-              { label: 'Cancelar', value: '' }
-            ]
-          })
-    if (!uid) return null
-    let treeId = ''
-    change((q) => {
-      const r = createTreeForCountry(q, uid)
-      treeId = r.treeId
-      return r.project
-    })
-    store.set({ activeTreeId: treeId })
-    return treeId
+    return await giveTreeToChosenCountry()
   }
   const addFocusAt = async (x: number, y: number): Promise<void> => {
     const tree = await ensureTree()

@@ -42,7 +42,7 @@ export default function CountriesTab({ project, onOpenWizard }: Props): JSX.Elem
           <Plus size={16} /> Crear país
         </button>
         <span className="text-sm text-hoi-muted">
-          {project.countries.filter((c) => !c.technical).length} país(es) en el mod
+          {project.countries.filter((c) => !c.technical && !c.light).length} país(es) en el mod
         </span>
       </div>
       {/* País técnico "Sin nación": aparte, con candado (lo mantiene la app) */}
@@ -71,7 +71,7 @@ export default function CountriesTab({ project, onOpenWizard }: Props): JSX.Elem
         ))}
       <div className="grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-3">
         {project.countries
-          .filter((c) => !c.technical)
+          .filter((c) => !c.technical && !c.light)
           .map((c) => {
             const tree = project.focusTrees.find((t) => t.id === c.focusTreeId)
             return (

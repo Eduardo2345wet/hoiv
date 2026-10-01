@@ -1,6 +1,6 @@
 // Formularios de cada paso del asistente "Crear país".
 // Los mismos formularios se usan en "Editar país" (como pestañas).
-import { useMemo, useState } from 'react'
+import { useState } from 'react'
 import { Download, Plus, Trash2, Upload, X } from 'lucide-react'
 import {
   IDEOLOGIES,
@@ -38,6 +38,7 @@ import {
   type VariantImage
 } from '../../countries/gameFlags'
 import { downloadPng } from '../downloadPng'
+import { chooseCountryTag, nameOfTag } from '../countryFlow'
 import ImageUploader from '../ImageUploader'
 
 export interface StepProps {
@@ -105,7 +106,6 @@ export function IdentityStep({
   tagTouched,
   setTagTouched
 }: StepProps): JSX.Element {
-  const [query, setQuery] = useState('')
   const gamePath = useApp((s) => s.gamePath)
 
   /** Elegir un país del juego: si hay carpeta, lee su historia y precarga sus valores */
@@ -138,13 +138,6 @@ export function IdentityStep({
           )
     )
   }
-  const gameCountries = useMemo(
-    () => getCatalogOptions('country', null, game).filter((o) => o.origen === 'juego'),
-    [game]
-  )
-  const results = gameCountries
-    .filter((o) => `${o.id} ${o.etiqueta}`.toLowerCase().includes(query.toLowerCase()))
-    .slice(0, 40)
   const similar = project.countries.find(
     (o) => o.uid !== draft.uid && colorDistance(o.color, draft.color) < SIMILAR_COLOR_DISTANCE
   )
@@ -180,24 +173,17 @@ export function IdentityStep({
           label="País del juego"
           hint="Solo se exporta lo que cambies. Nunca se tocan country_tags ni common/countries."
         >
-          <input
-            className="input mb-1"
-            placeholder="Buscar: México, GER…"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-          />
-          <div className="max-h-36 overflow-y-auto rounded border border-hoi-border">
-            {results.map((o) => (
-              <button
-                key={o.id}
-                onClick={() => void pickGameCountry(o.id, o.etiqueta)}
-                className={`flex w-full gap-2 px-2 py-1 text-left text-sm hover:bg-hoi-card ${draft.tag === o.id ? 'bg-hoi-accent/20' : ''}`}
-              >
-                <span className="w-10 font-mono text-hoi-muted">{o.id}</span>
-                {o.etiqueta}
-              </button>
-            ))}
-          </div>
+          <button
+            className="btn w-full justify-start"
+            onClick={async () => {
+              const tag = await chooseCountryTag('País del juego a modificar')
+              if (tag) void pickGameCountry(tag, nameOfTag(tag))
+            }}
+          >
+            {draft.tag
+              ? `${draft.names.name || draft.tag} (${draft.tag}) — cambiar…`
+              : 'Elegir país…'}
+          </button>
         </Field>
       )}
 

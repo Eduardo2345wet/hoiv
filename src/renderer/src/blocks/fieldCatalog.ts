@@ -4,6 +4,7 @@
 //   al abrir proyectos o al borrar elementos.
 // - Las opciones especiales (crear, escribir otro, elegir en el árbol) se interceptan
 //   y nunca se guardan como valor.
+import { countrySections, type CountryChoice } from '../countries/choices'
 import * as Blockly from 'blockly'
 import { getCatalogOptions, type CatalogKind } from '../catalog/catalog'
 import { store } from '../store/appStore'
@@ -49,7 +50,20 @@ export function buildMenu(kind: CatalogKind, current: string | null): Option[] {
   } else if (!current) {
     menu.push(['— elige —', ''])
   }
-  for (const o of opts) {
+  if (kind === 'country') {
+    // Mismo orden que el selector universal: Mis países → En el mapa → Todos (sin banderas)
+    const sec = countrySections(project, s.map, store.catalogGame())
+    const add = (title: string, list: CountryChoice[]): void => {
+      if (!list.length) return
+      menu.push([`── ${title} ──`, SPECIAL.separator])
+      for (const c of list)
+        menu.push([`${c.name} · ${c.tag}${c.states ? `  (${c.states})` : ''}`, c.tag])
+    }
+    add('Mis países', sec.mine)
+    add('En el mapa', sec.onMap)
+    add('Todos los países del juego', sec.game)
+  }
+  for (const o of kind === 'country' ? [] : opts) {
     const label = o.etiqueta && o.etiqueta !== o.id ? `${o.etiqueta} · ${o.id}` : o.id
     menu.push([o.origen === 'juego' ? `${label}  (juego)` : label, o.id])
   }

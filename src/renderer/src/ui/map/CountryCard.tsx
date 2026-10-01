@@ -8,6 +8,7 @@ import { countryLabel, NO_NATION, setBrush } from '../../map/brush'
 import { toHex } from '../../countries/color'
 import { countryDrawColor } from '../../map/colors'
 import { flagForTag } from '../FlagThumb'
+import { chooseCountryTag } from '../countryFlow'
 
 interface Props {
   project: Project
@@ -71,7 +72,13 @@ export default function CountryCard({ project, gameColors, onOpenWizard }: Props
           />
         </div>
         <div className="min-w-0 flex-1">
-          <div className="truncate font-semibold">{countryLabel(activeTag, project, game)}</div>
+          <button
+            className="block max-w-full truncate text-left font-semibold hover:text-hoi-accent"
+            title="Cambiar de país"
+            onClick={() => void chooseCountryTag('Pintar con…').then((t) => t && setBrush(t))}
+          >
+            {countryLabel(activeTag, project, game)}
+          </button>
           <div className="font-mono text-xs text-hoi-muted">{activeTag}</div>
           <div className="text-xs">
             {country ? IDEOLOGY_LABELS[country.politics.ruling] : 'país del juego'}

@@ -151,6 +151,8 @@ export function countryTextFiles(project: Project, game: GameCatalog | null = nu
   const leaderSprites: string[] = []
 
   for (const c of project.countries) {
+    // País del juego ligero (solo tag + referencia): no exporta nada
+    if (c.light) continue
     if (c.mode === 'nuevo') {
       tagLines.push(`${c.tag} = "countries/${countryFileName(c)}"`)
       files.push({
@@ -223,6 +225,7 @@ export function existingCountryTextFiles(c: Country): ModFile[] {
 
 /** Banderas a exportar de un país: [nombre sin extensión, PNG] */
 export function flagVariants(c: Country): [string, string][] {
+  if (c.light) return []
   // País técnico: bandera gris lisa generada
   const main = c.technical
     ? renderPlainFlag(c.color)
@@ -264,6 +267,7 @@ export function missingFlagSizes(
 export async function countryImageFiles(project: Project, read: ImageReader): Promise<ModFile[]> {
   const files: ModFile[] = []
   for (const c of project.countries) {
+    if (c.light) continue
     for (const [folder, w, h] of FLAG_FOLDERS)
       for (const [name, png] of flagVariants(c)) {
         const img = await read(png, w, h)
@@ -291,6 +295,7 @@ export async function countryImageFiles(project: Project, read: ImageReader): Pr
 export function countryImagePaths(project: Project): string[] {
   const out: string[] = []
   for (const c of project.countries) {
+    if (c.light) continue
     for (const [folder] of FLAG_FOLDERS)
       for (const [name] of flagVariants(c)) out.push(`${folder}/${name}.tga`)
     for (const l of c.leaders) out.push(`gfx/leaders/${c.tag}/${l.id}.dds`)

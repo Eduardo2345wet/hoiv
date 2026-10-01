@@ -296,7 +296,7 @@ export function validateProject(
   // ---- Países ----
   // El país técnico "Sin nación" se valida aparte (en el mapa)
   for (const c of project.countries ?? [])
-    if (!c.technical) issues.push(...validateCountry(c, project, game))
+    if (!c.technical && !c.light) issues.push(...validateCountry(c, project, game))
   for (const t of project.focusTrees ?? [])
     if (!treeCountry(project, t.id) && project.focuses.some((f) => f.treeId === t.id))
       issues.push({

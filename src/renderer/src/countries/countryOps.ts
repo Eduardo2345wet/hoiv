@@ -182,3 +182,53 @@ export function treeCountry(p: Project, treeId: string | null | undefined): Coun
 export function popularityText(c: Country): string {
   return IDEOLOGIES.map((i) => `${i} ${c.politics.popularities[i]}%`).join(' · ')
 }
+
+// ======================= Países del juego "ligeros" =======================
+
+/** Crea el país ligero (solo tag + referencia) de un país del juego */
+export function lightCountry(tag: string, name: string): Country {
+  const c = newCountry({ mode: 'existente', tag, name })
+  return { ...c, leaders: [], light: true }
+}
+
+/** Quita los países ligeros que ya no tienen árbol de focos (nadie los usa) */
+export function pruneLight(p: Project): Project {
+  const keep = p.countries.filter((c) => !c.light || c.focusTreeId)
+  return keep.length === p.countries.length ? p : { ...p, countries: keep }
+}
+
+/**
+ * Da un árbol de focos a un país elegido por tag, SIN abrir ventanas: si es del mod se usa tal
+ * cual; si es del juego se registra como país ligero. `treeId` = árbol existente (p. ej. uno
+ * "sin país"); sin él se crea uno vacío. El país que tenía ese árbol lo pierde.
+ */
+export function assignTreeToTag(
+  p: Project,
+  tag: string,
+  name: string,
+  treeId?: string
+): { project: Project; treeId: string; country: Country } {
+  let next = p
+  let c = next.countries.find((x) => x.tag === tag)
+  if (!c) {
+    c = lightCountry(tag, name)
+    next = addCountry(next, c)
+  }
+  let tree = treeId ?? c.focusTreeId ?? undefined
+  if (!tree) {
+    const r = createTreeForCountry(next, c.uid)
+    return { project: pruneLight(r.project), treeId: r.treeId, country: c }
+  }
+  next = assignTree(next, c.uid, tree)
+  return { project: pruneLight(next), treeId: tree, country: c }
+}
+
+/** Borra un árbol (y sus focos); un país ligero que lo usaba desaparece */
+export function deleteTree(p: Project, treeId: string): Project {
+  return pruneLight({
+    ...p,
+    focusTrees: p.focusTrees.filter((t) => t.id !== treeId),
+    focuses: p.focuses.filter((f) => f.treeId !== treeId),
+    countries: p.countries.map((c) => (c.focusTreeId === treeId ? { ...c, focusTreeId: null } : c))
+  })
+}

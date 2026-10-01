@@ -35,7 +35,7 @@ export function countryFullColor(
   game: GameCatalog | null
 ): RGB {
   const mod = project?.countries.find((c) => c.tag === tag)
-  if (mod) return mod.color
+  if (mod && !mod.light) return mod.color
   return game?.countryColors?.[tag] ?? colorForTag(tag)
 }
 

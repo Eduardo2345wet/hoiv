@@ -55,3 +55,61 @@ describe('CountryPicker: secciones (parte 1)', () => {
     expect(matchChoice(c, 'xyz')).toBe(false)
   })
 })
+
+import {
+  assignTreeToTag,
+  deleteTree,
+  createTreeForCountry
+} from '../src/renderer/src/countries/countryOps'
+import { buildExtraFiles, plannedPaths } from '../src/renderer/src/export/exportMod'
+import { createFocus } from '../src/renderer/src/ui/projectOps'
+import type { Project } from '../src/renderer/src/types'
+
+const noCountries = (): Project => ({ ...emptyProject(), countries: [], focusTrees: [], tag: '' })
+
+describe('país del juego ligero (parte 3)', () => {
+  it('elegir SOV registra un país existente ligero y le da un árbol, sin ventanas', () => {
+    const r = assignTreeToTag(noCountries(), 'SOV', 'Russia')
+    const c = r.project.countries.find((x) => x.tag === 'SOV')!
+    expect(c).toMatchObject({ mode: 'existente', light: true, focusTreeId: r.treeId, leaders: [] })
+    expect(r.project.focusTrees.length).toBe(1)
+  })
+  it('un árbol "sin país" se puede asignar a un país del juego', () => {
+    let p = noCountries()
+    p = { ...p, focusTrees: [{ id: 'arbol_1', name: 'Viejo' }] }
+    const r = assignTreeToTag(p, 'SOV', 'Russia', 'arbol_1')
+    expect(r.treeId).toBe('arbol_1')
+    expect(r.project.focusTrees.length).toBe(1)
+    expect(r.project.countries[0].focusTreeId).toBe('arbol_1')
+  })
+  it('al borrar el árbol el país ligero desaparece; uno del mod se queda', () => {
+    const r = assignTreeToTag(noCountries(), 'SOV', 'Russia')
+    expect(deleteTree(r.project, r.treeId).countries).toEqual([])
+    const mine = emptyProject() // MEX es del mod y ya tiene arbol_1
+    expect(deleteTree(mine, 'arbol_1').countries.length).toBe(1)
+  })
+  it('un país ligero no exporta historia, banderas, personajes ni localización de país', async () => {
+    let r = assignTreeToTag(noCountries(), 'SOV', 'Russia')
+    let p = createFocus(r.project, 0, 0, 'Industria', r.treeId).project
+    p = { ...p, modName: 'Mi Mod' }
+    const files = await buildExtraFiles(p, async () => ({
+      width: 1,
+      height: 1,
+      rgba: new Uint8Array(4)
+    }))
+    const paths = files.map((f) => f.path)
+    expect(paths.some((x) => x.includes('national_focus/SOV_focus.txt'))).toBe(true)
+    expect(
+      paths.filter((x) =>
+        /history\/countries|gfx\/flags|characters|country_tags|leaders|common\/countries/.test(x)
+      )
+    ).toEqual([])
+    expect(plannedPaths(p).filter((x) => /gfx\/flags|history\/countries/.test(x))).toEqual([])
+    expect(files.some((f) => f.path.includes('countries_l_english'))).toBe(false)
+  })
+  it('editar el país con el asistente lo vuelve completo (light = false)', () => {
+    const r = assignTreeToTag(noCountries(), 'SOV', 'Russia')
+    const c = r.project.countries[0]
+    expect({ ...c, light: false }.light).toBe(false)
+  })
+})

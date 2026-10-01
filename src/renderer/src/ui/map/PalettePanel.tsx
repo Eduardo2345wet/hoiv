@@ -46,8 +46,8 @@ export default function PalettePanel({
   } | null>(null)
   const [lastQuickUid, setLastQuickUid] = useState<string | null>(null)
 
-  const mine = project.countries.filter((c) => !c.technical)
-  const mineTags = new Set(project.countries.map((c) => c.tag))
+  const mine = project.countries.filter((c) => !c.technical && !c.light)
+  const mineTags = new Set(project.countries.filter((c) => !c.light).map((c) => c.tag))
   const noNation =
     project.mapSettings.unpainted === 'noNation' && project.mapSettings.base === 'blank'
 

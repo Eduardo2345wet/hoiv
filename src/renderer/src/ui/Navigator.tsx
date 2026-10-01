@@ -49,6 +49,7 @@ export default function Navigator({ project }: { project: Project }): JSX.Elemen
   const [collapsed, setCollapsed] = useState(false)
   const [open, setOpen] = useState({
     paises: true,
+    usados: true,
     arboles: true,
     ideas: false,
     iconos: false,
@@ -96,29 +97,55 @@ export default function Navigator({ project }: { project: Project }): JSX.Elemen
       <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
         <Section
           title="Países"
-          count={project.countries.filter((c) => !c.technical).length}
+          count={project.countries.filter((c) => !c.technical && !c.light).length}
           open={open.paises}
           onToggle={() => toggle('paises')}
         >
-          {project.countries.length === 0 && (
+          {project.countries.filter((c) => !c.light).length === 0 && (
             <p className="px-4 pb-2 text-xs text-hoi-muted">
               Aún no hay países. Crea uno con "País rápido" o el asistente.
             </p>
           )}
-          {project.countries.map((c) =>
-            row(
-              c.uid,
-              activeTag === c.tag,
-              () => (ribbon === 'mapa' ? setBrush(c.tag) : store.setUi({ ribbon: 'paises' })),
-              () => store.set({ wizardRequest: { uid: c.uid, n: Date.now() } }),
-              <>
-                <FlagThumb country={c} height={14} />
-                <span className="truncate">{c.names.name}</span>
-                <span className="ml-auto font-mono text-[10px] text-hoi-muted">{c.tag}</span>
-              </>
-            )
-          )}
+          {project.countries
+            .filter((c) => !c.light)
+            .map((c) =>
+              row(
+                c.uid,
+                activeTag === c.tag,
+                () => (ribbon === 'mapa' ? setBrush(c.tag) : store.setUi({ ribbon: 'paises' })),
+                () => store.set({ wizardRequest: { uid: c.uid, n: Date.now() } }),
+                <>
+                  <FlagThumb country={c} height={14} />
+                  <span className="truncate">{c.names.name}</span>
+                  <span className="ml-auto font-mono text-[10px] text-hoi-muted">{c.tag}</span>
+                </>
+              )
+            )}
         </Section>
+        {project.countries.some((c) => c.light) && (
+          <Section
+            title="Países del juego usados"
+            count={project.countries.filter((c) => c.light).length}
+            open={open.usados}
+            onToggle={() => toggle('usados')}
+          >
+            {project.countries
+              .filter((c) => c.light)
+              .map((c) =>
+                row(
+                  c.uid,
+                  activeTag === c.tag,
+                  () => (ribbon === 'mapa' ? setBrush(c.tag) : store.setUi({ ribbon: 'focos' })),
+                  () => store.set({ wizardRequest: { uid: c.uid, n: Date.now() } }),
+                  <>
+                    <FlagThumb country={c} height={14} />
+                    <span className="truncate">{c.names.name}</span>
+                    <span className="ml-auto font-mono text-[10px] text-hoi-muted">{c.tag}</span>
+                  </>
+                )
+              )}
+          </Section>
+        )}
         <Section
           title="Árboles de focos"
           count={project.focusTrees.length}
