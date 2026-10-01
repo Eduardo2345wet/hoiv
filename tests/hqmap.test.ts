@@ -30,6 +30,11 @@ import {
   zoomFrame
 } from '../src/renderer/src/map/viewMath'
 import { FLAG } from '../src/renderer/src/map/colors'
+import { exportFileName, exportGeometry, EXPORT_BASE } from '../src/renderer/src/map/exportImage'
+import { saveImage } from '../src/main/saveImage'
+import fs from 'fs'
+import os from 'os'
+import path from 'path'
 import { buildSegmentBuffer } from '../src/renderer/src/map/borderGeometry'
 import { segmentStyle } from '../src/renderer/src/map/borderStyle'
 import { buildPalette } from '../src/renderer/src/map/colors'
@@ -665,5 +670,44 @@ describe('contornos, rayas y vista (parte 4)', () => {
     expect(steps).toBeLessThan(200) // se detiene (≈ 1–2 s)
     expect(total).toBeGreaterThan(30) // se desliza un poco
     expect(total).toBeLessThan(800) // pero es ligera
+  })
+})
+
+describe('exportar imagen: geometría y guardado (parte 5)', () => {
+  const cur = { width: 1000, height: 600, view: { scale: 1.5, x: 10, y: 20 }, dpr: 2 }
+  it('1× = 5632×2048, 2× = el doble y la vista actual = la pantalla', () => {
+    const real = { width: 5632, height: 2048 }
+    const g1 = exportGeometry('1x', real, cur)
+    expect([g1.width, g1.height, g1.dpr]).toEqual([5632, 2048, 1])
+    expect(g1.view).toEqual({ scale: 1, x: 0, y: 0 }) // el mapa real queda 1:1
+    const g2 = exportGeometry('2x', real, cur)
+    expect([g2.width, g2.height, g2.dpr]).toEqual([11264, 4096, 2])
+    expect(g2.cssWidth).toBe(EXPORT_BASE.w)
+    const gv = exportGeometry('view', real, cur)
+    expect([gv.width, gv.height, gv.dpr]).toEqual([2000, 1200, 2])
+    expect(gv.view).toEqual(cur.view)
+  })
+  it('un mapa más chico se ajusta y se centra dentro de 5632×2048', () => {
+    const g = exportGeometry('1x', demo, cur)
+    expect([g.width, g.height]).toEqual([5632, 2048])
+    expect(g.view.scale).toBeCloseTo(Math.min(5632 / 1200, 2048 / 600), 9)
+    expect(g.view.x * 2 + demo.width * g.view.scale).toBeCloseTo(5632, 6)
+    expect(g.view.y * 2 + demo.height * g.view.scale).toBeCloseTo(2048, 6)
+  })
+  it('nombre de archivo sin acentos ni caracteres raros', () => {
+    expect(exportFileName('Mi mod de México', '1x')).toBe('mapa-Mi_mod_de_Mexico-1x.png')
+    expect(exportFileName('', 'view')).toBe('mapa-mapa-vista.png')
+  })
+  it('guardar: solo PNG, nunca dentro de la carpeta del juego', () => {
+    const png = Uint8Array.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 1, 2, 3])
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'hq-img-'))
+    expect(saveImage(path.join(dir, 'a.png'), png)).toEqual({ ok: true })
+    expect(fs.readFileSync(path.join(dir, 'a.png')).length).toBe(png.length)
+    expect('error' in saveImage(path.join(dir, 'a.jpg'), png)).toBe(true)
+    expect('error' in saveImage(path.join(dir, 'b.png'), Uint8Array.from([1, 2, 3]))).toBe(true)
+    const game = path.join(dir, 'steamapps', 'common', 'Hearts of Iron IV')
+    fs.mkdirSync(game, { recursive: true })
+    expect('error' in saveImage(path.join(game, 'c.png'), png)).toBe(true)
+    expect(fs.existsSync(path.join(game, 'c.png'))).toBe(false)
   })
 })

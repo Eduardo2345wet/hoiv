@@ -29,6 +29,7 @@ import { handleStroke, type ToolId } from '../../map/tools'
 import CountryCard from './CountryCard'
 import PalettePanel from './PalettePanel'
 import NoNationSettings from './NoNationSettings'
+import ExportImageDialog from './ExportImageDialog'
 import { nextPendingIndex, noNationActive, pendingStates } from '../../map/noNation'
 import { brushForKey, NO_NATION, setBrush } from '../../map/brush'
 import { countryDrawColor } from '../../map/colors'
@@ -120,6 +121,7 @@ export default function MapTab({
   const [capitals, setCapitals] = useState(true)
   const [provinceBorders, setProvinceBorders] = useState(false)
   const [gameColors, setGameColors] = useState(false)
+  const [exportOpen, setExportOpen] = useState(false)
   const [hover, setHover] = useState<MapPointer | null>(null)
   const [zoom, setZoom] = useState(1)
   const [rendererKind, setRendererKind] = useState('')
@@ -505,6 +507,14 @@ export default function MapTab({
                 Colores como en el juego
               </label>
             </div>
+            <button
+              className="btn px-2 text-xs"
+              title="Guarda el mapa como imagen PNG (5632×2048, 2× o la vista actual)"
+              disabled={!map}
+              onClick={() => setExportOpen(true)}
+            >
+              🖼 Exportar imagen del mapa (PNG)
+            </button>
           </div>
 
           {pick && (
@@ -585,6 +595,14 @@ export default function MapTab({
       </div>
       {baseDialog && <MapBaseDialog project={project} onClose={() => setBaseDialog(false)} />}
       {nnDialog && <NoNationSettings project={project} onClose={() => setNnDialog(false)} />}
+      {exportOpen && (
+        <ExportImageDialog
+          view={viewRef.current}
+          modName={project.modName}
+          initial={{ labels: labels !== 'ninguna' || capitals, provinceBorders }}
+          onClose={() => setExportOpen(false)}
+        />
+      )}
     </div>
   )
 }

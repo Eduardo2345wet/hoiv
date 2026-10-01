@@ -4,6 +4,7 @@ import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import fs from 'fs'
 import path from 'path'
 import { handleExportMod } from './export'
+import { saveImage } from './saveImage'
 import { loadRealMap } from './mapLoader'
 import { listInstalledMods, type ModLayer } from './mods'
 import { findHoi4, isHoi4Install, systemEnv } from './steamDetect'
@@ -96,6 +97,18 @@ app.whenReady().then(() => {
       return null
     }
   )
+
+  // Imagen PNG del mapa: abre "Guardar como" y escribe los bytes (nunca en la carpeta del juego)
+  ipcMain.handle('save-image-dialog', async (_, bytes: Uint8Array, defaultName = 'mapa.png') => {
+    const result = await dialog.showSaveDialog({
+      title: 'Guardar imagen del mapa',
+      defaultPath: defaultName,
+      filters: [{ name: 'Imagen PNG', extensions: ['png'] }]
+    })
+    if (result.canceled || !result.filePath) return null
+    const r = saveImage(result.filePath, new Uint8Array(bytes))
+    return 'error' in r ? { error: r.error } : { path: result.filePath }
+  })
 
   ipcMain.handle('save-project-to-path', async (_, filePath: string, content: string) => {
     if (!filePath.toLowerCase().endsWith('.json')) return false

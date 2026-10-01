@@ -28,10 +28,12 @@ import {
   drawLabels,
   layoutLabels,
   type LabelMode,
+  type LayoutInput,
   type PlacedLabel
 } from '../../map/labelLayout'
 import { isPainted } from '../../map/colors'
 import { drawMinimap, minimapSize } from '../../map/minimap'
+import { exportMapImage, type ExportOptions, type ExportResult } from '../../map/exportImage'
 import { countryLabel } from '../../map/brush'
 import { DEMO_TAGS } from '../../../../shared/map/demo'
 
@@ -55,6 +57,10 @@ export interface MapViewHandle {
   fit(): void
   zoomBy(f: number): void
   centerOn(stateId: number): void
+  /** Tamaño de la pantalla del mapa (px CSS) */
+  screen(): { width: number; height: number }
+  /** Imagen PNG del mapa con el mismo motor, fuera de pantalla */
+  exportImage(opts: ExportOptions): Promise<ExportResult>
 }
 
 interface Props {
@@ -188,6 +194,19 @@ export default forwardRef<MapViewHandle, Props>(function MapView(props, ref) {
       commit(fitView())
     },
     zoomBy: (f) => zoomAt(f, size.w / 2, size.h / 2),
+    screen: () => ({ width: size.w, height: size.h }),
+    exportImage: (opts) =>
+      exportMapImage(opts, {
+        map,
+        palette: paletteRef.current,
+        current: {
+          width: size.w,
+          height: size.h,
+          view: viewRef.current,
+          dpr: window.devicePixelRatio || 1
+        },
+        labelInput: labelBase()
+      }),
     centerOn: (id) => {
       const c = map.stateCenters[id]
       if (!c) return
@@ -291,7 +310,8 @@ export default forwardRef<MapViewHandle, Props>(function MapView(props, ref) {
     return entries
   }, [project, game, map])
 
-  const relayout = (v: View = viewRef.current): void => {
+  /** Lo que necesita la colocación de etiquetas (sin la vista): también sirve para exportar */
+  const labelBase = (): Omit<LayoutInput, 'view' | 'width' | 'height'> => {
     const pal = paletteRef.current
     const capitals = props.capitals
       ? capitalLabels(
@@ -303,16 +323,16 @@ export default forwardRef<MapViewHandle, Props>(function MapView(props, ref) {
           (id) => !paletteOptions.blankUnpainted || isPainted(id, project)
         )
       : null
-    labelsRef.current = layoutLabels({
+    return {
       map,
-      view: v,
-      width: size.w,
-      height: size.h,
       mode: props.labels,
       capitals,
       colorOf: (slot) => [pal.rgba[slot * 4], pal.rgba[slot * 4 + 1], pal.rgba[slot * 4 + 2]],
       measure
-    })
+    }
+  }
+  const relayout = (v: View = viewRef.current): void => {
+    labelsRef.current = layoutLabels({ ...labelBase(), view: v, width: size.w, height: size.h })
     redrawOverlay()
   }
   // Cambios que obligan a recolocar YA

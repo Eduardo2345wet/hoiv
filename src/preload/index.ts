@@ -6,6 +6,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   selectFolder: () => ipcRenderer.invoke('select-folder'),
   saveProjectDialog: (content: string, defaultName?: string) =>
     ipcRenderer.invoke('save-project-dialog', content, defaultName),
+  saveImageDialog: (bytes: Uint8Array, defaultName?: string) =>
+    ipcRenderer.invoke('save-image-dialog', bytes, defaultName),
   saveProjectToPath: (filePath: string, content: string) =>
     ipcRenderer.invoke('save-project-to-path', filePath, content),
   openProjectDialog: () => ipcRenderer.invoke('open-project-dialog'),

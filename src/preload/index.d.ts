@@ -57,6 +57,11 @@ export interface GameCatalogData {
 export interface ElectronAPI {
   selectFolder: () => Promise<string | null>
   /** Abre "Guardar como"; devuelve la ruta elegida o null */
+  /** Guarda un PNG con "Guardar como": { path } si se guardó, { error } si falló, null si se canceló */
+  saveImageDialog: (
+    bytes: Uint8Array,
+    defaultName?: string
+  ) => Promise<{ path: string } | { error: string } | null>
   saveProjectDialog: (content: string, defaultName?: string) => Promise<string | null>
   /** Guarda directamente en una ruta ya conocida */
   saveProjectToPath: (filePath: string, content: string) => Promise<boolean>
