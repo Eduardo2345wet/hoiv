@@ -10,6 +10,7 @@ import { pngToRGBA, pngToRGBAResized } from './imageCanvas'
 import {
   countryImageFiles,
   countryImagePaths,
+  missingFlagSizes,
   countryTextFiles,
   type ImageReader
 } from './countryExport'
@@ -104,6 +105,13 @@ export async function exportMod(
   const folder = await api.selectFolder()
   if (!folder) return { ok: false, message: 'Exportación cancelada.' }
 
+  const extra = await buildExtraFiles(project, pngToRGBA, pngToRGBAResized, store.catalogGame())
+  // Auto-revisión: cada bandera exportada trae sus 3 tamaños
+  const generated = new Set([...extra, ...extraFiles].map((f) => f.path))
+  const missing = missingFlagSizes(project, [...generated])
+  if (missing.length)
+    return { ok: false, message: `Faltan archivos de bandera (3 tamaños): ${missing.join(', ')}` }
+
   const mod = baseMod(project)
   const result = await api.exportMod({
     // Base de mapa de otro mod: el nuestro depende de él
@@ -114,10 +122,7 @@ export async function exportMod(
     // Los árboles van en `files` (uno por país)
     focusTreeScript: '',
     locYaml: generateLocalisation(project),
-    files: [
-      ...(await buildExtraFiles(project, pngToRGBA, pngToRGBAResized, store.catalogGame())),
-      ...extraFiles
-    ]
+    files: [...extra, ...extraFiles]
   })
   if (!result.success) return { ok: false, message: result.error ?? 'Error desconocido' }
   return { ok: true, message: `Mod exportado en:\n${result.modFolder}` }

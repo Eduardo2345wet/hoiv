@@ -232,13 +232,32 @@ export function flagVariants(c: Country): [string, string][] {
     ...IDEOLOGIES.map((i): [string, string] => [`${c.tag}_${i}`, c.flags.byIdeology[i] ?? main])
   ]
   if (c.mode === 'nuevo') return all
-  // País existente: solo sustituimos lo que el usuario subió.
-  // Si subió la principal, se cambian las 5 (las de ideología sin imagen propia usan la principal).
-  if (c.flags.main) return all
-  return IDEOLOGIES.filter((i) => c.flags.byIdeology[i]).map((i) => [
-    `${c.tag}_${i}`,
-    c.flags.byIdeology[i]!
-  ])
+  // País del JUEGO: SOLO las variantes que el usuario personalizó, con los mismos nombres que el
+  // juego (así sustituyen a las originales). Las que no tocó no se exportan.
+  const out: [string, string][] = []
+  if (c.flags.main) out.push([c.tag, c.flags.main])
+  for (const i of IDEOLOGIES)
+    if (c.flags.byIdeology[i]) out.push([`${c.tag}_${i}`, c.flags.byIdeology[i]!])
+  return out
+}
+
+/**
+ * Auto-revisión: cada bandera que se va a exportar debe tener sus 3 tamaños
+ * (gfx/flags, medium/ y small/). Devuelve los archivos que faltarían.
+ */
+export function missingFlagSizes(
+  project: Project,
+  paths: string[] = countryImagePaths(project)
+): string[] {
+  const have = new Set(paths)
+  const missing: string[] = []
+  for (const c of project.countries)
+    for (const [name] of flagVariants(c))
+      for (const [folder] of FLAG_FOLDERS) {
+        const p = `${folder}/${name}.tga`
+        if (!have.has(p)) missing.push(p)
+      }
+  return missing
 }
 
 /** 15 banderas TGA por país (5 × 3 tamaños) + retratos DDS de los líderes */

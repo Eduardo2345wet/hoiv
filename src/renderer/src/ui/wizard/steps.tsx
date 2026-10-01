@@ -1,7 +1,7 @@
 // Formularios de cada paso del asistente "Crear país".
 // Los mismos formularios se usan en "Editar país" (como pestañas).
 import { useMemo, useState } from 'react'
-import { Plus, Trash2, Upload, X } from 'lucide-react'
+import { Download, Plus, Trash2, Upload, X } from 'lucide-react'
 import {
   IDEOLOGIES,
   IDEOLOGY_LABELS,
@@ -30,9 +30,15 @@ import {
   BUILTIN_SUBIDEOLOGIES
 } from '../../countries/gameData'
 import { FLAG_SIZE, PORTRAIT_SIZE } from '../../countries/placeholders'
-import { renderPortraitPlaceholder } from '../../icons/renderer'
+import { renderFlagPlaceholder, renderPortraitPlaceholder } from '../../icons/renderer'
+import {
+  resetFlagVariant,
+  variantImage,
+  type FlagVariant,
+  type VariantImage
+} from '../../countries/gameFlags'
+import { downloadPng } from '../downloadPng'
 import ImageUploader from '../ImageUploader'
-import { flagSrc } from '../FlagThumb'
 
 export interface StepProps {
   draft: Country
@@ -585,29 +591,57 @@ export function CapitalStep({ draft, set, game }: StepProps): JSX.Element {
 }
 
 // ======================= Paso 4: Bandera =======================
+const FLAG_SIZES = [
+  [82, 52],
+  [41, 26],
+  [10, 7]
+]
+const VARIANT_LABEL: Record<FlagVariant, string> = {
+  main: 'Principal',
+  ...IDEOLOGY_LABELS
+}
+
 export function FlagStep({ draft, set }: StepProps): JSX.Element {
-  const [upload, setUpload] = useState<Ideology | 'main' | null>(null)
-  const main = flagSrc(draft)
-  const sizes = [
-    [82, 52],
-    [41, 26],
-    [10, 7]
-  ]
+  const [upload, setUpload] = useState<FlagVariant | null>(null)
+  const gameFlags = useApp((s) => s.gameFlags)
+  const existing = draft.mode === 'existente'
+  const img = (v: FlagVariant): VariantImage =>
+    variantImage(draft, v, gameFlags, () => renderFlagPlaceholder(draft.tag, draft.color))
+  const main = img('main')
+  const edit = (_v: FlagVariant, c: Country): void => set({ flags: c.flags })
   return (
     <div className="flex flex-col gap-4">
+      {existing && (
+        <p className="rounded border border-hoi-border bg-hoi-card p-2 text-xs text-hoi-muted">
+          {gameFlags?.[draft.tag]
+            ? 'Estas son las banderas REALES del juego. Reemplaza las que quieras; al exportar solo se incluyen las que personalices, con los mismos nombres del juego.'
+            : 'No se encontraron las banderas de este país en el juego (o no hay carpeta del juego); se muestra la de relleno.'}
+        </p>
+      )}
       <div className="flex items-start gap-6">
         <div>
-          <div className="label">Bandera principal {draft.flags.main ? '' : '(de relleno)'}</div>
+          <div className="label">
+            Bandera principal (
+            {main.source === 'personalizada'
+              ? 'personalizada'
+              : main.source === 'juego'
+                ? 'del juego'
+                : 'de relleno'}
+            )
+          </div>
           <div className="flex gap-2">
             <button className="btn" onClick={() => setUpload('main')}>
               <Upload size={14} /> Subir imagen
             </button>
+            <button className="btn" onClick={() => void downloadPng(main.src, `${draft.tag}.png`)}>
+              <Download size={14} /> Descargar PNG
+            </button>
             {draft.flags.main && (
               <button
                 className="btn text-xs"
-                onClick={() => set({ flags: { ...draft.flags, main: null, mainSmall: false } })}
+                onClick={() => edit('main', resetFlagVariant(draft, 'main'))}
               >
-                Usar la de relleno
+                {existing ? 'Volver a la del juego' : 'Usar la de relleno'}
               </button>
             )}
           </div>
@@ -620,9 +654,9 @@ export function FlagStep({ draft, set }: StepProps): JSX.Element {
         <div>
           <div className="label">Tamaños reales</div>
           <div className="flex items-end gap-3 rounded bg-[#101013] p-3">
-            {sizes.map(([w, h]) => (
+            {FLAG_SIZES.map(([w, h]) => (
               <div key={w} className="text-center text-[10px] text-hoi-muted">
-                <img src={main} width={w} height={h} alt="" />
+                <img src={main.src} width={w} height={h} alt="" />
                 {w}×{h}
               </div>
             ))}
@@ -632,51 +666,76 @@ export function FlagStep({ draft, set }: StepProps): JSX.Element {
           <div className="label">Fondo claro y oscuro</div>
           <div className="flex overflow-hidden rounded">
             <div className="bg-[#e8e4d8] p-3">
-              <img src={main} width={82} height={52} alt="" />
+              <img src={main.src} width={82} height={52} alt="" />
             </div>
             <div className="bg-[#111] p-3">
-              <img src={main} width={82} height={52} alt="" />
+              <img src={main.src} width={82} height={52} alt="" />
             </div>
           </div>
         </div>
       </div>
 
       <div>
-        <div className="label">Bandera por ideología (opcional; las vacías usan la principal)</div>
+        <div className="label">
+          Bandera por ideología{' '}
+          {existing
+            ? '(las del juego; reemplaza solo las que quieras)'
+            : '(opcional; las vacías usan la principal)'}
+        </div>
         <div className="grid grid-cols-4 gap-2">
-          {IDEOLOGIES.map((i) => (
-            <div
-              key={i}
-              className="flex flex-col items-center gap-1 rounded border border-hoi-border p-2 text-xs"
-            >
-              {IDEOLOGY_LABELS[i]}
-              <img
-                src={flagSrc(draft, i)}
-                width={82}
-                height={52}
-                alt=""
-                className={draft.flags.byIdeology[i] ? '' : 'opacity-50'}
-              />
-              <div className="flex gap-1">
-                <button className="btn px-2 py-0.5 text-[11px]" onClick={() => setUpload(i)}>
-                  Subir
-                </button>
-                {draft.flags.byIdeology[i] && (
+          {IDEOLOGIES.map((i) => {
+            const v = img(i)
+            return (
+              <div
+                key={i}
+                className="flex flex-col items-center gap-1 rounded border border-hoi-border p-2 text-xs"
+              >
+                {VARIANT_LABEL[i]}
+                <img
+                  src={v.src}
+                  width={82}
+                  height={52}
+                  alt=""
+                  className={v.source === 'relleno' ? 'opacity-50' : ''}
+                />
+                <div className="flex items-end gap-2">
+                  {FLAG_SIZES.slice(1).map(([w, h]) => (
+                    <img key={w} src={v.src} width={w} height={h} alt="" title={`${w}×${h}`} />
+                  ))}
+                </div>
+                <span
+                  className={`text-[10px] ${v.source === 'personalizada' ? 'text-hoi-accent' : 'text-hoi-muted'}`}
+                >
+                  {v.source === 'personalizada'
+                    ? 'personalizada'
+                    : v.source === 'juego'
+                      ? 'del juego'
+                      : 'de relleno'}
+                </span>
+                <div className="flex flex-wrap justify-center gap-1">
+                  <button className="btn px-2 py-0.5 text-[11px]" onClick={() => setUpload(i)}>
+                    Subir
+                  </button>
                   <button
                     className="btn px-2 py-0.5 text-[11px]"
-                    title="Quitar"
-                    onClick={() => {
-                      const byIdeology = { ...draft.flags.byIdeology }
-                      delete byIdeology[i]
-                      set({ flags: { ...draft.flags, byIdeology } })
-                    }}
+                    title="Descargar PNG"
+                    onClick={() => void downloadPng(v.src, `${draft.tag}_${i}.png`)}
                   >
-                    <X size={12} />
+                    <Download size={12} />
                   </button>
-                )}
+                  {draft.flags.byIdeology[i] && (
+                    <button
+                      className="btn px-2 py-0.5 text-[11px]"
+                      title={existing ? 'Volver a la del juego' : 'Quitar'}
+                      onClick={() => edit(i, resetFlagVariant(draft, i))}
+                    >
+                      {existing ? 'Volver a la del juego' : <X size={12} />}
+                    </button>
+                  )}
+                </div>
               </div>
-            </div>
-          ))}
+            )
+          })}
         </div>
       </div>
 
@@ -685,7 +744,7 @@ export function FlagStep({ draft, set }: StepProps): JSX.Element {
           title={
             upload === 'main'
               ? 'Bandera principal (82×52)'
-              : `Bandera: ${IDEOLOGY_LABELS[upload]} (82×52)`
+              : `Bandera: ${VARIANT_LABEL[upload]} (82×52)`
           }
           size={FLAG_SIZE}
           onAcceptImage={(png, small) => {

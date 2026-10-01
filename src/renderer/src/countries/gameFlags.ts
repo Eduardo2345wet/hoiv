@@ -6,7 +6,13 @@ import type { Country, Ideology } from '../types'
 export type FlagVariant = 'main' | Ideology
 export type GameFlags = Record<string, Partial<Record<string, string>>>
 
-export const FLAG_VARIANTS: FlagVariant[] = ['main', 'democratic', 'fascism', 'communism', 'neutrality']
+export const FLAG_VARIANTS: FlagVariant[] = [
+  'main',
+  'democratic',
+  'fascism',
+  'communism',
+  'neutrality'
+]
 
 /** Bandera del juego de un país y variante (null si no hay) */
 export function gameFlagOf(
@@ -23,7 +29,10 @@ export function displayGameFlag(
   tag: string,
   ruling: string | undefined
 ): string | null {
-  return (ruling ? gameFlagOf(flags, tag, ruling as FlagVariant) : null) ?? gameFlagOf(flags, tag, 'main')
+  return (
+    (ruling ? gameFlagOf(flags, tag, ruling as FlagVariant) : null) ??
+    gameFlagOf(flags, tag, 'main')
+  )
 }
 
 /** ¿El usuario personalizó esta variante de un país del juego? */
@@ -37,4 +46,35 @@ export function resetFlagVariant(c: Country, variant: FlagVariant): Country {
   const by = { ...c.flags.byIdeology }
   delete by[variant]
   return { ...c, flags: { ...c.flags, byIdeology: by } }
+}
+
+export interface VariantImage {
+  /** PNG (data URL) que se muestra */
+  src: string
+  /** De dónde sale: la real del juego, la que subió el usuario o la de relleno */
+  source: 'juego' | 'personalizada' | 'relleno'
+}
+
+/**
+ * Imagen de una variante en el editor de banderas. En un país del JUEGO se parte de sus banderas
+ * reales; las de ideología que el juego no trae usan la principal.
+ */
+export function variantImage(
+  c: Country,
+  v: FlagVariant,
+  flags: GameFlags | null | undefined,
+  placeholder: () => string
+): VariantImage {
+  const custom = v === 'main' ? c.flags.main : c.flags.byIdeology[v]
+  if (custom) return { src: custom, source: 'personalizada' }
+  if (c.mode === 'existente') {
+    const real = gameFlagOf(flags, c.tag, v) ?? gameFlagOf(flags, c.tag, 'main')
+    if (real) return { src: real, source: 'juego' }
+    return {
+      src: c.flags.main ?? placeholder(),
+      source: c.flags.main ? 'personalizada' : 'relleno'
+    }
+  }
+  // País nuevo: las variantes vacías usan la principal
+  return { src: c.flags.main ?? placeholder(), source: c.flags.main ? 'personalizada' : 'relleno' }
 }

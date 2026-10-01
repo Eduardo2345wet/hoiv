@@ -12,6 +12,19 @@ import { writeTGA } from '../src/renderer/src/export/images'
 import { displayGameFlag, gameFlagOf } from '../src/renderer/src/countries/gameFlags'
 import { flagSrc } from '../src/renderer/src/ui/FlagThumb'
 import { setPlaceholderRenderers } from '../src/renderer/src/icons/renderer'
+import {
+  countryImageFiles,
+  countryImagePaths,
+  flagVariants,
+  missingFlagSizes
+} from '../src/renderer/src/export/countryExport'
+import {
+  resetFlagVariant,
+  variantImage,
+  isCustomFlag
+} from '../src/renderer/src/countries/gameFlags'
+import { addCountry } from '../src/renderer/src/countries/countryOps'
+import { emptyProject } from './fixtures'
 import { store } from '../src/renderer/src/store/appStore'
 import { newCountry } from '../src/renderer/src/countries/countryOps'
 
@@ -243,5 +256,98 @@ describe('qué bandera se muestra (parte 5)', () => {
     const nuevo = newCountry({ mode: 'nuevo', tag: 'NVG', name: 'Nueva' })
     expect(flagSrc(nuevo)).toBe('relleno') // relleno, nunca la del juego
     store.set({ gameFlags: null, game: null })
+  })
+})
+
+describe('editar y exportar banderas (parte 6)', () => {
+  const flags = {
+    MEX: { main: 'MEX.png', fascism: 'MEXf.png', democratic: 'MEXd.png', neutrality: 'MEXn.png' }
+  }
+  const mexWith = (patch: object): ReturnType<typeof emptyProject> => {
+    const p = emptyProject() // MEX es un país EXISTENTE del juego
+    return {
+      ...p,
+      countries: p.countries.map((c) => ({ ...c, flags: { ...c.flags, ...patch } }))
+    }
+  }
+
+  it('al editar un país del juego se parte de sus banderas reales (y se ve de dónde vienen)', () => {
+    const c = emptyProject().countries[0]
+    const ph = (): string => 'relleno'
+    expect(variantImage(c, 'main', flags, ph)).toEqual({ src: 'MEX.png', source: 'juego' })
+    expect(variantImage(c, 'fascism', flags, ph)).toEqual({ src: 'MEXf.png', source: 'juego' })
+    // communism no existe en el juego: usa la principal del juego
+    expect(variantImage(c, 'communism', flags, ph)).toEqual({ src: 'MEX.png', source: 'juego' })
+    // sin banderas del juego: relleno
+    expect(variantImage(c, 'main', null, ph).source).toBe('relleno')
+    const mine = { ...c, flags: { ...c.flags, byIdeology: { fascism: 'mia.png' } } }
+    expect(variantImage(mine, 'fascism', flags, ph)).toEqual({
+      src: 'mia.png',
+      source: 'personalizada'
+    })
+    expect(isCustomFlag(mine, 'fascism')).toBe(true)
+    expect(isCustomFlag(mine, 'democratic')).toBe(false)
+  })
+
+  it('"Volver a la del juego" quita la personalizada', () => {
+    const c = emptyProject().countries[0]
+    const mine = { ...c, flags: { ...c.flags, main: 'a.png', byIdeology: { fascism: 'mia.png' } } }
+    const a = resetFlagVariant(mine, 'fascism')
+    expect(a.flags.byIdeology).toEqual({})
+    expect(a.flags.main).toBe('a.png')
+    const b = resetFlagVariant(mine, 'main')
+    expect(b.flags.main).toBeNull()
+    expect(variantImage(b, 'main', flags, () => 'x').source).toBe('juego')
+  })
+
+  it('país del juego con 1 variante personalizada: se exporta solo esa, en 3 tamaños', () => {
+    const p = mexWith({ byIdeology: { fascism: 'data:fascismo' } })
+    expect(flagVariants(p.countries[0])).toEqual([['MEX_fascism', 'data:fascismo']])
+    expect(countryImagePaths(p).filter((x) => x.includes('flags'))).toEqual([
+      'gfx/flags/MEX_fascism.tga',
+      'gfx/flags/medium/MEX_fascism.tga',
+      'gfx/flags/small/MEX_fascism.tga'
+    ])
+    expect(missingFlagSizes(p)).toEqual([])
+    // La auto-revisión detecta si falta un tamaño
+    expect(missingFlagSizes(p, ['gfx/flags/MEX_fascism.tga'])).toEqual([
+      'gfx/flags/medium/MEX_fascism.tga',
+      'gfx/flags/small/MEX_fascism.tga'
+    ])
+  })
+
+  it('las TGA exportadas tienen el nombre del juego y los tamaños 82×52, 41×26 y 10×7', async () => {
+    const p = mexWith({ byIdeology: { fascism: 'data:fascismo' } })
+    const sizes: Record<string, number[]> = {}
+    const files = await countryImageFiles(p, async (_png, w, h) => {
+      const rgba = new Uint8Array(w * h * 4).fill(255)
+      return { width: w, height: h, rgba }
+    })
+    for (const f of files.filter((x) => x.path.includes('flags'))) {
+      const d = f.data!
+      sizes[f.path] = [d[12] | (d[13] << 8), d[14] | (d[15] << 8)]
+    }
+    expect(sizes).toEqual({
+      'gfx/flags/MEX_fascism.tga': [82, 52],
+      'gfx/flags/medium/MEX_fascism.tga': [41, 26],
+      'gfx/flags/small/MEX_fascism.tga': [10, 7]
+    })
+  })
+
+  it('sin personalizar nada, un país del juego no exporta banderas; la principal sola exporta solo ella', () => {
+    expect(countryImagePaths(mexWith({})).filter((x) => x.includes('flags'))).toEqual([])
+    const only = mexWith({ main: 'data:principal' })
+    expect(flagVariants(only.countries[0]).map(([n]) => n)).toEqual(['MEX'])
+  })
+
+  it('un país del MOD exporta sus 15 banderas (5 variantes × 3 tamaños)', () => {
+    const p = addCountry(emptyProject(), {
+      ...newCountry({ mode: 'nuevo', tag: 'NVG', name: 'Nueva Granada' }),
+      focusTreeId: null
+    })
+    const nvg = countryImagePaths(p).filter((x) => x.includes('flags/') && x.includes('NVG'))
+    expect(nvg.length).toBe(15)
+    expect(new Set(nvg.map((x) => x.split('/').pop())).size).toBe(5)
+    expect(missingFlagSizes(p)).toEqual([])
   })
 })
