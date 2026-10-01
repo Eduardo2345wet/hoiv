@@ -1,5 +1,7 @@
+// Escribe los archivos del mod en disco (se ejecuta en el proceso principal de Electron).
 import fs from 'fs'
 import path from 'path'
+import { safeFolderName } from '../shared/names'
 
 export interface ExportModPayload {
   exportPath: string
@@ -7,63 +9,96 @@ export interface ExportModPayload {
   tag: string
   focusTreeScript: string
   locYaml: string
+  files?: { path: string; text?: string; bom?: boolean; data?: Uint8Array }[]
 }
 
-export async function handleExportMod(payload: ExportModPayload): Promise<{ success: boolean; error?: string }> {
+export interface ExportResult {
+  success: boolean
+  error?: string
+  modFolder?: string
+}
+
+export { safeFolderName }
+
+/**
+ * Detecta si la carpeta elegida es (o está dentro de) la instalación del juego.
+ * NUNCA escribimos ahí: los mods van en Documentos/Paradox Interactive/Hearts of Iron IV/mod
+ */
+export function isGameInstallFolder(folder: string): boolean {
+  const lower = folder.replace(/\\/g, '/').toLowerCase()
+  if (lower.includes('/steamapps/common/')) return true
+  let dir = folder
+  for (let i = 0; i < 6; i++) {
+    if (fs.existsSync(path.join(dir, 'hoi4.exe')) || fs.existsSync(path.join(dir, 'hoi4')))
+      return true
+    const parent = path.dirname(dir)
+    if (parent === dir) break
+    dir = parent
+  }
+  return false
+}
+
+const escapeQuotes = (s: string): string => s.replace(/"/g, "'")
+
+export async function handleExportMod(payload: ExportModPayload): Promise<ExportResult> {
   try {
     const { exportPath, modName, tag, focusTreeScript, locYaml } = payload
 
     if (!exportPath || !modName || !tag) {
       return { success: false, error: 'Parámetros de exportación inválidos' }
     }
-
-    const baseName = modName.replace(/[^a-zA-Z0-9_-]/g, '_').toLowerCase()
-    
-    // Crear directorio del mod si no existe
-    const modFolder = path.join(exportPath, baseName)
-    if (!fs.existsSync(modFolder)) {
-      fs.mkdirSync(modFolder, { recursive: true })
+    if (isGameInstallFolder(exportPath)) {
+      return {
+        success: false,
+        error:
+          'Esa carpeta pertenece a la instalación del juego. Elige Documentos/Paradox Interactive/Hearts of Iron IV/mod'
+      }
     }
 
-    // 1. NOMBRE.mod fuera (UTF-8 sin BOM)
-    const rootModFile = path.join(exportPath, `${baseName}.mod`)
-    const modContent = `name="${modName}"
-path="mod/${baseName}"
-user_dir="${baseName}"
-supported_version="1.14.*"
-tags={
-	"Alternative History"
-	"National Focuses"
-}`
-    fs.writeFileSync(rootModFile, modContent, 'utf-8')
+    const baseName = safeFolderName(modName)
+    const modFolder = path.join(exportPath, baseName)
+    fs.mkdirSync(modFolder, { recursive: true })
 
-    // 2. NOMBRE/descriptor.mod (UTF-8 sin BOM)
-    const descriptorFile = path.join(modFolder, 'descriptor.mod')
-    const descriptorContent = `name="${modName}"
-supported_version="1.14.*"
-tags={
-	"Alternative History"
-	"National Focuses"
-}`
-    fs.writeFileSync(descriptorFile, descriptorContent, 'utf-8')
+    const tags = `tags={\n\t"Alternative History"\n\t"National Focuses"\n}`
+    const descriptor = `version="1.0"\n${tags}\nname="${escapeQuotes(modName)}"\nsupported_version="1.*"\n`
 
-    // 3. common/national_focus/TAG_focus.txt
-    const nationalFocusDir = path.join(modFolder, 'common', 'national_focus')
-    fs.mkdirSync(nationalFocusDir, { recursive: true })
-    const focusFile = path.join(nationalFocusDir, `${tag}_focus.txt`)
-    fs.writeFileSync(focusFile, focusTreeScript, 'utf-8')
+    // 1. NOMBRE/descriptor.mod (UTF-8 SIN BOM: Node no añade BOM con 'utf-8')
+    fs.writeFileSync(path.join(modFolder, 'descriptor.mod'), descriptor, 'utf-8')
 
-    // 4. localisation/english/NOMBRE_l_english.yml en UTF-8 CON BOM (\ufeff)
+    // 2. NOMBRE.mod fuera de la carpeta, con la ruta absoluta (barras "/")
+    const absPath = modFolder.replace(/\\/g, '/')
+    fs.writeFileSync(
+      path.join(exportPath, `${baseName}.mod`),
+      `${descriptor}path="${absPath}"\n`,
+      'utf-8'
+    )
+
+    // 3. common/national_focus/TAG_focus.txt (UTF-8 sin BOM)
+    const focusDir = path.join(modFolder, 'common', 'national_focus')
+    if (focusTreeScript) {
+      fs.mkdirSync(focusDir, { recursive: true })
+      fs.writeFileSync(path.join(focusDir, `${tag}_focus.txt`), focusTreeScript, 'utf-8')
+    }
+
+    // 4. localisation/english/NOMBRE_l_english.yml en UTF-8 CON BOM (﻿)
     const locDir = path.join(modFolder, 'localisation', 'english')
     fs.mkdirSync(locDir, { recursive: true })
-    const locFile = path.join(locDir, `${baseName}_l_english.yml`)
-    
-    // Garantizar BOM \ufeff al inicio
-    const bomLocContent = '\uFEFF' + locYaml
-    fs.writeFileSync(locFile, bomLocContent, 'utf-8')
+    fs.writeFileSync(path.join(locDir, `${baseName}_l_english.yml`), '﻿' + locYaml, 'utf-8')
 
-    return { success: true }
-  } catch (err: any) {
-    return { success: false, error: err.message || 'Error desconocido al exportar el mod' }
+    // 5. Archivos extra (ideas, íconos .dds, .gfx). Solo rutas dentro del mod.
+    for (const f of payload.files ?? []) {
+      const rel = f.path.replace(/\\/g, '/')
+      if (rel.startsWith('/') || rel.split('/').includes('..') || /^[a-z]:/i.test(rel))
+        return { success: false, error: `Ruta no permitida: ${f.path}` }
+      const target = path.join(modFolder, ...rel.split('/'))
+      fs.mkdirSync(path.dirname(target), { recursive: true })
+      if (f.data) fs.writeFileSync(target, Buffer.from(f.data))
+      else fs.writeFileSync(target, (f.bom ? '\uFEFF' : '') + (f.text ?? ''), 'utf-8')
+    }
+
+    return { success: true, modFolder }
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : 'Error desconocido al exportar el mod'
+    return { success: false, error: message }
   }
 }

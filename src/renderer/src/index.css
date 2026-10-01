@@ -25,3 +25,34 @@ body {
 ::-webkit-scrollbar-thumb:hover {
   background: #f97316;
 }
+
+/* Componentes reutilizables (botones y campos) */
+@layer components {
+  .btn {
+    @apply inline-flex items-center gap-1.5 rounded border border-hoi-border bg-hoi-card px-3 py-1.5 text-sm hover:border-hoi-accent;
+  }
+  .btn-primary {
+    @apply inline-flex items-center gap-1.5 rounded bg-hoi-accent px-3 py-1.5 text-sm font-semibold text-black hover:bg-hoi-accentHover;
+  }
+  .input {
+    @apply w-full rounded border border-hoi-border bg-hoi-bg px-2 py-1.5 text-sm outline-none focus:border-hoi-accent;
+    user-select: text;
+  }
+  .label {
+    @apply mb-1 block text-xs text-hoi-muted;
+  }
+}
+
+/* Blockly: que los menús y el texto no hereden el user-select: none */
+.blocklyWidgetDiv input {
+  user-select: text;
+}
+
+/* Toolbox de Blockly: letra del mismo tamaño que el resto de la interfaz */
+.blocklyTreeLabel {
+  font-size: 14px !important;
+}
+.blocklyTreeRow {
+  height: 30px !important;
+  line-height: 30px !important;
+}
