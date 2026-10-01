@@ -38,10 +38,13 @@ No hace falta tener el juego instalado. No se necesitan compiladores: todo (incl
 - **Países**: pestaña Países → "Crear país" abre un asistente de 6 pasos (identidad, política,
   capital, bandera, líder y resumen). Puedes crear un país **nuevo** o **modificar uno existente**.
 - **Mapa**: pestaña Mapa tipo Paint para repartir estados entre países (pincel, cubeta,
-  capital, cores, borrador, cuentagotas). Sin el juego instalado usa un **mapa de demostración**.
+  capital, cores, borrador, cuentagotas). Se ve como un mapa de IDs de estados: mar azul, tierra
+  blanca, fronteras finas y nítidas, números y el nombre del país en su capital. Puedes
+  **exportarlo como imagen PNG**. Sin el juego instalado usa un **mapa de demostración**.
 - **Deshacer / Rehacer**: Ctrl+Z / Ctrl+Y (o Ctrl+Shift+Z) y los botones de la barra.
   Dentro del editor de bloques, Ctrl+Z deshace solo los bloques.
-- **Ajustes (⚙)**: carpeta del juego OPCIONAL, solo se LEE: más países y espíritus, estados
+- **Ajustes (⚙)**: la carpeta del juego es OPCIONAL y se detecta sola si tienes HOI4 en Steam
+  (registro de Windows, bibliotecas de Steam y rutas típicas); también puedes elegirla a mano. Solo se LEE: más países y espíritus, estados
   (nombre y dueño), subideologías, estilos gráficos y la historia de los países existentes.
 
 > **Marca** = variable del script (`set_country_flag` / `has_country_flag`), no la bandera-imagen del país.
@@ -84,7 +87,8 @@ historia con el nombre exacto del juego si hay carpeta, nombre en localisation/e
 ```
 src/main/            Proceso principal de Electron (ventanas, archivos, exportar, leer el juego)
 src/preload/         Puente seguro entre la interfaz y Node
-src/shared/          Compartido: nombres de archivo y el mapa (BMP, CSV, estados, demo, parche)
+src/shared/          Compartido: nombres de archivo y el mapa (BMP, CSV, estados, demo, parche,
+                     tema de colores, fronteras vectoriales y rectángulos de etiquetas)
 src/renderer/src/
   blocks/            Bloques de Blockly y el campo FieldCatalog (menú con catálogo)
   catalog/           Catálogo central (focos, ideas, marcas, países, estados) y modificadores
@@ -93,11 +97,13 @@ src/renderer/src/
   icons/             Emojis, elección automática, tamaños y dibujo con canvas
   store/             Estado central de la app (proyecto, selección, modo "elegir", diálogos)
   ui/                Pantallas y componentes
-  map/               Mapa: colores, renderizadores WebGL2/Canvas 2D, herramientas y validación
+  map/               Mapa: colores, renderizadores WebGL2/Canvas 2D, etiquetas, exportar PNG,
+                     zoom e inercia, herramientas y validación
   countries/         Países: color, popularidades, tags, historia, validación y datos "por verificar"
   types.ts           Formato de proyecto.json (versión 5)
   migrate.ts         Abre proyectos viejos (versiones 1 a 4) sin error
-tests/               Pruebas automáticas
+tests/               Pruebas automáticas (tests/gpu.test.ts usa Chromium o Edge para probar WebGL2)
+scripts/             Mediciones de rendimiento (bench-map.ts, bench-render.mjs)
 ```
 
 ## Probar un país nuevo paso a paso
@@ -158,6 +164,74 @@ para practicar, pero sus cambios no se exportan.
 ### Al exportar
 Solo con el mapa real: se generan los archivos de `history/states/` necesarios, con el mismo
 nombre que en el juego (o en el mod base) y solo las líneas `owner` / `add_core_of` cambiadas.
+
+## Aspecto del mapa (generado, de alta calidad)
+
+El aspecto del mapa **siempre se genera** con los datos del juego (o de la caché del mapa):
+no existe ninguna "piel" con una imagen externa. (La *Referencia* de la barra superior es solo
+una imagen para calcar encima, apagada por defecto, y nunca cambia el dibujo ni los datos.)
+
+**Estilo** (todos los valores están en un solo archivo, `src/shared/map/theme.ts`):
+
+| Elemento | Valor |
+|---|---|
+| Mar, lagos y fondo fuera del mapa | `#446BA3` |
+| Tierra sin pintar | `#FFFFFF` |
+| Frontera de estado | `#BFBFBF`, 1 px |
+| Frontera de país (solo entre estados **pintados** de países distintos) | `#6E6E6E`, 1.75 px |
+| Frontera de provincia (solo con el interruptor) | `#E6E6E6`, 0.5 px |
+| Números | `#000000` |
+| País activo | contorno ámbar de 2 px |
+| Estado bajo el cursor | contorno gris oscuro de 2 px y un poco más claro por dentro |
+| "Ver pendientes" | rayas diagonales suaves de grosor constante |
+
+- **Costas**: sin línea, solo un cambio de color suave (antialias) entre mar y tierra.
+- **Fronteras vectoriales**: al cargar el mapa se convierten en polilíneas (marching squares,
+  Douglas-Peucker de 0.5 px y un paso de Chaikin, revisando que nunca se crucen). Se guardan en la
+  caché del mapa (carpeta de datos de la app, nunca en el repositorio) y se dibujan en WebGL2 con
+  **ancho constante en pantalla** a cualquier zoom y `devicePixelRatio`. El color (claro u oscuro)
+  lo decide el shader con los dueños de ese momento: pintar no recalcula nada.
+- **Etiquetas**: letra sans-serif del sistema; negra sobre tierra blanca y negra o blanca según la
+  luminancia sobre un país (con un contorno fino solo si hace falta). Tamaño de 9 a 14 px según lo
+  grande que se vea el estado; si no cabe en su estado, se oculta. Sin choques (la que pierde se
+  oculta): capitales > estados grandes > el resto. Se recolocan al terminar el zoom o el
+  desplazamiento; mientras tanto se mueven con el mapa.
+- **Capitales** (casilla *Capitales*): nombre del país en negrita con ★, de 11 a 16 px; si no
+  cabe, el tag; si tampoco, solo ★.
+- **Zoom y movimiento**: rueda con zoom suave (~120 ms) centrado en el cursor, arrastre con
+  inercia ligera (botón central o espacio + arrastre) y límites para que el mapa no se pierda.
+- **Minimapa** abajo a la derecha, con el mismo estilo.
+- **F3**: overlay con motor, FPS reales mientras te mueves o pintas, tiempo de dibujo, segmentos de
+  frontera, tiempos de vectorizar y de etiquetas, y tamaño de la caché.
+
+### Exportar imagen del mapa (PNG)
+Botón **🖼 Exportar imagen del mapa (PNG)** (arriba a la derecha del mapa). Tamaños: **1×**
+(5632×2048), **2×** (11264×4096) o la **vista actual**; con o sin etiquetas y con o sin fronteras
+de provincia. Se genera fuera de pantalla con el mismo motor WebGL2 y se guarda con "Guardar
+como" (nunca dentro de la carpeta del juego). Si el 2× falla por memoria, usa 1×.
+
+### Rendimiento
+Mide tú mismo con **F3** en tu computadora. Con un mapa **sintético** del tamaño del real
+(5632×2048, ~1 300 estados; `npm run bench:map` y `npm run bench:render`) en este entorno
+(sin GPU: SwiftShader por software, que NO sirve para estimar los FPS de una GPU real):
+
+| Medida | Resultado |
+|---|---|
+| Vectorizar las fronteras (una vez, al cargar el mapa) | ~0.4 s |
+| Rectángulos de etiquetas (una vez) | ~0.6 s |
+| Fronteras en la caché | ~660 KB (77 000 segmentos; con las costas) |
+| Colocar etiquetas tras un zoom | de 0 a 60 ms |
+| Pintar un estado (paleta a la GPU) | ~1 ms |
+| Exportar PNG 1× con etiquetas | ~3 s |
+
+El mapa real de HOI4 tiene fronteras mucho más irregulares: espera varias veces más puntos y
+unos segundos más la primera vez (después sale de la caché).
+
+## Pruebas automáticas
+
+`npm test` incluye pruebas del motor WebGL2 real (tests/gpu.test.ts): colores exactos del estilo,
+PNG de 5632×2048, ancho de línea con DPR 1, 2 y 3. Usan Chromium (variable `HOI4_TEST_CHROMIUM`, o
+`/opt/pw-browsers`) o Edge/Chrome instalados; si no hay ninguno, esas pruebas se saltan.
 
 ## Probar el mod en el juego
 

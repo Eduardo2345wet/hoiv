@@ -66,19 +66,6 @@ export const THEME_RGB = {
 export const glslVec3 = (c: RGB3): string =>
   `vec3(${c.map((v) => (v / 255).toFixed(6)).join(', ')})`
 
-/**
- * ¿El texto sobre este fondo debe ser blanco? Luminancia relativa (sRGB) < 0.4 → blanco.
- * Sobre blanco el texto es negro (#000000).
- */
-export function textIsWhite(bg: RGB3): boolean {
-  const lin = (v: number): number => {
-    const s = v / 255
-    return s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4
-  }
-  const L = 0.2126 * lin(bg[0]) + 0.7152 * lin(bg[1]) + 0.0722 * lin(bg[2])
-  return L < 0.4 // por verificar: umbral de contraste elegido a ojo
-}
-
 /** Ancho de línea en píxeles del dispositivo: siempre `css` píxeles CSS, a cualquier DPR */
 export const deviceWidth = (cssPx: number, dpr: number): number => cssPx * dpr
 
@@ -96,3 +83,20 @@ export function contrastRatio(a: RGB3, b: RGB3): number {
   const [hi, lo] = [luminance(a), luminance(b)].sort((x, y) => y - x)
   return (hi + 0.05) / (lo + 0.05)
 }
+
+/** Por debajo de este contraste (WCAG) la letra lleva un contorno fino del color contrario */
+export const HALO_BELOW = 7
+
+/**
+ * Letra negra o blanca sobre un fondo: la que da MÁS contraste (equivale a elegir por
+ * luminancia: el punto de cambio es ≈ 0.18). Sobre blanco sale negra (#000000). `ratio` es el
+ * contraste logrado; con menos de HALO_BELOW conviene un contorno del color contrario.
+ */
+export function bestTextColor(bg: RGB3): { white: boolean; ratio: number } {
+  const white = contrastRatio([255, 255, 255], bg)
+  const black = contrastRatio([0, 0, 0], bg)
+  return white > black ? { white: true, ratio: white } : { white: false, ratio: black }
+}
+
+/** ¿El texto sobre este fondo debe ser blanco? */
+export const textIsWhite = (bg: RGB3): boolean => bestTextColor(bg).white

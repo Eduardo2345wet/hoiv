@@ -2,3 +2,5 @@ node_modules
 out
 dist
 *.log
+# Paquetes de mapa (contienen datos de Paradox: solo para uso personal, nunca en el repositorio)
+*.hoi4map

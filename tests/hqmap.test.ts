@@ -70,6 +70,7 @@ describe('tema del mapa (parte 1)', () => {
   it('el texto es negro sobre blanco y blanco sobre colores oscuros', () => {
     expect(textIsWhite([255, 255, 255])).toBe(false)
     expect(textIsWhite([240, 175, 50])).toBe(false)
+    expect(textIsWhite([84, 190, 92])).toBe(false) // verde medio: negro da más contraste
     expect(textIsWhite([20, 30, 90])).toBe(true)
     expect(textIsWhite([110, 20, 20])).toBe(true)
   })
@@ -506,7 +507,7 @@ describe('etiquetas (parte 3)', () => {
     expect(dark.every((l) => l.white)).toBe(true)
     // Tono medio: contraste bajo → contorno fino del color contrario
     const mid = layoutLabels(
-      input(2, { mode: 'id', capitals: null, colorOf: () => [128, 128, 128] })
+      input(2, { mode: 'id', capitals: null, colorOf: () => [120, 120, 120] })
     )
     expect(mid.some((l) => l.halo)).toBe(true)
   })

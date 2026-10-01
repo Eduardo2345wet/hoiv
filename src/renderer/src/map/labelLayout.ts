@@ -7,7 +7,7 @@
 // coordenadas del mapa) sin recalcular.
 import type { MapData } from '../../../shared/map/types'
 import { BOX_FIELDS, LABEL_ASPECTS, fitLabelBox } from '../../../shared/map/labelBoxes'
-import { MAP_THEME, contrastRatio, textIsWhite, type RGB3 } from '../../../shared/map/theme'
+import { HALO_BELOW, MAP_THEME, bestTextColor, type RGB3 } from '../../../shared/map/theme'
 import type { View } from './renderer'
 
 export type LabelMode = 'ninguna' | 'id' | 'nombre' | 'ambos'
@@ -152,8 +152,7 @@ export function layoutLabels(inp: LayoutInput): PlacedLabel[] {
         if (grid.hits(x0, y0, x0 + w, y0 + h)) continue
         grid.add(x0, y0, x0 + w, y0 + h)
         const bg = inp.colorOf(slot)
-        const white = textIsWhite(bg)
-        const fg: RGB3 = white ? [255, 255, 255] : [0, 0, 0]
+        const { white, ratio } = bestTextColor(bg)
         placed.push({
           kind,
           stateId: states[slot].id,
@@ -166,7 +165,7 @@ export function layoutLabels(inp: LayoutInput): PlacedLabel[] {
           w,
           h,
           white,
-          halo: contrastRatio(fg, bg) < 4.5
+          halo: ratio < HALO_BELOW
         })
         return true
       }
