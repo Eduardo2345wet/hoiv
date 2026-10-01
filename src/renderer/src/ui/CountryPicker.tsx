@@ -84,7 +84,11 @@ export default function CountryPicker(): JSX.Element | null {
         <span className="flex-1 truncate">{r.c.name}</span>
         <span className="font-mono text-xs text-hoi-muted">{r.c.tag}</span>
         <span className="w-20 text-right text-xs text-hoi-muted">
-          {r.c.states} {r.c.states === 1 ? 'estado' : 'estados'}
+          {r.c.states > 0 || r.c.mine ? (
+            `${r.c.states} ${r.c.states === 1 ? 'estado' : 'estados'}`
+          ) : (
+            <span title="No tiene estados en tu mapa">—</span>
+          )}
         </span>
       </button>
     )
@@ -92,19 +96,25 @@ export default function CountryPicker(): JSX.Element | null {
   const block = (
     label: string,
     list: CountryChoice[],
-    action?: JSX.Element
+    action?: JSX.Element,
+    alwaysShow = false
   ): JSX.Element | null => {
     const l = list.filter((c) => matchChoice(c, q))
-    if (!l.length && !action) return null
+    if (!l.length && !action && !(alwaysShow && !searching)) return null
     return (
       <div key={label}>
         {header(label, l.length, action)}
         {l.map((c) => item({ kind: 'country', c }, idx++))}
+        {!l.length && alwaysShow && (
+          <p className="px-2 py-1 text-xs text-hoi-muted">
+            Todavía no hay países en tu mapa. Pinta estados o elige uno de la lista de abajo.
+          </p>
+        )}
       </div>
     )
   }
   const mineBlock = block('Mis países', sec.mine)
-  const mapBlock = block('En el mapa', sec.onMap)
+  const mapBlock = block('En el mapa', sec.onMap, undefined, true)
   const allBlock = showAll ? block('Todos los países del juego', sec.game, undefined) : <div />
   return (
     <Modal title={req.title} width={520} onClose={() => store.answerCountryPick(null)}>

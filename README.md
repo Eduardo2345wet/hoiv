@@ -235,6 +235,28 @@ reemplazará el árbol original de <país>". Los focos nuevos se llaman
 ya exista en `common/national_focus` (o un espíritu en `common/ideas`) con el botón **Renombrar
 automáticamente** (actualiza bloques, prerrequisitos y excluyentes).
 
+### "En el mapa" = lo que se ve en TU mapa
+Una sola regla, `effectiveOwner` (`map/mapOps.ts`), da el dueño de cada estado tal como se ve en el
+mapa del proyecto: con **Lienzo en blanco** (con o sin Sin nación) solo cuenta lo que pintaste;
+con **Mapa del juego / de un mod**, lo pintado o, si no, el dueño de la base; el país técnico
+"Sin nación" cuenta como en blanco. El selector de país y la Paleta comparten secciones y
+conteos: **Mis países** (con su conteo, aunque sea 0), **En el mapa (N)** (solo países con al menos
+1 estado en ESTE mapa, de mayor a menor; vacío muestra "Todavía no hay países en tu mapa…") y
+**Todos los países del juego** (plegable; "—" si no tienen estados en tu mapa; nunca los conteos
+del juego original). El buscador mira las tres secciones. Los conteos se actualizan por
+pincelada solo con los estados que cambiaron (y se recalculan completos al abrir o cambiar de
+pestaña). Tarjeta del país, Navegador, Paleta y selector dan los mismos números.
+El validador y la exportación siguen usando el dueño que tendrá el estado en el JUEGO (los
+estados en blanco conservan su dueño o pasan a Sin nación), no el dueño "visual".
+
+### Capas de la interfaz
+`ui/layers.ts` es la única escala de capas: base → paneles → cinta → Blockly → menús de Blockly →
+menús de la cinta → fondo de ventana → ventana → avisos → tooltips. Todas las ventanas (Modal,
+Nuevo proyecto, asistente, confirmaciones, selector de país…) se dibujan en un portal en
+`document.body`; al abrir una se cierra lo flotante de Blockly, el resto de la app queda inerte
+(`inert`) y al cerrar se devuelve el foco. La letra del toolbox de Blockly (14 px) y las capas de
+sus menús se definen junto a su tema (`ui/theme.ts`).
+
 ## Banderas reales de los países del juego
 
 Con HOI4 detectado, la Paleta, la tarjeta del país, el Navegador y el asistente muestran la

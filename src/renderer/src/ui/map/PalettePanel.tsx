@@ -14,6 +14,7 @@ import { fromHex, toHex } from '../../countries/color'
 import { validateTag } from '../../export/validator'
 import { getCatalogOptions } from '../../catalog/catalog'
 import { flagForTag } from '../FlagThumb'
+import { countrySections, matchChoice, type CountryChoice } from '../../countries/choices'
 
 interface Props {
   project: Project
@@ -35,7 +36,7 @@ export default function PalettePanel({
   useApp((s) => s.gameFlags) // las banderas reales llegan después
   const game = useApp(() => store.catalogGame())
   const [collapsed, setCollapsed] = useState(false)
-  const [showGame, setShowGame] = useState(true)
+  const [showGame, setShowGame] = useState(false)
   const [query, setQuery] = useState('')
   const [menuFor, setMenuFor] = useState<string | null>(null)
   const [quick, setQuick] = useState<{
@@ -47,21 +48,15 @@ export default function PalettePanel({
   const [lastQuickUid, setLastQuickUid] = useState<string | null>(null)
 
   const mine = project.countries.filter((c) => !c.technical && !c.light)
-  const mineTags = new Set(project.countries.filter((c) => !c.light).map((c) => c.tag))
   const noNation =
     project.mapSettings.unpainted === 'noNation' && project.mapSettings.base === 'blank'
 
-  // Países del juego que existen en la base actual, ordenados por número de estados
-  const gameTags = useMemo(() => {
-    const count = new Map<string, number>()
-    for (const s of map?.states ?? [])
-      if (s.owner) count.set(s.owner, (count.get(s.owner) ?? 0) + 1)
-    return [...count.entries()].filter(([t]) => !mineTags.has(t)).sort((a, b) => b[1] - a[1])
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [map, project.countries])
-  const filteredGame = gameTags.filter(([t]) =>
-    `${t} ${countryLabel(t, project, game)}`.toLowerCase().includes(query.toLowerCase())
-  )
+  // Mismas secciones y conteos que el CountryPicker (conteos de ESTE mapa, vía effectiveOwner)
+  const sec = useMemo(() => countrySections(project, map, game), [project, map, game])
+  const f = (l: CountryChoice[]): CountryChoice[] => l.filter((c) => matchChoice(c, query))
+  const mineF = f(sec.mine)
+  const onMapF = f(sec.onMap)
+  const allF = f(sec.game)
 
   const flagOf = (tag: string): string => {
     const c = project.countries.find((x) => x.tag === tag)
@@ -70,7 +65,7 @@ export default function PalettePanel({
 
   const swatch = (
     tag: string,
-    extra?: { key?: string; count?: number; menu?: boolean }
+    extra?: { key?: string; count?: number | null; menu?: boolean }
   ): JSX.Element => {
     const color = toHex(countryDrawColor(tag, project, game, gameColors))
     const active = activeTag === tag
@@ -98,7 +93,7 @@ export default function PalettePanel({
             <span className="block truncate text-xs">{countryLabel(tag, project, game)}</span>
             <span className="font-mono text-[10px] text-hoi-muted">
               {tag}
-              {extra?.count !== undefined && ` · ${extra.count}`}
+              {extra?.count !== undefined && ` · ${extra.count ?? '—'}`}
             </span>
           </span>
           {extra?.key && (
@@ -145,7 +140,7 @@ export default function PalettePanel({
   // ---- País rápido ----
   const taken = (): string[] => [
     ...getCatalogOptions('country', project, game).map((o) => o.id),
-    ...gameTags.map(([t]) => t)
+    ...sec.onMap.map((c) => c.tag)
   ]
   const startQuick = (): void => {
     const tag = suggestTag('Nuevo', taken())
@@ -194,12 +189,36 @@ export default function PalettePanel({
         </button>
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto p-2">
+        <input
+          className="input mb-2 text-xs"
+          placeholder="Buscar país (nombre o tag)…"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+        />
         {/* Mis países */}
         <div className="mb-1 text-[11px] uppercase tracking-wide text-hoi-muted">Mis países</div>
         <div className="flex flex-col gap-0.5">
-          {mine.map((c, i) => swatch(c.tag, { key: i < 9 ? String(i + 1) : undefined }))}
+          {mineF.map((c) =>
+            swatch(c.tag, {
+              count: c.states,
+              key: sec.mine.indexOf(c) < 9 ? String(sec.mine.indexOf(c) + 1) : undefined
+            })
+          )}
           {!mine.length && (
             <p className="px-1 text-xs text-hoi-muted">Todavía no hay países en tu mod.</p>
+          )}
+        </div>
+
+        {/* En el mapa: solo países con estados en ESTE mapa */}
+        <div className="mb-1 mt-3 text-[11px] uppercase tracking-wide text-hoi-muted">
+          En el mapa ({sec.onMap.length})
+        </div>
+        <div className="flex flex-col gap-0.5">
+          {onMapF.map((c) => swatch(c.tag, { count: c.states, menu: true }))}
+          {!sec.onMap.length && (
+            <p className="px-1 text-xs text-hoi-muted">
+              Todavía no hay países en tu mapa. Pinta estados o elige uno de la lista de abajo.
+            </p>
           )}
         </div>
 
@@ -311,31 +330,25 @@ export default function PalettePanel({
           </>
         )}
 
-        {/* Países del juego */}
+        {/* Todos los países del juego (con buscador arriba) */}
         <button
           className="mb-1 mt-3 flex w-full items-center gap-1 text-[11px] uppercase tracking-wide text-hoi-muted"
           onClick={() => setShowGame(!showGame)}
         >
-          {showGame ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
-          Países del juego ({gameTags.length})
+          {showGame || query ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+          Todos los países del juego ({sec.game.length})
         </button>
-        {showGame && (
-          <>
-            <input
-              className="input mb-1 text-xs"
-              placeholder="Buscar país…"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-            />
-            <div className="flex flex-col gap-0.5">
-              {filteredGame.slice(0, 150).map(([t, n]) => swatch(t, { count: n, menu: true }))}
-              {filteredGame.length > 150 && (
-                <p className="px-1 text-[10px] text-hoi-muted">
-                  … y {filteredGame.length - 150} más (usa el buscador)
-                </p>
-              )}
-            </div>
-          </>
+        {(showGame || query) && (
+          <div className="flex flex-col gap-0.5">
+            {allF
+              .slice(0, 150)
+              .map((c) => swatch(c.tag, { count: c.states > 0 ? c.states : null, menu: true }))}
+            {allF.length > 150 && (
+              <p className="px-1 text-[10px] text-hoi-muted">
+                … y {allF.length - 150} más (usa el buscador)
+              </p>
+            )}
+          </div>
         )}
       </div>
     </div>

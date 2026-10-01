@@ -5,6 +5,7 @@ import { ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react'
 import type { Project } from '../types'
 import { store, useApp } from '../store/appStore'
 import { setBrush } from '../map/brush'
+import { getOwnerCounts } from '../map/mapOps'
 import { treeCountry } from '../countries/countryOps'
 import FlagThumb from './FlagThumb'
 import PalettePanel from './map/PalettePanel'
@@ -46,6 +47,8 @@ export default function Navigator({ project }: { project: Project }): JSX.Elemen
   const gameColors = useApp((s) => s.ui.gameColors)
   const activeTree = useApp((s) => s.activeTreeId)
   const activeTag = useApp((s) => s.activeTag)
+  const map = useApp((s) => s.map)
+  const counts = map ? getOwnerCounts(map, project) : new Map<string, number>()
   const [collapsed, setCollapsed] = useState(false)
   const [open, setOpen] = useState({
     paises: true,
@@ -117,7 +120,10 @@ export default function Navigator({ project }: { project: Project }): JSX.Elemen
                 <>
                   <FlagThumb country={c} height={14} />
                   <span className="truncate">{c.names.name}</span>
-                  <span className="ml-auto font-mono text-[10px] text-hoi-muted">{c.tag}</span>
+                  <span className="ml-auto font-mono text-[10px] text-hoi-muted">
+                    {c.tag}
+                    {map && ` · ${counts.get(c.tag) ?? 0}`}
+                  </span>
                 </>
               )
             )}
@@ -140,7 +146,10 @@ export default function Navigator({ project }: { project: Project }): JSX.Elemen
                   <>
                     <FlagThumb country={c} height={14} />
                     <span className="truncate">{c.names.name}</span>
-                    <span className="ml-auto font-mono text-[10px] text-hoi-muted">{c.tag}</span>
+                    <span className="ml-auto font-mono text-[10px] text-hoi-muted">
+                      {c.tag}
+                      {map && ` · ${counts.get(c.tag) ?? 0}`}
+                    </span>
                   </>
                 )
               )}

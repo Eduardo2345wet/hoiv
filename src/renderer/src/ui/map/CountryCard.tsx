@@ -1,9 +1,8 @@
 // Tarjeta flotante del pincel activo (arriba a la izquierda del mapa)
-import { useMemo } from 'react'
 import { Plus, X } from 'lucide-react'
 import { IDEOLOGY_LABELS, type Project } from '../../types'
 import { store, useApp } from '../../store/appStore'
-import { countryStates } from '../../map/mapOps'
+import { getOwnerCounts } from '../../map/mapOps'
 import { countryLabel, NO_NATION, setBrush } from '../../map/brush'
 import { toHex } from '../../countries/color'
 import { countryDrawColor } from '../../map/colors'
@@ -22,11 +21,11 @@ export default function CountryCard({ project, gameColors, onOpenWizard }: Props
   useApp((s) => s.gameFlags)
   const game = useApp(() => store.catalogGame())
   const country = project.countries.find((c) => c.tag === activeTag)
-  const states = useMemo(
-    () =>
-      map && activeTag && activeTag !== NO_NATION ? countryStates(project, map, activeTag) : [],
-    [map, project, activeTag]
-  )
+  // Mismo conteo que el selector y la Paleta (incremental, según effectiveOwner)
+  const stateCount =
+    map && activeTag && activeTag !== NO_NATION
+      ? (getOwnerCounts(map, project).get(activeTag) ?? 0)
+      : 0
 
   if (!activeTag)
     return (
@@ -93,7 +92,7 @@ export default function CountryCard({ project, gameColors, onOpenWizard }: Props
         </button>
       </div>
       <div className="mt-2 flex items-center justify-between text-xs">
-        <span>{states.length} estado(s)</span>
+        <span>{stateCount} estado(s)</span>
         {capital ? (
           <button
             className="text-hoi-accent underline"

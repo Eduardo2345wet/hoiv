@@ -299,3 +299,30 @@ describe('capas de las ventanas (parte 1)', () => {
     await page.close()
   }, 60_000)
 })
+
+describe('"En el mapa" solo con mis estados (partes 2 y 3)', () => {
+  it('Lienzo en blanco + Sin nación sin pintar: el selector y la Paleta dicen (0) con el mensaje', async ({
+    skip
+  }) => {
+    if (!browser) skip()
+    const page = await fresh()
+    await newProject(page, 'Vacío', 'Lienzo en blanco + Sin nación')
+    await page.waitForSelector('text=En el mapa (0)')
+    expect(
+      await page
+        .locator(
+          'text=Todavía no hay países en tu mapa. Pinta estados o elige uno de la lista de abajo.'
+        )
+        .count()
+    ).toBeGreaterThan(0)
+    await page.evaluate(() => {
+      void (window as unknown as HoiWindow).__hoiStore.pickCountry('Elegir')
+    })
+    await page.waitForSelector('[data-window] >> text=EN EL MAPA (0)')
+    expect(
+      await page.locator('[data-window] >> text=Todavía no hay países en tu mapa').count()
+    ).toBe(1)
+    await page.keyboard.press('Escape')
+    await page.close()
+  }, 60_000)
+})
