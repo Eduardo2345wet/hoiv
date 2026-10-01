@@ -163,6 +163,8 @@ export interface GameCatalogResult {
   countryColors: Record<string, [number, number, number]>
   /** tag → estado de la capital (capital = N en history/countries) */
   countryCapitals: Record<string, number>
+  /** tag → ideología gobernante (ruling_party de set_politics en history/countries) */
+  countryRuling: Record<string, string>
   /** Forma (claves en orden) de una entrada real de interface/goals_shine.gfx */
   goalsShineShape?: string
 }
@@ -218,11 +220,15 @@ export function readGameCatalog(gamePath: string): GameCatalogResult | null {
   // Capitales: "capital = N" al nivel superior de cada archivo de history/countries
   // (por verificar: que siempre empiece en la columna 0, fuera de los bloques con fecha)
   const countryCapitals: Record<string, number> = {}
+  const countryRuling: Record<string, string> = {}
   for (const [tag, file] of Object.entries(historyFiles))
     try {
       const txt = fs.readFileSync(path.join(gamePath, 'history', 'countries', file), 'latin1')
       const m = stripComments(txt).match(/^capital\s*=\s*(\d+)/m)
       if (m) countryCapitals[tag] = Number(m[1])
+      // por verificar: ruling_party dentro de set_politics (nombres: democratic, communism…)
+      const r = stripComments(txt).match(/set_politics\s*=\s*\{[^}]*?ruling_party\s*=\s*(\w+)/)
+      if (r) countryRuling[tag] = r[1]
     } catch {
       // archivo ilegible: sin capital conocida
     }
@@ -263,6 +269,7 @@ export function readGameCatalog(gamePath: string): GameCatalogResult | null {
     goalsShineShape,
     countryColors,
     countryCapitals,
+    countryRuling,
     countries: tags.map((t): [string, string] => [t, loc.get(t) ?? t]),
     ideas: ideas.map((i): [string, string] => [i, loc.get(i) ?? i]),
     states,

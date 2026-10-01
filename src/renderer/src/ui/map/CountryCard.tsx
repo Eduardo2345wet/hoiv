@@ -5,11 +5,9 @@ import { IDEOLOGY_LABELS, type Project } from '../../types'
 import { store, useApp } from '../../store/appStore'
 import { countryStates } from '../../map/mapOps'
 import { countryLabel, NO_NATION, setBrush } from '../../map/brush'
-import { renderFlagPlaceholder } from '../../icons/renderer'
-import { colorForTag } from '../../countries/countryOps'
 import { toHex } from '../../countries/color'
 import { countryDrawColor } from '../../map/colors'
-import { flagSrc } from '../FlagThumb'
+import { flagForTag } from '../FlagThumb'
 
 interface Props {
   project: Project
@@ -20,6 +18,7 @@ interface Props {
 export default function CountryCard({ project, gameColors, onOpenWizard }: Props): JSX.Element {
   const map = useApp((s) => s.map)
   const activeTag = useApp((s) => s.activeTag)
+  useApp((s) => s.gameFlags)
   const game = useApp(() => store.catalogGame())
   const country = project.countries.find((c) => c.tag === activeTag)
   const states = useMemo(
@@ -59,7 +58,7 @@ export default function CountryCard({ project, gameColors, onOpenWizard }: Props
       </div>
     )
 
-  const flag = country ? flagSrc(country) : renderFlagPlaceholder(activeTag, colorForTag(activeTag))
+  const flag = flagForTag(activeTag, country)
   const capital = country?.capital ? map?.states.find((s) => s.id === country.capital) : undefined
   return (
     <div className="w-64 rounded-lg border border-amber-500/70 bg-hoi-panel/95 p-3 shadow-xl">

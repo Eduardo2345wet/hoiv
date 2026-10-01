@@ -30,6 +30,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   readGameCatalog: (gamePath: string) => ipcRenderer.invoke('read-game-catalog', gamePath),
   readCountryHistory: (gamePath: string, fileName: string) =>
     ipcRenderer.invoke('read-country-history', gamePath, fileName),
+  readGameFlags: (gamePath: string, mod?: unknown) =>
+    ipcRenderer.invoke('read-game-flags', gamePath, mod ?? null),
   listMods: (gamePath: string | null) => ipcRenderer.invoke('list-mods', gamePath),
   loadMap: (gamePath: string, mod?: unknown) =>
     ipcRenderer.invoke('load-map', gamePath, mod ?? null),

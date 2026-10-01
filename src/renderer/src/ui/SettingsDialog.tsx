@@ -14,7 +14,10 @@ export async function loadGameSettings(): Promise<string | null> {
   const r = await api.detectGame()
   store.clearMapCache() // otra carpeta del juego = otros mapas
   store.set({ gamePath: r.gamePath, gameDetect: { searching: false, auto: r.auto, via: r.via } })
-  if (r.gamePath) store.set({ game: await api.readGameCatalog(r.gamePath) })
+  if (r.gamePath) {
+    store.set({ game: await api.readGameCatalog(r.gamePath) })
+    void store.loadFlags()
+  }
   return r.gamePath
 }
 

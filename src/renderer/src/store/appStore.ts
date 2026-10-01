@@ -9,6 +9,7 @@ import type { LabelMode } from '../map/labelLayout'
 import type { View } from '../map/renderer'
 import type { CatalogKind, GameCatalog } from '../catalog/catalog'
 import type { MapData } from '../../../shared/map/types'
+import type { GameFlags } from '../countries/gameFlags'
 import { DEMO_COUNTRY_NAMES, generateDemoMap } from '../../../shared/map/demo'
 
 /** Pedido genérico de "elige un elemento haciendo clic" (focos ahora, estados en el mapa después) */
@@ -130,6 +131,7 @@ const blankTab = (): TabSnapshot => ({
 
 /** Mapas ya cargados, COMPARTIDOS entre pestañas (clave: 'demo', 'game' o 'mod:<carpeta>') */
 const mapCache = new Map<string, MapData>()
+const flagCache = new Map<string, GameFlags>()
 
 export interface AppState {
   /** Pestañas abiertas; la activa guarda su estado vivo en los campos de abajo */
@@ -137,6 +139,8 @@ export interface AppState {
   activeTabId: string | null
   /** Interfaz de la pestaña activa */
   ui: TabUi
+  /** Banderas reales del juego (compartidas entre pestañas); null = todavía no / sin juego */
+  gameFlags: GameFlags | null
   /** Datos de la barra de estado que publica el mapa (no son de una pestaña) */
   mapStatus: { hover: string; zoom: number; engine: string }
   project: Project | null
@@ -199,6 +203,7 @@ let state: AppState = {
   activeTabId: null,
   ui: { ...DEFAULT_TAB_UI },
   mapStatus: { hover: '', zoom: 1, engine: '' },
+  gameFlags: null,
   project: null,
   past: [],
   future: [],
@@ -499,15 +504,38 @@ export const store = {
     return 'game'
   },
 
+  /**
+   * Lee las banderas del juego (una vez por juego/mod; compartidas entre pestañas). Si el
+   * proyecto usa un mod como base, las banderas del mod tienen prioridad.
+   */
+  async loadFlags(): Promise<void> {
+    const api = typeof window === 'undefined' ? undefined : window.electronAPI
+    const gamePath = state.gamePath
+    if (!api || !gamePath) return store.set({ gameFlags: null })
+    const mod = state.project?.mapSettings.mod ?? null
+    const key = `${gamePath}|${mod?.path ?? ''}`
+    const hit = flagCache.get(key)
+    if (hit) return store.set({ gameFlags: hit })
+    try {
+      const flags = (await api.readGameFlags(gamePath, mod)) as GameFlags
+      flagCache.set(key, flags)
+      if (state.gamePath === gamePath) store.set({ gameFlags: flags })
+    } catch (e) {
+      console.warn('No se pudieron leer las banderas del juego:', e)
+    }
+  },
+
   /** Olvida los mapas en memoria (al cambiar la carpeta del juego) */
   clearMapCache(): void {
     mapCache.clear()
+    flagCache.clear()
   },
 
   /** Carga el mapa si el que hay no corresponde a la base actual */
   async ensureMap(): Promise<void> {
     if (state.mapLoading) return
     if (!state.map || state.mapKey !== store.desiredMapKey()) await store.loadMap()
+    void store.loadFlags()
   },
 
   /** Aviso pequeño que se cierra solo (con "Deshacer" opcional) */

@@ -5,6 +5,7 @@ import fs from 'fs'
 import path from 'path'
 import { handleExportMod } from './export'
 import { saveImage } from './saveImage'
+import { readGameFlags } from './gameFlags'
 import { createProjectFolder, readProjectFile } from './projectFiles'
 import { getJomini, loadRealMap } from './mapLoader'
 import { listInstalledMods, type ModLayer } from './mods'
@@ -210,6 +211,11 @@ app.whenReady().then(() => {
       path.join(app.getPath('documents'), 'Paradox Interactive', 'Hearts of Iron IV'),
       gamePath
     )
+  )
+
+  // Banderas reales del juego (y del mod base, que tiene prioridad), como miniaturas PNG en la caché
+  ipcMain.handle('read-game-flags', async (_, gamePath: string, mod: ModLayer | null) =>
+    readGameFlags(gamePath, mod, path.join(app.getPath('userData'), 'cache'))
   )
 
   ipcMain.handle('load-map', async (event, gamePath: string, mod: ModLayer | null) => {

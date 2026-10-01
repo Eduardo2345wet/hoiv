@@ -13,8 +13,7 @@ import { suggestTag } from '../../countries/tags'
 import { fromHex, toHex } from '../../countries/color'
 import { validateTag } from '../../export/validator'
 import { getCatalogOptions } from '../../catalog/catalog'
-import { renderFlagPlaceholder } from '../../icons/renderer'
-import { flagSrc } from '../FlagThumb'
+import { flagForTag } from '../FlagThumb'
 
 interface Props {
   project: Project
@@ -33,6 +32,7 @@ export default function PalettePanel({
   const map = useApp((s) => s.map)
   const activeTag = useApp((s) => s.activeTag)
   const recent = useApp((s) => s.recentTags)
+  useApp((s) => s.gameFlags) // las banderas reales llegan después
   const game = useApp(() => store.catalogGame())
   const [collapsed, setCollapsed] = useState(false)
   const [showGame, setShowGame] = useState(true)
@@ -65,7 +65,7 @@ export default function PalettePanel({
 
   const flagOf = (tag: string): string => {
     const c = project.countries.find((x) => x.tag === tag)
-    return c ? flagSrc(c) : renderFlagPlaceholder(tag, colorForTag(tag))
+    return flagForTag(tag, c)
   }
 
   const swatch = (

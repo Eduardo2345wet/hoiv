@@ -30,6 +30,8 @@ export interface GameCatalog {
   countryColors?: Record<string, [number, number, number]>
   /** tag → estado de la capital en el juego */
   countryCapitals?: Record<string, number>
+  /** tag → ideología gobernante en el juego */
+  countryRuling?: Record<string, string>
   /** Forma de una entrada real de interface/goals_shine.gfx del juego */
   goalsShineShape?: string
 }

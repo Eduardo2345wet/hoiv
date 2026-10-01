@@ -27,6 +27,8 @@ export interface ExportModPayload {
   files?: { path: string; text?: string; bom?: boolean; data?: Uint8Array }[]
 }
 
+export type MapModArg = { path: string; name: string; replacePaths: string[] }
+
 export interface RecentProject {
   path: string
   name: string
@@ -61,6 +63,7 @@ export interface GameCatalogData {
   historyFiles?: Record<string, string>
   countryColors?: Record<string, [number, number, number]>
   countryCapitals?: Record<string, number>
+  countryRuling?: Record<string, string>
   goalsShineShape?: string
 }
 
@@ -77,6 +80,11 @@ export interface ElectronAPI {
   ackCloseRequest: () => Promise<void>
   confirmClose: () => Promise<void>
   /** Documentos/HOI4 Mod Studio/Proyectos */
+  /** Banderas del juego: tag → variante → PNG (data URL) */
+  readGameFlags: (
+    gamePath: string,
+    mod?: MapModArg | null
+  ) => Promise<Record<string, Partial<Record<string, string>>>>
   getProjectsDir: () => Promise<string>
   createProject: (
     parent: string,
