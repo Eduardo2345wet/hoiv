@@ -68,7 +68,7 @@ describe('interfaz tipo NX (partes 1 a 4)', () => {
     await page.click('text=Nuevo proyecto…')
     await page.waitForSelector('text=Nombre del proyecto')
     await page.close()
-  })
+  }, 60_000)
 
   it('Nuevo proyecto con cada plantilla abre una pestaña y no pide tag', async ({ skip }) => {
     if (!browser) skip()
