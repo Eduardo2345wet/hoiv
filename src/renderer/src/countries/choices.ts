@@ -3,7 +3,7 @@ import type { Project } from '../types'
 import type { GameCatalog } from '../catalog/catalog'
 import type { MapData } from '../../../shared/map/types'
 import { BUILTIN_COUNTRIES } from '../catalog/builtin'
-import { effectiveOwner } from '../map/mapOps'
+import { getOwnerCounts } from '../map/mapOps'
 
 export interface CountryChoice {
   tag: string
@@ -27,12 +27,11 @@ export function countrySections(
   map: MapData | null,
   game: GameCatalog | null
 ): CountrySections {
-  const count = new Map<string, number>()
-  if (map)
-    for (const s of map.states) {
-      const o = project ? effectiveOwner(s, project) : s.owner
-      if (o) count.set(o, (count.get(o) ?? 0) + 1)
-    }
+  // Conteos de ESTE mapa (effectiveOwner); sin proyecto, los de la base
+  const count = project && map ? getOwnerCounts(map, project) : new Map<string, number>()
+  if (!project && map)
+    for (const s of map.states) if (s.owner) count.set(s.owner, (count.get(s.owner) ?? 0) + 1)
+  const technical = new Set((project?.countries ?? []).filter((c) => c.technical).map((c) => c.tag))
   const mineTags = new Set<string>()
   const mine: CountryChoice[] = []
   for (const c of project?.countries ?? []) {
@@ -51,15 +50,14 @@ export function countrySections(
   for (const c of project?.countries ?? [])
     if (c.light) names.set(c.tag, c.names.name || names.get(c.tag) || c.tag)
   const nameOf = (t: string): string => names.get(t) ?? t
+  // En el mapa: SOLO países con al menos 1 estado en este mapa (no los del mod: ya están arriba)
   const onMap = [...count.entries()]
-    .filter(
-      ([t]) => !mineTags.has(t) && !project?.countries.some((c) => c.technical && c.tag === t)
-    )
+    .filter(([t, n]) => n > 0 && !mineTags.has(t) && !technical.has(t))
     .map(([tag, states]): CountryChoice => ({ tag, name: nameOf(tag), states, mine: false }))
     .sort(byStatesThenName)
   const onMapTags = new Set(onMap.map((c) => c.tag))
   const all = [...names.keys()]
-    .filter((t) => !mineTags.has(t) && !onMapTags.has(t))
+    .filter((t) => !mineTags.has(t) && !onMapTags.has(t) && !technical.has(t))
     .map((tag): CountryChoice => ({
       tag,
       name: nameOf(tag),

@@ -2,7 +2,7 @@
 // para que el botón "Ir" centre el mapa en él.
 import type { Issue, MapContext } from '../export/validator'
 import type { Project } from '../types'
-import { effectiveOwner, lookup } from './mapOps'
+import { lookup, ownerWithBase } from './mapOps'
 import { exportOwner, noNationActive, pendingStates, technicalCountry } from './noNation'
 import { validateTag } from '../export/validator'
 
@@ -62,7 +62,7 @@ export function validateMap(project: Project, ctx: MapContext): Issue[] {
   // Estado modificado que queda sin dueño
   for (const id of edits) {
     const s = byId.get(Number(id))
-    if (s && !effectiveOwner(s, project))
+    if (s && !ownerWithBase(s, project))
       issues.push({
         severity: 'error',
         message: `El estado ${s.name} (#${s.id}) quedó sin dueño. Píntalo con el pincel.`,

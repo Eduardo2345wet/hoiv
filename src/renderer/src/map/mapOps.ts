@@ -6,8 +6,87 @@ import type { MapData, MapState } from '../../../shared/map/types'
 export type StateLookup = Map<number, MapState>
 export const lookup = (map: MapData): StateLookup => new Map(map.states.map((s) => [s.id, s]))
 
+/** Tag del país técnico "Sin nación" del proyecto ('' si no hay) */
+const technicalTag = (p: Project): string => p.countries.find((c) => c.technical)?.tag ?? ''
+
+/**
+ * Dueño de un estado a partir de su edición (o ninguna). Es la regla ÚNICA de "dueño efectivo":
+ * el dueño TAL COMO SE VE en el mapa del proyecto, '' = en blanco (ningún país).
+ *  - Lienzo en blanco (con o sin Sin nación): el pintado; si no está pintado, en blanco.
+ *  - Mapa del juego / de un mod: el pintado; si no, el de la base.
+ *  - El país técnico "Sin nación" cuenta como en blanco.
+ */
+export function ownerOf(s: MapState, edit: StateEdit | undefined, p: Project): string {
+  const o = edit?.owner ?? (p.mapSettings.base === 'blank' ? '' : s.owner)
+  return o && o === technicalTag(p) ? '' : o
+}
+
 export function effectiveOwner(s: MapState, p: Project): string {
-  return p.stateEdits[s.id]?.owner ?? s.owner
+  return ownerOf(s, p.stateEdits[s.id], p)
+}
+
+/** Dueño pintado o, si no, el de la base (aunque el mapa esté en blanco): para validar */
+export const ownerWithBase = (s: MapState, p: Project): string =>
+  p.stateEdits[s.id]?.owner ?? s.owner
+
+// ---- Conteos de estados por dueño (con memoria e incrementales) ----
+export const ownerCountStats = { full: 0, incremental: 0 }
+let ocCache: {
+  map: MapData
+  base: string
+  tech: string
+  edits: Record<string, StateEdit>
+  counts: Map<string, number>
+  byId: Map<number, MapState>
+} | null = null
+
+/** Olvida los conteos (al abrir un proyecto o cambiar de pestaña: se recalcula completo una vez) */
+export const resetOwnerCounts = (): void => {
+  ocCache = null
+}
+
+/**
+ * Estados que tiene cada país según effectiveOwner (sin los "en blanco"). Con la misma base se
+ * actualiza SOLO con los estados cuya edición cambió; al cambiar de mapa, plantilla o proyecto
+ * (otra pestaña) se recalcula completo una vez. No modificar el Map devuelto.
+ */
+export function getOwnerCounts(map: MapData, p: Project): Map<string, number> {
+  const base = p.mapSettings.base ?? ''
+  const tech = technicalTag(p)
+  const c = ocCache
+  if (c && c.map === map && c.base === base && c.tech === tech) {
+    if (c.edits === p.stateEdits) return c.counts
+    const counts = new Map(c.counts)
+    const bump = (o: string, d: number): void => {
+      if (!o) return
+      const n = (counts.get(o) ?? 0) + d
+      if (n > 0) counts.set(o, n)
+      else counts.delete(o)
+    }
+    const ids = new Set([...Object.keys(c.edits), ...Object.keys(p.stateEdits)])
+    for (const id of ids) {
+      const a = c.edits[id]
+      const b = p.stateEdits[id]
+      if (a === b) continue
+      const s = c.byId.get(Number(id))
+      if (!s) continue
+      bump(ownerOf(s, a, p), -1)
+      bump(ownerOf(s, b, p), 1)
+    }
+    ownerCountStats.incremental++
+    ocCache = { ...c, edits: p.stateEdits, counts }
+    return counts
+  }
+  ownerCountStats.full++
+  const counts = new Map<string, number>()
+  const byId = new Map<number, MapState>()
+  for (const s of map.states) {
+    byId.set(s.id, s)
+    const o = ownerOf(s, p.stateEdits[s.id], p)
+    if (o) counts.set(o, (counts.get(o) ?? 0) + 1)
+  }
+  ocCache = { map, base, tech, edits: p.stateEdits, counts, byId }
+  return counts
 }
 
 export function effectiveCores(s: MapState, p: Project): string[] {

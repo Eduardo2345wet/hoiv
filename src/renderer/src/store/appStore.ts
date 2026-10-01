@@ -3,6 +3,7 @@
 // (por ejemplo, los menús de FieldCatalog consultan el proyecto actual).
 import { useSyncExternalStore } from 'react'
 import type { Project } from '../types'
+import { resetOwnerCounts } from '../map/mapOps'
 import type { ToolId } from '../map/tools'
 import type { ViewMode } from '../map/colors'
 import type { LabelMode } from '../map/labelLayout'
@@ -350,6 +351,7 @@ export const store = {
       if (state.activeTabId) store.closeTab(state.activeTabId)
       return
     }
+    resetOwnerCounts()
     const snap = freshSnapshot(project, filePath, state.ui.ribbon)
     if (!state.activeTabId) {
       const id = `t${++tabSeq}`
@@ -369,6 +371,7 @@ export const store = {
         return same.id
       }
     }
+    resetOwnerCounts()
     store.saveActiveTab()
     const id = `t${++tabSeq}`
     const snap = freshSnapshot(project, filePath, ribbon ?? 'inicio')
@@ -394,6 +397,7 @@ export const store = {
     const target = state.tabs.find((t) => t.id === id)
     if (!target) return
     openGroup = null
+    resetOwnerCounts()
     store.saveActiveTab()
     store.set({ activeTabId: id, ...target.snap, pick: null })
     void store.ensureMap()
@@ -411,6 +415,7 @@ export const store = {
   closeTab(id: string): void {
     const idx = state.tabs.findIndex((t) => t.id === id)
     if (idx < 0) return
+    resetOwnerCounts()
     openGroup = null
     const rest = state.tabs.filter((t) => t.id !== id)
     if (id !== state.activeTabId) return store.set({ tabs: rest })
@@ -618,5 +623,8 @@ export function useApp<T>(selector: (s: AppState) => T): T {
 }
 
 // Solo en desarrollo y en las pruebas de navegador: deja el store a mano (window.__hoiStore)
-if (typeof window !== 'undefined' && (import.meta as unknown as { env?: { DEV?: boolean } }).env?.DEV)
+if (
+  typeof window !== 'undefined' &&
+  (import.meta as unknown as { env?: { DEV?: boolean } }).env?.DEV
+)
   (window as unknown as { __hoiStore: typeof store }).__hoiStore = store
