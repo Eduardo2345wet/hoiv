@@ -76,8 +76,10 @@ export interface AppState {
   /** Carga en curso del mapa real: porcentaje y mensaje */
   mapLoading: { pct: number; message: string } | null
   mapError: string | null
-  /** País activo del mapa (tag) y estado seleccionado */
+  /** País activo del mapa (el pincel, por tag) y estado seleccionado */
   activeTag: string | null
+  /** Últimos países usados como pincel */
+  recentTags: string[]
   selectedStateId: number | null
   /** Avisos pequeños que se cierran solos (nunca ventanas durante el pintado) */
   toasts: Toast[]
@@ -102,6 +104,7 @@ let state: AppState = {
   mapLoading: null,
   mapError: null,
   activeTag: null,
+  recentTags: [],
   selectedStateId: null,
   focusStateRequest: null,
   toasts: []

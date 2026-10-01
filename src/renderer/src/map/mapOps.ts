@@ -18,12 +18,22 @@ export function effectiveCores(s: MapState, p: Project): string[] {
   return [...set].sort()
 }
 
-/** Guarda el cambio de un estado dejándolo mínimo; si ya es igual al original, lo borra */
-function withEdit(p: Project, s: MapState, owner: string, cores: string[]): Project {
+/**
+ * Guarda el cambio de un estado dejándolo mínimo; si ya es igual al original, lo borra.
+ * `owner` undefined = sin cambio de dueño. `keepOwner` = guardar el dueño aunque sea el
+ * original (en el lienzo en blanco, así el estado cuenta como "pintado").
+ */
+function withEdit(
+  p: Project,
+  s: MapState,
+  owner: string | undefined,
+  cores: string[],
+  keepOwner = false
+): Project {
   const orig = new Set(s.cores)
   const now = new Set(cores)
   const edit: StateEdit = {}
-  if (owner !== s.owner) edit.owner = owner
+  if (owner !== undefined && (owner !== s.owner || keepOwner)) edit.owner = owner
   const add = [...now].filter((t) => !orig.has(t)).sort()
   const remove = [...orig].filter((t) => !now.has(t)).sort()
   if (add.length) edit.addCores = add
@@ -62,17 +72,26 @@ export function paintStates(
     let cores = effectiveCores(s, next)
     if (opts.removePreviousCores && prev !== tag) cores = cores.filter((c) => c !== prev)
     if (opts.giveCore && !cores.includes(tag)) cores = [...cores, tag]
-    next = withEdit(next, s, tag, cores)
+    next = withEdit(next, s, tag, cores, p.mapSettings?.base === 'blank')
   }
   return next
 }
 
-/** Cubeta: estados conectados por tierra con el mismo dueño que el estado clicado */
-export function connectedSameOwner(p: Project, map: MapData, startId: number): number[] {
+/**
+ * Cubeta: estados conectados por tierra con el mismo "color" que el estado clicado
+ * (por defecto, el mismo dueño; en el lienzo en blanco, los blancos van juntos).
+ */
+export function connectedSameOwner(
+  p: Project,
+  map: MapData,
+  startId: number,
+  keyOf?: (id: number) => string
+): number[] {
   const byId = lookup(map)
   const start = byId.get(startId)
   if (!start) return []
-  const owner = effectiveOwner(start, p)
+  const key = keyOf ?? ((id: number) => effectiveOwner(byId.get(id)!, p))
+  const owner = key(startId)
   const seen = new Set([startId])
   const queue = [startId]
   while (queue.length) {
@@ -80,7 +99,7 @@ export function connectedSameOwner(p: Project, map: MapData, startId: number): n
     for (const n of map.stateAdjacency[id] ?? []) {
       if (seen.has(n)) continue
       const s = byId.get(n)
-      if (s && effectiveOwner(s, p) === owner) {
+      if (s && key(n) === owner) {
         seen.add(n)
         queue.push(n)
       }
@@ -93,7 +112,7 @@ export function addCore(p: Project, map: MapData, id: number, tag: string): Proj
   const s = lookup(map).get(id)
   if (!s) return p
   const cores = effectiveCores(s, p)
-  return cores.includes(tag) ? p : withEdit(p, s, effectiveOwner(s, p), [...cores, tag])
+  return cores.includes(tag) ? p : withEdit(p, s, p.stateEdits[s.id]?.owner, [...cores, tag], true)
 }
 
 export function removeCore(p: Project, map: MapData, id: number, tag: string): Project {

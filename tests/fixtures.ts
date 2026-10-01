@@ -20,7 +20,11 @@ export function emptyProject(): Project {
     icons: [],
     countryFlags: [],
     stateEdits: {},
-    mapSettings: { ...DEFAULT_MAP_SETTINGS, base: 'game', noNation: { ...DEFAULT_MAP_SETTINGS.noNation } }
+    mapSettings: {
+      ...DEFAULT_MAP_SETTINGS,
+      base: 'game',
+      noNation: { ...DEFAULT_MAP_SETTINGS.noNation }
+    }
   }
 }
 

@@ -130,9 +130,10 @@ describe('mapa de demostración', () => {
 const p = (): Project => store.get().project!
 const say: string[] = []
 const brush = { giveCore: true, removePreviousCores: false }
-function click(tool: ToolId, stateId: number, shift = false): void {
-  handleStroke(tool, 'start', stateId, { shift }, { say: (m) => say.push(m), brush })
-  handleStroke(tool, 'end', 0, { shift }, { say: (m) => say.push(m), brush })
+const ctx = { toast: (m: string) => void say.push(m), brush }
+function click(tool: ToolId, stateId: number, shift = false, erase = false): void {
+  handleStroke(tool, 'start', stateId, { shift, erase }, ctx)
+  handleStroke(tool, 'end', 0, { shift, erase }, ctx)
 }
 
 function projectWithNVG(): Project {
@@ -152,13 +153,12 @@ describe('herramientas sobre el mapa de demostración', () => {
 
   it('sin país activo avisa y no pinta', () => {
     click('brush', 1)
-    expect(say.pop()).toBe('Primero elige o crea un país.')
+    expect(say.pop()).toMatch(/Primero elige un color en la Paleta/)
     expect(p().stateEdits).toEqual({})
   })
 
   it('pincel: una pincelada sobre varios estados = 1 paso de deshacer', () => {
     store.set({ activeTag: 'NVG' })
-    const ctx = { say: () => {}, brush }
     handleStroke('brush', 'start', 1, { shift: false }, ctx)
     handleStroke('brush', 'move', 2, { shift: false }, ctx)
     handleStroke('brush', 'move', 3, { shift: false }, ctx)
@@ -189,7 +189,7 @@ describe('herramientas sobre el mapa de demostración', () => {
   it('capital: solo en un estado del país activo', () => {
     store.set({ activeTag: 'NVG' })
     click('capital', 7)
-    expect(say.pop()).toMatch(/pertenece a DM., no a NVG/)
+    expect(say.pop()).toMatch(/no es de tu país/)
     expect(p().countries.find((c) => c.tag === 'NVG')!.capital).toBeNull()
     click('brush', 7)
     click('capital', 7)
@@ -215,12 +215,13 @@ describe('herramientas sobre el mapa de demostración', () => {
     expect(p().stateEdits[9]).toEqual({ owner: 'NVG', addCores: ['NVG'] })
   })
 
-  it('cuentagotas: toma el dueño y ofrece agregar el país del juego', () => {
-    ;(globalThis as { confirm?: () => boolean }).confirm = () => true
+  it('cuentagotas: toma el dueño sin preguntar nada (solo un aviso)', () => {
     const owner = demo.states.find((x) => x.id === 3)!.owner
     click('eyedropper', 3)
     expect(store.get().activeTag).toBe(owner)
-    expect(p().countries.find((c) => c.tag === owner)?.mode).toBe('existente')
+    expect(say.pop()).toMatch(new RegExp(`^Pincel: .*\\(${owner}\\)$`))
+    // No se agrega a la pestaña Países
+    expect(p().countries.some((c) => c.tag === owner)).toBe(false)
   })
 
   it('quitar cores del dueño anterior (opción del pincel)', () => {

@@ -27,6 +27,8 @@ import MapView, {
 import { VIEW_MODES, type ViewMode } from '../../map/colors'
 import { handleStroke, type ToolId } from '../../map/tools'
 import CountryCard from './CountryCard'
+import PalettePanel from './PalettePanel'
+import { setBrush } from '../../map/brush'
 import MapBaseDialog from './MapBaseDialog'
 import MapSidePanel from './MapSidePanel'
 
@@ -94,14 +96,14 @@ export default function MapTab({
   const canUndo = useApp((s) => s.past.length > 0)
   const canRedo = useApp((s) => s.future.length > 0)
   const game = useApp(() => store.catalogGame())
-  const [tool, setTool] = useState<ToolId>('select')
+  // Herramienta por defecto: el Pincel si ya hay un país como pincel
+  const [tool, setTool] = useState<ToolId>(() => (store.get().activeTag ? 'brush' : 'select'))
   const [mode, setMode] = useState<ViewMode>('politico')
   // Estilo del mapa
   const [labels, setLabels] = useState<LabelMode>('id')
   const [provinceBorders, setProvinceBorders] = useState(false)
   const [gameColors, setGameColors] = useState(false)
   const [hover, setHover] = useState<MapPointer | null>(null)
-  const [message, setMessage] = useState('')
   const [zoom, setZoom] = useState(1)
   const [rendererKind, setRendererKind] = useState('')
   const [brushOpts, setBrushOpts] = useState({ giveCore: true, removePreviousCores: false })
@@ -149,6 +151,12 @@ export default function MapTab({
         return
       const k = e.key.toUpperCase()
       const found = TOOLS.find((x) => x.key === k)
+      // Teclas 1–9: las primeras 9 muestras de "Mis países"
+      if (/^[1-9]$/.test(e.key)) {
+        const c = project.countries.filter((x) => !x.technical)[Number(e.key) - 1]
+        if (c) setBrush(c.tag)
+        return
+      }
       if (found) setTool(found.id)
       else if (k === 'F') viewRef.current?.fit()
       else if (k === '+' || k === '=') viewRef.current?.zoomBy(1.25)
@@ -157,19 +165,25 @@ export default function MapTab({
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [pick])
+  }, [pick, project.countries])
 
-  const say = (m: string): void => setMessage(m)
+  useEffect(() => {
+    if (activeTag && (tool === 'select' || tool === 'eyedropper')) setTool('brush')
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTag])
+
+  const toast = (m: string, opts: { undo?: boolean; error?: boolean } = {}): void =>
+    store.toast(m, { undo: opts.undo, kind: opts.error ? 'error' : 'info' })
 
   const onStroke = (phase: 'start' | 'move' | 'end', stateId: number, e: StrokeEvent): void => {
     // Modo "elegir en el mapa" (capital del asistente, bloques…)
     if (pick) {
       if (phase !== 'start') return
-      if (!stateId) return say('Eso es mar: elige un estado de tierra.')
+      if (!stateId) return toast('Eso es mar: elige un estado de tierra.')
       store.finishPick(String(stateId))
       return
     }
-    handleStroke(tool, phase, stateId, e, { say, brush: brushOpts })
+    handleStroke(tool, phase, stateId, e, { toast, brush: brushOpts })
   }
 
   const loadReference = (file: File | undefined): void => {
@@ -312,6 +326,8 @@ export default function MapTab({
       </div>
 
       <div className="flex min-h-0 flex-1">
+        {/* Paleta de países (izquierda, plegable) */}
+        <PalettePanel project={project} gameColors={gameColors} onOpenWizard={onOpenWizard} />
         {/* 4. Mapa en el centro */}
         <div className="relative min-w-0 flex-1">
           {map && (
@@ -366,7 +382,7 @@ export default function MapTab({
 
           {/* 2. Tarjeta del país activo */}
           <div className="absolute left-3 top-3 z-10">
-            <CountryCard project={project} onOpenWizard={onOpenWizard} />
+            <CountryCard project={project} gameColors={gameColors} onOpenWizard={onOpenWizard} />
           </div>
 
           {/* Etiqueta del mapa y selector de modo de vista */}
@@ -452,8 +468,8 @@ export default function MapTab({
         {rendererKind && (
           <span title="Motor de dibujo">{rendererKind === 'webgl2' ? 'WebGL2' : 'Canvas 2D'}</span>
         )}
-        <span className="flex-1 truncate text-right" title={message || lastValidatorMessage}>
-          {message || lastValidatorMessage}
+        <span className="flex-1 truncate text-right" title={lastValidatorMessage}>
+          {lastValidatorMessage}
         </span>
       </div>
       {baseDialog && <MapBaseDialog project={project} onClose={() => setBaseDialog(false)} />}

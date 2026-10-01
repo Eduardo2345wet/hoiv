@@ -169,6 +169,8 @@ export interface Country {
   leaders: Leader[]
   focusTreeId: string | null
   existing: ExistingCountryInfo
+  /** País TÉCNICO "Sin nación" (relleno de lo pendiente): lo mantiene la app */
+  technical?: boolean
 }
 
 export interface FocusTree {

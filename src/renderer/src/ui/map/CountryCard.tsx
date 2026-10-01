@@ -1,95 +1,87 @@
-// Tarjeta flotante del país activo (arriba a la izquierda del mapa)
-import { useMemo, useState } from 'react'
+// Tarjeta flotante del pincel activo (arriba a la izquierda del mapa)
+import { useMemo } from 'react'
 import { Plus, X } from 'lucide-react'
 import { IDEOLOGY_LABELS, type Project } from '../../types'
 import { store, useApp } from '../../store/appStore'
-import { getCatalogOptions } from '../../catalog/catalog'
 import { countryStates } from '../../map/mapOps'
-import { activateTag } from '../../map/tools'
+import { countryLabel, NO_NATION, setBrush } from '../../map/brush'
 import { renderFlagPlaceholder } from '../../icons/renderer'
 import { colorForTag } from '../../countries/countryOps'
+import { toHex } from '../../countries/color'
+import { countryDrawColor } from '../../map/colors'
 import { flagSrc } from '../FlagThumb'
 
 interface Props {
   project: Project
+  gameColors: boolean
   onOpenWizard: (countryUid?: string, step?: number) => void
 }
 
-export default function CountryCard({ project, onOpenWizard }: Props): JSX.Element {
+export default function CountryCard({ project, gameColors, onOpenWizard }: Props): JSX.Element {
   const map = useApp((s) => s.map)
   const activeTag = useApp((s) => s.activeTag)
   const game = useApp(() => store.catalogGame())
-  const [choosing, setChoosing] = useState(false)
-  const [query, setQuery] = useState('')
   const country = project.countries.find((c) => c.tag === activeTag)
   const states = useMemo(
-    () => (map && activeTag ? countryStates(project, map, activeTag) : []),
+    () =>
+      map && activeTag && activeTag !== NO_NATION ? countryStates(project, map, activeTag) : [],
     [map, project, activeTag]
   )
 
-  const options = getCatalogOptions('country', project, game)
-    .filter((o) => `${o.id} ${o.etiqueta}`.toLowerCase().includes(query.toLowerCase()))
-    .slice(0, 50)
-
   if (!activeTag)
     return (
-      <div className="w-72 rounded-lg border border-hoi-border bg-hoi-panel/95 p-3 shadow-xl">
-        <div className="mb-2 text-sm text-hoi-muted">Ningún país seleccionado</div>
-        <div className="flex gap-2">
-          <button
-            className="btn-primary flex-1 justify-center text-xs"
-            onClick={() => setChoosing(!choosing)}
-          >
-            Elegir país
-          </button>
-          <button className="btn flex-1 justify-center text-xs" onClick={() => onOpenWizard()}>
-            <Plus size={12} /> Crear país
-          </button>
+      <div className="w-64 rounded-lg border border-hoi-border bg-hoi-panel/95 p-3 shadow-xl">
+        <div className="text-sm">Ningún país seleccionado</div>
+        <p className="mb-2 text-xs text-hoi-muted">
+          Elige un color en la Paleta (izquierda) o usa las teclas 1–9.
+        </p>
+        <button className="btn w-full justify-center text-xs" onClick={() => onOpenWizard()}>
+          <Plus size={12} /> Crear país con el asistente
+        </button>
+      </div>
+    )
+
+  if (activeTag === NO_NATION)
+    return (
+      <div className="flex w-64 items-center gap-3 rounded-lg border border-amber-500/70 bg-hoi-panel/95 p-3 shadow-xl">
+        <span className="h-10 w-10 rounded bg-white ring-1 ring-black/40" />
+        <div className="flex-1 text-sm">
+          {project.mapSettings.noNation.name || 'Sin nación'}
+          <div className="text-xs text-hoi-muted">Devuelve estados a pendiente</div>
         </div>
-        {choosing && (
-          <div className="mt-2">
-            <input
-              className="input mb-1 text-xs"
-              autoFocus
-              placeholder="Buscar país…"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-            />
-            <div className="max-h-56 overflow-y-auto rounded border border-hoi-border">
-              {options.map((o) => (
-                <button
-                  key={o.id}
-                  className="flex w-full items-center gap-2 px-2 py-1 text-left text-xs hover:bg-hoi-card"
-                  onClick={() => {
-                    if (activateTag(o.id, o.etiqueta)) setChoosing(false)
-                  }}
-                >
-                  <span className="w-9 font-mono text-hoi-muted">{o.id}</span>
-                  <span className="flex-1 truncate">{o.etiqueta}</span>
-                  {o.origen === 'mod' && <span className="text-[10px] text-hoi-accent">mod</span>}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
+        <button
+          className="text-hoi-muted hover:text-white"
+          title="Soltar el pincel"
+          onClick={() => setBrush(null)}
+        >
+          <X size={16} />
+        </button>
       </div>
     )
 
   const flag = country ? flagSrc(country) : renderFlagPlaceholder(activeTag, colorForTag(activeTag))
   const capital = country?.capital ? map?.states.find((s) => s.id === country.capital) : undefined
   return (
-    <div className="w-72 rounded-lg border border-amber-500/70 bg-hoi-panel/95 p-3 shadow-xl">
+    <div className="w-64 rounded-lg border border-amber-500/70 bg-hoi-panel/95 p-3 shadow-xl">
       <div className="flex gap-3">
-        <img src={flag} width={82} height={52} alt="" className="ring-1 ring-black" />
+        <div className="relative">
+          <img src={flag} width={82} height={52} alt="" className="ring-1 ring-black" />
+          <span
+            className="absolute -bottom-1 -right-1 h-4 w-4 rounded-full ring-2 ring-hoi-panel"
+            style={{ background: toHex(countryDrawColor(activeTag, project, game, gameColors)) }}
+          />
+        </div>
         <div className="min-w-0 flex-1">
-          <div className="truncate font-semibold">{country?.names.name ?? activeTag}</div>
+          <div className="truncate font-semibold">{countryLabel(activeTag, project, game)}</div>
           <div className="font-mono text-xs text-hoi-muted">{activeTag}</div>
-          {country && <div className="text-xs">{IDEOLOGY_LABELS[country.politics.ruling]}</div>}
+          <div className="text-xs">
+            {country ? IDEOLOGY_LABELS[country.politics.ruling] : 'país del juego'}
+          </div>
         </div>
         <button
           className="self-start text-hoi-muted hover:text-white"
-          title="Deseleccionar"
-          onClick={() => store.set({ activeTag: null })}
+          title="Soltar el pincel"
+          onClick={() => setBrush(null)}
         >
           <X size={16} />
         </button>
@@ -104,11 +96,11 @@ export default function CountryCard({ project, onOpenWizard }: Props): JSX.Eleme
           >
             ★ {capital.name}
           </button>
-        ) : (
+        ) : country ? (
           <span className="text-yellow-400">sin capital</span>
-        )}
+        ) : null}
       </div>
-      {country && (
+      {country && !country.technical && (
         <button
           className="btn mt-2 w-full justify-center text-xs"
           onClick={() => onOpenWizard(country.uid)}
