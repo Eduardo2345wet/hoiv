@@ -11,7 +11,8 @@ const ARRAYS = [
   ['statePixelIndex', Uint32Array],
   ['statePixelOffsets', Uint32Array]
 ] as const
-export const MAP_CACHE_VERSION = 1
+// 2: añade stateLabels (centro visual de cada estado)
+export const MAP_CACHE_VERSION = 2
 
 export function serializeMap(map: MapData): Uint8Array {
   const meta: Record<string, unknown> = { v: MAP_CACHE_VERSION }

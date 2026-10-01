@@ -17,7 +17,13 @@ import {
 } from 'lucide-react'
 import type { Project } from '../../types'
 import { store, useApp } from '../../store/appStore'
-import MapView, { type MapPointer, type MapViewHandle } from './MapView'
+import MapView, {
+  LABEL_MODES,
+  type LabelMode,
+  type MapPointer,
+  type MapViewHandle,
+  type StrokeEvent
+} from './MapView'
 import { VIEW_MODES, type ViewMode } from '../../map/colors'
 import { handleStroke, type ToolId } from '../../map/tools'
 import CountryCard from './CountryCard'
@@ -89,6 +95,10 @@ export default function MapTab({
   const game = useApp(() => store.catalogGame())
   const [tool, setTool] = useState<ToolId>('select')
   const [mode, setMode] = useState<ViewMode>('politico')
+  // Estilo del mapa
+  const [labels, setLabels] = useState<LabelMode>('id')
+  const [provinceBorders, setProvinceBorders] = useState(false)
+  const [gameColors, setGameColors] = useState(false)
   const [hover, setHover] = useState<MapPointer | null>(null)
   const [message, setMessage] = useState('')
   const [zoom, setZoom] = useState(1)
@@ -149,11 +159,7 @@ export default function MapTab({
 
   const say = (m: string): void => setMessage(m)
 
-  const onStroke = (
-    phase: 'start' | 'move' | 'end',
-    stateId: number,
-    e: { shift: boolean }
-  ): void => {
+  const onStroke = (phase: 'start' | 'move' | 'end', stateId: number, e: StrokeEvent): void => {
     // Modo "elegir en el mapa" (capital del asistente, bloques…)
     if (pick) {
       if (phase !== 'start') return
@@ -300,9 +306,16 @@ export default function MapTab({
               map={map}
               project={project}
               game={game}
-              mode={mode}
-              activeTag={activeTag}
-              selectedId={selectedId}
+              paletteOptions={{
+                mode,
+                activeTag,
+                selectedId,
+                gameColors,
+                blankUnpainted: false,
+                highlightPending: false
+              }}
+              labels={labels}
+              provinceBorders={provinceBorders}
               cursor={pick ? 'crosshair' : toolInfo.cursor}
               reference={reference}
               onStroke={onStroke}
@@ -363,6 +376,39 @@ export default function MapTab({
                 </option>
               ))}
             </select>
+            <select
+              className="rounded border border-hoi-border bg-hoi-panel px-2 py-1 text-xs"
+              value={labels}
+              onChange={(e) => setLabels(e.target.value as LabelMode)}
+              title="Etiquetas de los estados (solo se muestran si caben)"
+            >
+              {LABEL_MODES.map(([m, l]) => (
+                <option key={m} value={m}>
+                  Etiquetas: {l}
+                </option>
+              ))}
+            </select>
+            <div className="flex flex-col gap-0.5 rounded border border-hoi-border bg-hoi-panel/95 px-2 py-1 text-xs">
+              <label className="flex items-center gap-1">
+                <input
+                  type="checkbox"
+                  checked={provinceBorders}
+                  onChange={(e) => setProvinceBorders(e.target.checked)}
+                />
+                Fronteras de provincia
+              </label>
+              <label
+                className="flex items-center gap-1"
+                title="Aplica el apagado del juego: saturación ×0.6 y valor ×0.8"
+              >
+                <input
+                  type="checkbox"
+                  checked={gameColors}
+                  onChange={(e) => setGameColors(e.target.checked)}
+                />
+                Colores como en el juego
+              </label>
+            </div>
           </div>
 
           {pick && (

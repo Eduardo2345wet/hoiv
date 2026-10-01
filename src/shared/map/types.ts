@@ -50,6 +50,11 @@ export interface MapData {
   unknownColorPixels: number
   /** Centro aproximado de cada estado (para centrar la vista), por id */
   stateCenters: Record<number, [number, number]>
+  /**
+   * Centro visual de cada estado (polo de inaccesibilidad): [x, y, radio] en píxeles del mapa.
+   * La etiqueta va aquí y solo se dibuja si cabe en un círculo de ese radio.
+   */
+  stateLabels: Record<number, [number, number, number]>
 }
 
 /** Posición de un estado en `states` por id */

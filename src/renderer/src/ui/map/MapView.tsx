@@ -5,11 +5,25 @@ import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState }
 import type { MapData } from '../../../../shared/map/types'
 import type { Project } from '../../types'
 import type { GameCatalog } from '../../catalog/catalog'
-import { buildPalette, type ViewMode } from '../../map/colors'
+import { buildPalette, type PaletteOptions } from '../../map/colors'
 import type { MapRenderer, View } from '../../map/renderer'
 import { createWebGLRenderer } from '../../map/webglRenderer'
 import { createCanvasRenderer } from '../../map/canvasRenderer'
 import { effectiveCores, effectiveOwner, lookup } from '../../map/mapOps'
+
+export type LabelMode = 'ninguna' | 'id' | 'nombre' | 'ambos'
+export const LABEL_MODES: [LabelMode, string][] = [
+  ['ninguna', 'Ninguna'],
+  ['id', 'ID'],
+  ['nombre', 'Nombre'],
+  ['ambos', 'ID + nombre']
+]
+
+export interface StrokeEvent {
+  shift: boolean
+  /** Clic derecho: borrar */
+  erase: boolean
+}
 
 export interface MapPointer {
   x: number
@@ -28,13 +42,19 @@ interface Props {
   map: MapData
   project: Project
   game: GameCatalog | null
-  mode: ViewMode
-  activeTag: string | null
-  selectedId: number | null
+  /** Modo de vista, país activo, selección, lienzo en blanco, pendientes… */
+  paletteOptions: PaletteOptions
+  /** Etiquetas de los estados */
+  labels: LabelMode
+  /** Fronteras de provincia (muy tenues) */
+  provinceBorders: boolean
   cursor: string
   reference: { src: string; opacity: number; visible: boolean } | null
-  /** Botón izquierdo: inicio, movimiento y fin de un trazo (estado bajo el cursor) */
-  onStroke: (phase: 'start' | 'move' | 'end', stateId: number, e: { shift: boolean }) => void
+  /**
+   * Trazo con el botón izquierdo (pintar) o derecho (`erase`: borrar, como el segundo color
+   * de Paint): inicio, movimiento y fin, con el estado bajo el cursor.
+   */
+  onStroke: (phase: 'start' | 'move' | 'end', stateId: number, e: StrokeEvent) => void
   onHover: (p: MapPointer | null) => void
   onViewChange?: (v: View) => void
   onRendererKind?: (k: string) => void
@@ -44,7 +64,8 @@ const MIN_SCALE = 0.1
 const MAX_SCALE = 24
 
 export default forwardRef<MapViewHandle, Props>(function MapView(props, ref) {
-  const { map, project, game, mode, activeTag, selectedId } = props
+  const { map, project, game, paletteOptions } = props
+  const activeTag = paletteOptions.activeTag
   const boxRef = useRef<HTMLDivElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const overlayRef = useRef<HTMLCanvasElement>(null)
@@ -57,6 +78,7 @@ export default forwardRef<MapViewHandle, Props>(function MapView(props, ref) {
   const [hover, setHover] = useState<(MapPointer & { sx: number; sy: number }) | null>(null)
   const drag = useRef<{
     kind: 'pan' | 'paint'
+    erase?: boolean
     sx: number
     sy: number
     vx: number
@@ -67,8 +89,9 @@ export default forwardRef<MapViewHandle, Props>(function MapView(props, ref) {
   const byId = useMemo(() => lookup(map), [map])
 
   const palette = useMemo(
-    () => buildPalette(map, project, game, mode, activeTag, selectedId),
-    [map, project, game, mode, activeTag, selectedId]
+    () => buildPalette(map, project, game, paletteOptions),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [map, project, game, ...Object.values(paletteOptions)]
   )
 
   const paletteRef = useRef(palette)
@@ -148,13 +171,16 @@ export default forwardRef<MapViewHandle, Props>(function MapView(props, ref) {
         c.width = size.w
         c.height = size.h
       }
-      rendererRef.current.render(view, size.w, size.h)
+      rendererRef.current.render(view, size.w, size.h, {
+        hoverStateId: hover?.stateId ?? 0,
+        provinceBorders: props.provinceBorders
+      })
       drawOverlay()
     })
     props.onViewChange?.(view)
     return () => cancelAnimationFrame(id)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [view, size, palette])
+  }, [view, size, palette, hover?.stateId, props.provinceBorders, props.labels])
 
   // ---- Estrellas en las capitales de los países del mod ----
   const drawOverlay = (): void => {
@@ -164,6 +190,7 @@ export default forwardRef<MapViewHandle, Props>(function MapView(props, ref) {
     o.height = size.h
     const ctx = o.getContext('2d')!
     ctx.clearRect(0, 0, o.width, o.height)
+    drawLabels(ctx)
     for (const c of project.countries) {
       if (!c.capital) continue
       const center = map.stateCenters[c.capital]
@@ -172,6 +199,40 @@ export default forwardRef<MapViewHandle, Props>(function MapView(props, ref) {
       const sy = view.y + (center[1] + 0.5) * view.scale
       if (sx < -20 || sy < -20 || sx > size.w + 20 || sy > size.h + 20) continue
       star(ctx, sx, sy, c.tag === activeTag ? 9 : 6, c.tag === activeTag ? '#fbbf24' : '#f5f5f5')
+    }
+  }
+
+  // ---- Etiquetas: ID y/o nombre en el centro visual, solo si caben ----
+  const drawLabels = (ctx: CanvasRenderingContext2D): void => {
+    if (props.labels === 'ninguna') return
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    ctx.lineJoin = 'round'
+    for (const s of map.states) {
+      const lab = map.stateLabels?.[s.id]
+      if (!lab) continue
+      const sx = view.x + (lab[0] + 0.5) * view.scale
+      const sy = view.y + (lab[1] + 0.5) * view.scale
+      const R = lab[2] * view.scale
+      if (R < 5 || sx < -R || sy < -R || sx > size.w + R || sy > size.h + R) continue
+      const text =
+        props.labels === 'id'
+          ? String(s.id)
+          : props.labels === 'nombre'
+            ? s.name
+            : `${s.id} ${s.name}`
+      // El rectángulo del texto debe caber dentro del círculo del estado (así nunca se encima con otro)
+      for (const px of [12, 10, 8]) {
+        ctx.font = `600 ${px}px "Segoe UI", sans-serif`
+        const w = ctx.measureText(text).width
+        if ((w / 2) ** 2 + (px / 2) ** 2 > R * R) continue
+        ctx.lineWidth = 3
+        ctx.strokeStyle = 'rgba(255,255,255,0.95)'
+        ctx.strokeText(text, sx, sy)
+        ctx.fillStyle = '#333a44'
+        ctx.fillText(text, sx, sy)
+        break
+      }
     }
   }
 
@@ -194,7 +255,7 @@ export default forwardRef<MapViewHandle, Props>(function MapView(props, ref) {
         const my = Math.floor(((y + 0.5) / miniSize.h) * map.height)
         const st = map.provinceToState[map.provinceIndex[my * map.width + mx]]
         const o = (y * miniSize.w + x) * 4
-        if (!st) img.data.set([23, 38, 64, 255], o)
+        if (!st) img.data.set([74, 111, 165, 255], o)
         else {
           const s = slotOf.get(st)! * 4
           img.data.set([palette.rgba[s], palette.rgba[s + 1], palette.rgba[s + 2], 255], o)
@@ -239,9 +300,10 @@ export default forwardRef<MapViewHandle, Props>(function MapView(props, ref) {
       drag.current = { kind: 'pan', sx: e.clientX, sy: e.clientY, vx: view.x, vy: view.y, last: 0 }
       return
     }
-    if (e.button !== 0) return
-    drag.current = { kind: 'paint', sx: 0, sy: 0, vx: 0, vy: 0, last: p.stateId }
-    props.onStroke('start', p.stateId, { shift: e.shiftKey })
+    if (e.button !== 0 && e.button !== 2) return
+    const erase = e.button === 2
+    drag.current = { kind: 'paint', erase, sx: 0, sy: 0, vx: 0, vy: 0, last: p.stateId }
+    props.onStroke('start', p.stateId, { shift: e.shiftKey, erase })
   }
   const onPointerMove = (e: React.PointerEvent): void => {
     const p = toMap(e.clientX, e.clientY)
@@ -254,11 +316,12 @@ export default forwardRef<MapViewHandle, Props>(function MapView(props, ref) {
     props.onHover(p.province ? p : null)
     if (d?.kind === 'paint' && p.stateId !== d.last) {
       d.last = p.stateId
-      props.onStroke('move', p.stateId, { shift: e.shiftKey })
+      props.onStroke('move', p.stateId, { shift: e.shiftKey, erase: !!d.erase })
     }
   }
   const onPointerUp = (e: React.PointerEvent): void => {
-    if (drag.current?.kind === 'paint') props.onStroke('end', 0, { shift: e.shiftKey })
+    if (drag.current?.kind === 'paint')
+      props.onStroke('end', 0, { shift: e.shiftKey, erase: !!drag.current.erase })
     drag.current = null
   }
 
@@ -278,7 +341,7 @@ export default forwardRef<MapViewHandle, Props>(function MapView(props, ref) {
   return (
     <div
       ref={boxRef}
-      className="relative h-full w-full overflow-hidden bg-[#121214]"
+      className="relative h-full w-full overflow-hidden bg-[#ece9e4]"
       style={{ cursor: props.cursor }}
       onWheel={(e) => {
         const r = boxRef.current!.getBoundingClientRect()

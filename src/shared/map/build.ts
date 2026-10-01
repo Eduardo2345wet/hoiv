@@ -2,6 +2,7 @@
 // adyacencia entre estados (comparando píxeles vecinos) y centros.
 import type { MapData, MapState } from './types'
 import { PROVINCE_TYPE } from './types'
+import { computeStateLabels } from './labels'
 
 export interface RawMap {
   source: MapData['source']
@@ -92,7 +93,8 @@ export function buildMapData(raw: RawMap): MapData {
     statePixelIndex,
     statePixelOffsets: offsets,
     unknownColorPixels: raw.unknownColorPixels,
-    stateCenters
+    stateCenters,
+    stateLabels: computeStateLabels(width, height, provinceIndex, provinceToState)
   }
 }
 

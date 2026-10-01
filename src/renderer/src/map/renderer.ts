@@ -10,10 +10,17 @@ export interface View {
   y: number
 }
 
+export interface RenderOptions {
+  /** Estado bajo el cursor (contorno resaltado) */
+  hoverStateId: number
+  /** Fronteras de provincia muy tenues */
+  provinceBorders: boolean
+}
+
 export interface MapRenderer {
   readonly kind: 'webgl2' | 'canvas2d'
   setPalette(p: Palette): void
-  render(view: View, width: number, height: number): void
+  render(view: View, width: number, height: number, opts: RenderOptions): void
   destroy(): void
 }
 

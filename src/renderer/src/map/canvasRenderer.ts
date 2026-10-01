@@ -1,7 +1,6 @@
 // Respaldo sin WebGL2: una imagen del mapa en memoria que se repinta SOLO en los píxeles
 // de los estados cuyo color cambió (con la lista de píxeles por estado).
 import type { MapData } from '../../../shared/map/types'
-import { PROVINCE_TYPE } from '../../../shared/map/types'
 import type { Palette } from './colors'
 import type { MapRenderer, View } from './renderer'
 
@@ -18,8 +17,7 @@ export function createCanvasRenderer(canvas: HTMLCanvasElement, map: MapData): M
   for (let i = 0; i < map.provinceIndex.length; i++) {
     const prov = map.provinceIndex[i]
     if (map.provinceToState[prov]) continue
-    const lake = map.provinceType[prov] === PROVINCE_TYPE.lake
-    px.set(lake ? [41, 69, 102, 255] : [23, 38, 64, 255], i * 4)
+    px.set([74, 111, 165, 255], i * 4) // mar y lagos: azul acero
   }
   // Píxeles de frontera de estado (se oscurecen)
   const border = new Uint8Array(map.provinceIndex.length)
@@ -30,7 +28,8 @@ export function createCanvasRenderer(canvas: HTMLCanvasElement, map: MapData): M
       if (!s) continue
       const r = x + 1 < map.width ? map.provinceToState[map.provinceIndex[i + 1]] : s
       const d = y + 1 < map.height ? map.provinceToState[map.provinceIndex[i + map.width]] : s
-      if (r !== s || d !== s) border[i] = 1
+      // Frontera solo entre estados de tierra (sin línea en la costa)
+      if ((r && r !== s) || (d && d !== s)) border[i] = 1
     }
   let prev: Uint8Array | null = null
 
@@ -49,16 +48,17 @@ export function createCanvasRenderer(canvas: HTMLCanvasElement, map: MapData): M
           continue
         const flags = p.rgba[o + 3]
         let [r, g, b] = [p.rgba[o], p.rgba[o + 1], p.rgba[o + 2]]
-        if (flags & 8) [r, g, b] = [r * 0.62, g * 0.62, b * 0.62]
+        if (flags & 16) [r, g, b] = [r * 0.45 + 140, g * 0.45 + 115, b * 0.45 + 42]
+        if (flags & 32) [r, g, b] = [r * 0.9, g * 0.9, b * 0.9]
         if (flags & 4)
           [r, g, b] = [r + (255 - r) * 0.35, g + (255 - g) * 0.35, b + (255 - b) * 0.35]
-        const amber = (flags & 1) !== 0
         for (let k = map.statePixelOffsets[slot]; k < map.statePixelOffsets[slot + 1]; k++) {
           const i = map.statePixelIndex[k]
           const bo = border[i]
-          px[i * 4] = bo ? (amber ? 255 : r * 0.5) : r
-          px[i * 4 + 1] = bo ? (amber ? 190 : g * 0.5) : g
-          px[i * 4 + 2] = bo ? (amber ? 50 : b * 0.5) : b
+          // Frontera de estado: gris claro
+          px[i * 4] = bo ? 179 : r
+          px[i * 4 + 1] = bo ? 179 : g
+          px[i * 4 + 2] = bo ? 179 : b
           px[i * 4 + 3] = 255
         }
       }
@@ -66,8 +66,9 @@ export function createCanvasRenderer(canvas: HTMLCanvasElement, map: MapData): M
       offCtx.putImageData(img, 0, 0)
     },
     render(view: View, width: number, height: number) {
+      // (el respaldo no dibuja el contorno al pasar el mouse ni las provincias)
       ctx.setTransform(1, 0, 0, 1, 0, 0)
-      ctx.fillStyle = '#121214'
+      ctx.fillStyle = '#ece9e4'
       ctx.fillRect(0, 0, width, height)
       ctx.imageSmoothingEnabled = view.scale < 1
       ctx.setTransform(view.scale, 0, 0, view.scale, view.x, view.y)

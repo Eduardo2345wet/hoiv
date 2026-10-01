@@ -4,7 +4,7 @@
 import type { MapData } from '../../../shared/map/types'
 import { PROVINCE_TYPE } from '../../../shared/map/types'
 import type { Palette } from './colors'
-import type { MapRenderer, View } from './renderer'
+import type { MapRenderer, RenderOptions, View } from './renderer'
 
 const ROW = 4096 // ancho de las texturas "1D"
 
@@ -24,7 +24,14 @@ uniform usampler2D uOwner;     // estado → índice del dueño
 uniform vec2 uMapSize;
 uniform vec2 uCanvas;
 uniform vec3 uView;            // scale, x, y
+uniform uint uHover;           // posición + 1 del estado bajo el cursor (0 = ninguno)
+uniform bool uProvBorders;     // fronteras de provincia (muy tenues)
 out vec4 outColor;
+
+const vec3 PAPER = vec3(0.925, 0.918, 0.894);    // fondo claro, como una hoja
+const vec3 SEA = vec3(0.290, 0.435, 0.647);      // mar y lagos: azul acero #4A6FA5
+const vec3 STATE_LINE = vec3(0.70);              // frontera de estado: gris claro
+const vec3 COUNTRY_LINE = vec3(0.30);            // frontera de país: gris oscuro
 
 ivec2 row(uint i) { return ivec2(int(i % ${ROW}u), int(i / ${ROW}u)); }
 uint provAt(ivec2 p) {
@@ -38,49 +45,53 @@ void main() {
   vec2 screen = vec2(gl_FragCoord.x, uCanvas.y - gl_FragCoord.y);
   vec2 m = (screen - uView.yz) / uView.x;
   if (m.x < 0.0 || m.y < 0.0 || m.x >= uMapSize.x || m.y >= uMapSize.y) {
-    outColor = vec4(0.07, 0.07, 0.08, 1.0);
+    outColor = vec4(PAPER, 1.0);
     return;
   }
   ivec2 p = ivec2(floor(m));
   uint prov = provAt(p);
   uint slot = slotOf(prov);
   if (slot == 0u) {
-    uint t = texelFetch(uProvType, row(prov), 0).r;
-    outColor = t == 3u ? vec4(0.16, 0.27, 0.40, 1.0) : vec4(0.09, 0.15, 0.25, 1.0);
+    outColor = vec4(SEA, 1.0);
     return;
   }
   vec4 pal = texelFetch(uPal, row(slot - 1u), 0);
   uint flags = uint(pal.a * 255.0 + 0.5);
   vec3 col = pal.rgb;
-  if ((flags & 8u) != 0u) col *= 0.62;              // otros países, apagados
-  if ((flags & 4u) != 0u) col = mix(col, vec3(1.0), 0.35); // estado seleccionado
+  if ((flags & 16u) != 0u) col = mix(col, vec3(1.0, 0.82, 0.30), 0.55);   // pendiente resaltado
+  if ((flags & 32u) != 0u && mod(floor((screen.x + screen.y) / 5.0), 2.0) == 0.0)
+    col *= 0.86;                                                         // rayado (Sin nación)
+  if ((flags & 4u) != 0u) col = mix(col, vec3(1.0, 0.85, 0.4), 0.35);    // estado seleccionado
 
-  // Fronteras: una línea de 1 px de pantalla (estado) o 2 px (país) en el borde del píxel
+  // Fronteras: 1 px de pantalla (estado), 2 px (país); sin línea en la costa
   vec2 f = fract(m);
   float ws = min(0.5, 1.0 / uView.x);
   float wc = min(0.5, 2.0 / uView.x);
+  float wh = min(0.5, 2.5 / uView.x);
   uint owner = ownerOf(slot);
-  bool activeHere = (flags & 1u) != 0u;
   float stateB = 0.0;
   float countryB = 0.0;
-  float activeB = 0.0;
+  float provB = 0.0;
+  float hoverB = 0.0;
   ivec2 dirs[4] = ivec2[4](ivec2(-1, 0), ivec2(1, 0), ivec2(0, -1), ivec2(0, 1));
   float dist[4] = float[4](f.x, 1.0 - f.x, f.y, 1.0 - f.y);
   for (int k = 0; k < 4; k++) {
-    uint ns = slotOf(provAt(p + dirs[k]));
-    if (ns == slot) continue;
-    uint no = ownerOf(ns);
+    uint nprov = provAt(p + dirs[k]);
+    uint ns = slotOf(nprov);
+    if (ns == slot) {
+      if (uProvBorders && nprov != prov && dist[k] < ws) provB = 1.0;
+      continue;
+    }
+    if (slot == uHover && dist[k] < wh) hoverB = 1.0;
+    if (ns == 0u) continue;
     if (dist[k] < ws) stateB = 1.0;
-    if (no != owner && dist[k] < wc) countryB = 1.0;
-    if (activeHere && ns != 0u) {
-      vec4 np = texelFetch(uPal, row(ns - 1u), 0);
-      bool nActive = (uint(np.a * 255.0 + 0.5) & 1u) != 0u;
-      if (!nActive && dist[k] < wc) activeB = 1.0;
-    } else if (activeHere && ns == 0u && dist[k] < wc) activeB = 1.0;
+    if (ownerOf(ns) != owner && dist[k] < wc) countryB = 1.0;
   }
-  col = mix(col, col * 0.55, stateB);
-  col = mix(col, vec3(0.05), countryB);
-  col = mix(col, vec3(1.0, 0.75, 0.2), activeB);   // contorno ámbar del país activo
+  col = mix(col, col * 0.88, provB);
+  col = mix(col, STATE_LINE, stateB);
+  col = mix(col, COUNTRY_LINE, countryB);
+  if (slot == uHover) col = mix(col, col * 0.93, 1.0);
+  col = mix(col, vec3(0.10, 0.12, 0.16), hoverB);   // contorno del estado bajo el cursor
   outColor = vec4(col, 1.0);
 }`
 
@@ -187,6 +198,8 @@ export function createWebGLRenderer(canvas: HTMLCanvasElement, map: MapData): Ma
   gl.uniform2f(u('uMapSize'), map.width, map.height)
   const uCanvas = u('uCanvas')
   const uView = u('uView')
+  const uHover = u('uHover')
+  const uProvBorders = u('uProvBorders')
 
   return {
     kind: 'webgl2',
@@ -200,10 +213,12 @@ export function createWebGLRenderer(canvas: HTMLCanvasElement, map: MapData): Ma
       gl.deleteTexture(ownerTex)
       ownerTex = uintTexture(gl, p.owners)
     },
-    render(view: View, width: number, height: number) {
+    render(view: View, width: number, height: number, opts: RenderOptions) {
       gl.viewport(0, 0, width, height)
       gl.uniform2f(uCanvas, width, height)
       gl.uniform3f(uView, view.scale, view.x, view.y)
+      gl.uniform1ui(uHover, opts.hoverStateId ? (slotOfState.get(opts.hoverStateId) ?? 0) : 0)
+      gl.uniform1i(uProvBorders, opts.provinceBorders ? 1 : 0)
       gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4)
     },
     destroy() {
