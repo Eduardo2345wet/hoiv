@@ -3,6 +3,7 @@
 // Las fronteras (de estado finas, de país gruesas) se calculan en el shader.
 import type { MapData } from '../../../shared/map/types'
 import { PROVINCE_TYPE } from '../../../shared/map/types'
+import { THEME_RGB, MAP_THEME, glslVec3 } from '../../../shared/map/theme'
 import type { Palette } from './colors'
 import type { MapRenderer, RenderOptions, View } from './renderer'
 
@@ -28,10 +29,11 @@ uniform uint uHover;           // posición + 1 del estado bajo el cursor (0 = n
 uniform bool uProvBorders;     // fronteras de provincia (muy tenues)
 out vec4 outColor;
 
-const vec3 PAPER = vec3(0.925, 0.918, 0.894);    // fondo claro, como una hoja
-const vec3 SEA = vec3(0.290, 0.435, 0.647);      // mar y lagos: azul acero #4A6FA5
-const vec3 STATE_LINE = vec3(0.70);              // frontera de estado: gris claro
-const vec3 COUNTRY_LINE = vec3(0.30);            // frontera de país: gris oscuro
+const vec3 SEA = ${glslVec3(THEME_RGB.sea)};                    // mar, lagos y fondo (tema)
+const vec3 STATE_LINE = ${glslVec3(THEME_RGB.stateBorder)};        // frontera de estado
+const vec3 COUNTRY_LINE = ${glslVec3(THEME_RGB.countryBorder)};    // frontera de país
+const vec3 PROV_LINE = ${glslVec3(THEME_RGB.provinceBorder)};      // frontera de provincia
+const vec3 HOVER_LINE = ${glslVec3(THEME_RGB.hoverContour)};       // contorno bajo el cursor
 
 ivec2 row(uint i) { return ivec2(int(i % ${ROW}u), int(i / ${ROW}u)); }
 uint provAt(ivec2 p) {
@@ -45,7 +47,7 @@ void main() {
   vec2 screen = vec2(gl_FragCoord.x, uCanvas.y - gl_FragCoord.y);
   vec2 m = (screen - uView.yz) / uView.x;
   if (m.x < 0.0 || m.y < 0.0 || m.x >= uMapSize.x || m.y >= uMapSize.y) {
-    outColor = vec4(PAPER, 1.0);
+    outColor = vec4(SEA, 1.0);
     return;
   }
   ivec2 p = ivec2(floor(m));
@@ -65,9 +67,9 @@ void main() {
 
   // Fronteras: 1 px de pantalla (estado), 2 px (país); sin línea en la costa
   vec2 f = fract(m);
-  float ws = min(0.5, 1.0 / uView.x);
-  float wc = min(0.5, 2.0 / uView.x);
-  float wh = min(0.5, 2.5 / uView.x);
+  float ws = min(0.5, ${MAP_THEME.width.stateBorder.toFixed(2)} / uView.x);
+  float wc = min(0.5, ${MAP_THEME.width.countryBorder.toFixed(2)} / uView.x);
+  float wh = min(0.5, ${MAP_THEME.width.hoverContour.toFixed(2)} / uView.x);
   uint owner = ownerOf(slot);
   float stateB = 0.0;
   float countryB = 0.0;
@@ -79,7 +81,7 @@ void main() {
     uint nprov = provAt(p + dirs[k]);
     uint ns = slotOf(nprov);
     if (ns == slot) {
-      if (uProvBorders && nprov != prov && dist[k] < ws) provB = 1.0;
+      if (uProvBorders && nprov != prov && dist[k] < ${(MAP_THEME.width.provinceBorder / 2).toFixed(2)} / uView.x) provB = 1.0;
       continue;
     }
     if (slot == uHover && dist[k] < wh) hoverB = 1.0;
@@ -87,11 +89,11 @@ void main() {
     if (dist[k] < ws) stateB = 1.0;
     if (ownerOf(ns) != owner && dist[k] < wc) countryB = 1.0;
   }
-  col = mix(col, col * 0.88, provB);
+  col = mix(col, PROV_LINE, provB);
   col = mix(col, STATE_LINE, stateB);
   col = mix(col, COUNTRY_LINE, countryB);
   if (slot == uHover) col = mix(col, col * 0.93, 1.0);
-  col = mix(col, vec3(0.10, 0.12, 0.16), hoverB);   // contorno del estado bajo el cursor
+  col = mix(col, HOVER_LINE, hoverB);   // contorno del estado bajo el cursor
   outColor = vec4(col, 1.0);
 }`
 

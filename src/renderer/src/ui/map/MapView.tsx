@@ -9,6 +9,7 @@ import { buildPalette, type PaletteOptions } from '../../map/colors'
 import type { MapRenderer, View } from '../../map/renderer'
 import { createWebGLRenderer } from '../../map/webglRenderer'
 import { createCanvasRenderer } from '../../map/canvasRenderer'
+import { MAP_THEME, THEME_RGB } from '../../../../shared/map/theme'
 import { effectiveCores, effectiveOwner, lookup } from '../../map/mapOps'
 
 export type LabelMode = 'ninguna' | 'id' | 'nombre' | 'ambos'
@@ -255,7 +256,7 @@ export default forwardRef<MapViewHandle, Props>(function MapView(props, ref) {
         const my = Math.floor(((y + 0.5) / miniSize.h) * map.height)
         const st = map.provinceToState[map.provinceIndex[my * map.width + mx]]
         const o = (y * miniSize.w + x) * 4
-        if (!st) img.data.set([74, 111, 165, 255], o)
+        if (!st) img.data.set([...THEME_RGB.sea, 255], o)
         else {
           const s = slotOf.get(st)! * 4
           img.data.set([palette.rgba[s], palette.rgba[s + 1], palette.rgba[s + 2], 255], o)
@@ -341,8 +342,8 @@ export default forwardRef<MapViewHandle, Props>(function MapView(props, ref) {
   return (
     <div
       ref={boxRef}
-      className="relative h-full w-full overflow-hidden bg-[#ece9e4]"
-      style={{ cursor: props.cursor }}
+      className="relative h-full w-full overflow-hidden"
+      style={{ cursor: props.cursor, background: MAP_THEME.sea }}
       onWheel={(e) => {
         const r = boxRef.current!.getBoundingClientRect()
         zoomAt(e.deltaY < 0 ? 1.15 : 1 / 1.15, e.clientX - r.left, e.clientY - r.top)

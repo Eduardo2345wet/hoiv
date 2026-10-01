@@ -1,6 +1,7 @@
 // Respaldo sin WebGL2: una imagen del mapa en memoria que se repinta SOLO en los píxeles
 // de los estados cuyo color cambió (con la lista de píxeles por estado).
 import type { MapData } from '../../../shared/map/types'
+import { MAP_THEME, THEME_RGB } from '../../../shared/map/theme'
 import type { Palette } from './colors'
 import type { MapRenderer, View } from './renderer'
 
@@ -17,7 +18,7 @@ export function createCanvasRenderer(canvas: HTMLCanvasElement, map: MapData): M
   for (let i = 0; i < map.provinceIndex.length; i++) {
     const prov = map.provinceIndex[i]
     if (map.provinceToState[prov]) continue
-    px.set([74, 111, 165, 255], i * 4) // mar y lagos: azul acero
+    px.set([...THEME_RGB.sea, 255], i * 4) // mar y lagos (tema)
   }
   // Píxeles de frontera de estado (se oscurecen)
   const border = new Uint8Array(map.provinceIndex.length)
@@ -56,9 +57,9 @@ export function createCanvasRenderer(canvas: HTMLCanvasElement, map: MapData): M
           const i = map.statePixelIndex[k]
           const bo = border[i]
           // Frontera de estado: gris claro
-          px[i * 4] = bo ? 179 : r
-          px[i * 4 + 1] = bo ? 179 : g
-          px[i * 4 + 2] = bo ? 179 : b
+          px[i * 4] = bo ? THEME_RGB.stateBorder[0] : r
+          px[i * 4 + 1] = bo ? THEME_RGB.stateBorder[1] : g
+          px[i * 4 + 2] = bo ? THEME_RGB.stateBorder[2] : b
           px[i * 4 + 3] = 255
         }
       }
@@ -68,7 +69,7 @@ export function createCanvasRenderer(canvas: HTMLCanvasElement, map: MapData): M
     render(view: View, width: number, height: number) {
       // (el respaldo no dibuja el contorno al pasar el mouse ni las provincias)
       ctx.setTransform(1, 0, 0, 1, 0, 0)
-      ctx.fillStyle = '#ece9e4'
+      ctx.fillStyle = MAP_THEME.sea
       ctx.fillRect(0, 0, width, height)
       ctx.imageSmoothingEnabled = view.scale < 1
       ctx.setTransform(view.scale, 0, 0, view.scale, view.x, view.y)

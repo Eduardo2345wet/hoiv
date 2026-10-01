@@ -5,6 +5,7 @@ import type { GameCatalog } from '../catalog/catalog'
 import type { MapData } from '../../../shared/map/types'
 import { mapColor, hsvToRgb, type RGB } from '../countries/color'
 import { colorForTag } from '../countries/countryOps'
+import { THEME_RGB } from '../../../shared/map/theme'
 import { effectiveCores, effectiveOwner, isChanged } from './mapOps'
 
 export type ViewMode = 'politico' | 'estados' | 'cores' | 'cambios'
@@ -25,7 +26,7 @@ export const FLAG = {
   striped: 32
 } as const
 
-export const WHITE: RGB = [255, 255, 255]
+export const WHITE: RGB = [...THEME_RGB.land]
 
 /** Color PLENO del país (el del mod, el real del juego o uno estable según el tag) */
 export function countryFullColor(
