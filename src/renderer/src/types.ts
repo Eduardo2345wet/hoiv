@@ -171,6 +171,12 @@ export interface Country {
   existing: ExistingCountryInfo
   /** País TÉCNICO "Sin nación" (relleno de lo pendiente): lo mantiene la app */
   technical?: boolean
+  /**
+   * País del juego "ligero": solo tag + referencia, para que un árbol de focos tenga dueño.
+   * No exporta historia, banderas, personajes ni localización. Al editarlo con el asistente
+   * deja de ser ligero.
+   */
+  light?: boolean
 }
 
 export interface FocusTree {

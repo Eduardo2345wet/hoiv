@@ -187,7 +187,12 @@ export interface AppState {
   settingsDialog: boolean
   /** Pregunta con varios botones (guardar / no guardar / cancelar…) */
   ask: AskRequest | null
+  /** Selector universal de país abierto */
+  countryPicker: { title: string; resolve: (r: CountryPick | null) => void } | null
 }
+
+/** Resultado del selector universal de país */
+export type CountryPick = { tag: string } | { create: 'quick' | 'wizard' }
 
 export interface AskRequest {
   title: string
@@ -230,6 +235,7 @@ let state: AppState = {
   wizardRequest: null,
   settingsDialog: false,
   ask: null,
+  countryPicker: null,
   toasts: []
 }
 const listeners = new Set<() => void>()
@@ -573,6 +579,16 @@ export const store = {
     const p = state.pick
     store.set({ pick: null })
     p?.onCancel?.()
+  },
+
+  /** Abre el selector universal de país (CountryPicker); null si se cierra */
+  pickCountry(title = 'Elegir país'): Promise<CountryPick | null> {
+    return new Promise((resolve) => store.set({ countryPicker: { title, resolve } }))
+  },
+  answerCountryPick(r: CountryPick | null): void {
+    const a = state.countryPicker
+    store.set({ countryPicker: null })
+    a?.resolve(r)
   },
 
   /** Pregunta con botones; devuelve el `value` del botón elegido ('' si se cierra) */

@@ -11,6 +11,7 @@ import NewProjectDialog from './ui/NewProjectDialog'
 import ProjectPropsDialog from './ui/ProjectPropsDialog'
 import SettingsDialog from './ui/SettingsDialog'
 import AskDialog from './ui/AskDialog'
+import CountryPicker from './ui/CountryPicker'
 import PromptDialog from './ui/PromptDialog'
 import ToastHost from './ui/ToastHost'
 import { loadGameSettings } from './ui/SettingsDialog'
@@ -130,6 +131,7 @@ export default function App(): JSX.Element {
       {propsDialog && <ProjectPropsDialog />}
       {settingsDialog && <SettingsDialog onClose={() => store.set({ settingsDialog: false })} />}
       <AskDialog />
+      <CountryPicker />
       <PromptDialog />
       <ToastHost />
     </div>
