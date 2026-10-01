@@ -257,6 +257,40 @@ Nuevo proyecto, asistente, confirmaciones, selector de país…) se dibujan en u
 (`inert`) y al cerrar se devuelve el foco. La letra del toolbox de Blockly (14 px) y las capas de
 sus menús se definen junto a su tema (`ui/theme.ts`).
 
+## Guardar y mod sincronizado con el juego
+
+**Guardar:** la primera vez, **Guardar como…** (Ctrl+Shift+S) y, por defecto, también Ctrl+S abren
+el diálogo para elegir carpeta y nombre (por defecto `Documentos/HOI4 Mod Studio/Proyectos/<mod>`;
+con Ctrl+S ya trae la ubicación actual: con Enter se queda igual). En Ajustes → General se puede
+desactivar "Preguntar siempre dónde guardar". Después de guardar sale "Proyecto guardado en
+<ruta>" con **Abrir carpeta**; la ruta se ve en la barra de estado, en el tooltip de la pestaña y
+en Recientes. Archivo → **Abrir carpeta del proyecto** / **Abrir carpeta del mod**.
+
+**Mod sincronizado (automático):** con HOI4 detectado (su carpeta de Documentos, con OneDrive), cada
+proyecto tiene un destino `…/Hearts of Iron IV/mod/<mod>/` y `…/mod/<mod>.mod` (se ve y se cambia
+en Archivo → Propiedades del proyecto). Con "Actualizar el mod del juego al guardar" (activado):
+guarda el proyecto → corre el validador → si NO hay errores actualiza el mod ("Mod actualizado en
+el juego"); con errores el proyecto SÍ se guarda pero el mod no cambia ("No se actualizó el mod: N
+errores", botón **Ver**).
+- Un manifiesto (`.hoi4modstudio.json`) guarda los archivos que generó la app y su hash: solo se
+  escriben los que cambiaron y se BORRAN los que ya no se generan (el `.dds` de un foco que
+  eliminaste, la bandera de un país borrado…). Lo que pongas a mano nunca se toca (se avisa una vez).
+- Se prepara en una carpeta temporal y luego se reemplaza; el `.mod` de afuera y `descriptor.mod`
+  (sin BOM) quedan siempre iguales (nombre, ruta absoluta, dependencies).
+- Si la carpeta ya existía, no es de la app y no está vacía, pregunta una vez.
+- Si HOI4 está abierto avisa: los cambios se verán al volver a cargar el juego.
+- La primera vez: **activa el mod UNA vez en el launcher (Playsets)**. La app no toca la base de
+  datos del launcher.
+- **Exportar a otra carpeta…** (Archivo / pestaña Exportar) sigue existiendo para compartir el
+  mod, con la misma auto-revisión.
+
+### Barras de desplazamiento de Blockly
+Las barras que Blockly oculta con el atributo `display="none"` quedaban visibles porque Tailwind
+(preflight) pone `svg { display: block }`, que gana a ese atributo; el tema de Blockly
+(`ui/theme.ts`) lo corrige. El editor llama a `svgResize` cada vez que cambia su contenedor
+(ventana, pestaña del documento o de la cinta, paneles, ventana cerrada). La rueda del mouse y el
+arrastre del fondo mueven el área; el zoom va con los botones de Blockly.
+
 ## Banderas reales de los países del juego
 
 Con HOI4 detectado, la Paleta, la tarjeta del país, el Navegador y el asistente muestran la

@@ -409,7 +409,7 @@ export default function Ribbon(): JSX.Element {
         <Group title="Mod">
           <RBtn
             icon={<Download size={20} />}
-            label="Exportar mod"
+            label="Exportar a otra carpeta…"
             disabled={off}
             onClick={() => runCommand('exportMod')}
           />

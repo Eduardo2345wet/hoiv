@@ -15,6 +15,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
   },
   ackCloseRequest: () => ipcRenderer.invoke('app-close-ack'),
   confirmClose: () => ipcRenderer.invoke('app-close-confirmed'),
+  getModDestination: () => ipcRenderer.invoke('get-mod-destination'),
+  isHoi4Running: () => ipcRenderer.invoke('is-hoi4-running'),
+  syncMod: (payload: unknown, confirmForeign?: boolean) =>
+    ipcRenderer.invoke('sync-mod', payload, confirmForeign ?? false),
   openFolder: (p: string) => ipcRenderer.invoke('open-folder', p),
   getProjectsDir: () => ipcRenderer.invoke('get-projects-dir'),
   createProject: (parent: string, name: string, json: string) =>

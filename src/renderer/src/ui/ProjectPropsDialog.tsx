@@ -7,6 +7,7 @@ import { TEMPLATES, templateInfo, templateOf } from '../templates'
 import { paintedCount, resetMapWithTemplate } from '../map/resetMap'
 import type { MapModRef, TemplateId } from '../types'
 import Modal from './Modal'
+import { modDestination, syncEnabled, type ModDestination } from '../export/modSync'
 
 interface InstalledMod extends MapModRef {
   source: string
@@ -24,7 +25,16 @@ export default function ProjectPropsDialog(): JSX.Element | null {
     if (!reset || tpl !== 'mod' || !gamePath) return
     void window.electronAPI?.listMods(gamePath).then(setMods)
   }, [reset, tpl, gamePath])
+  const [dest, setDest] = useState<ModDestination | null | undefined>(undefined)
+  useEffect(() => {
+    if (project) void modDestination(project).then(setDest)
+  }, [project?.modName, project?.modSync?.dest]) // eslint-disable-line react-hooks/exhaustive-deps
   if (!project) return null
+  const setSync = (patch: Partial<NonNullable<typeof project.modSync>>): void =>
+    store.updateProject((p) => ({
+      ...p,
+      modSync: { enabled: p.modSync?.enabled ?? true, dest: p.modSync?.dest ?? null, ...patch }
+    }))
   const close = (): void => store.set({ propsDialog: false })
   const t = templateInfo(templateOf(project))
   const n = paintedCount(project)
@@ -54,6 +64,49 @@ export default function ProjectPropsDialog(): JSX.Element | null {
         <dt className="text-hoi-muted">Estados pintados</dt>
         <dd>{n}</dd>
       </dl>
+      <div className="mt-4 border-t border-hoi-border pt-3">
+        <div className="text-xs font-semibold uppercase text-hoi-muted">Destino del mod</div>
+        {dest === undefined ? (
+          <p className="mt-1 text-xs text-hoi-muted">Buscando la carpeta de mods…</p>
+        ) : dest ? (
+          <dl className="mt-1 grid grid-cols-[70px_1fr] gap-y-1 text-xs">
+            <dt className="text-hoi-muted">Carpeta</dt>
+            <dd className="break-all font-mono">{dest.folder}</dd>
+            <dt className="text-hoi-muted">Archivo</dt>
+            <dd className="break-all font-mono">{dest.file}</dd>
+          </dl>
+        ) : (
+          <p className="mt-1 text-xs text-yellow-300">
+            No se encontró la carpeta de mods de HOI4 (Documentos/Paradox Interactive/Hearts of Iron
+            IV). Elige una carpeta o abre el juego una vez para que la cree.
+          </p>
+        )}
+        <div className="mt-2 flex flex-wrap items-center gap-2">
+          <button
+            className="btn text-xs"
+            onClick={async () => {
+              const d = await window.electronAPI?.selectFolder()
+              if (d) setSync({ dest: d })
+            }}
+          >
+            Cambiar carpeta de mods…
+          </button>
+          {project.modSync?.dest && (
+            <button className="btn text-xs" onClick={() => setSync({ dest: null })}>
+              Usar la automática
+            </button>
+          )}
+        </div>
+        <label className="mt-2 flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={syncEnabled(project, dest ?? null)}
+            disabled={!dest}
+            onChange={(e) => setSync({ enabled: e.target.checked })}
+          />
+          Actualizar el mod del juego al guardar
+        </label>
+      </div>
       <p className="mt-3 text-xs text-hoi-muted">
         La plantilla se elige al crear el proyecto y queda fija. Para usar otra plantilla sin tocar
         este proyecto, usa Mapa → "Nuevo proyecto con otra plantilla…".

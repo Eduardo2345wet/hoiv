@@ -6,6 +6,7 @@ import react from '@vitejs/plugin-react'
 import { createServer, type ViteDevServer } from 'vite'
 import type { Browser, Page } from 'playwright-core'
 import { launchBrowser } from './browser/launch'
+import { newCountry } from '../src/renderer/src/countries/countryOps'
 
 let server: ViteDevServer | null = null
 let browser: Browser | null = null
@@ -524,33 +525,54 @@ describe('barras de desplazamiento de Blockly', () => {
 
 // ---------- Guardar: elegir dónde y ver la ruta ----------
 /** App con una API de Electron de mentira que anota las llamadas */
-async function withFakeApi(settings: Record<string, unknown> = {}): Promise<Page> {
+async function withFakeApi(
+  settings: Record<string, unknown> = {},
+  modsRoot: string | null = null
+): Promise<Page> {
   const page = await browser!.newPage({ viewport: { width: 1366, height: 768 } })
-  await page.addInitScript((st) => {
-    const calls: unknown[][] = []
-    const w = window as unknown as Record<string, unknown>
-    w.__calls = calls
-    const rec =
-      (name: string, ret?: unknown) =>
-      async (...a: unknown[]) => {
-        calls.push([name, ...a])
-        return ret
+  await page.addInitScript(
+    ([st, mr]) => {
+      const calls: unknown[][] = []
+      const w = window as unknown as Record<string, unknown>
+      w.__calls = calls
+      const rec =
+        (name: string, ret?: unknown) =>
+        async (...a: unknown[]) => {
+          calls.push([name, ...a])
+          return ret
+        }
+      w.electronAPI = {
+        getSettings: async () => ({ gamePath: null, ...st }),
+        setSettings: rec('setSettings'),
+        detectGame: async () => ({ gamePath: null, auto: false, via: null }),
+        getProjectsDir: async () => '/docs/HOI4 Mod Studio/Proyectos',
+        getModDestination: async () => ({ docs: mr ? '/docs/hoi4' : null, modsRoot: mr }),
+        isHoi4Running: async () => false,
+        syncMod: async (...a: unknown[]) => {
+          calls.push(['syncMod', ...a])
+          return {
+            status: 'ok',
+            modFolder: mr + '/mi_mod',
+            written: [],
+            removed: [],
+            unchanged: 0,
+            unknown: [],
+            firstTime: true
+          }
+        },
+        selectFolder: async () => null,
+        saveProjectDialog: async (_j: string, def: string) => {
+          calls.push(['dialog', def])
+          return def
+        },
+        saveProjectToPath: rec('saveToPath'),
+        openFolder: rec('openFolder', true),
+        onCloseRequest: () => () => {},
+        onMapProgress: () => () => {}
       }
-    w.electronAPI = {
-      getSettings: async () => ({ gamePath: null, ...st }),
-      setSettings: rec('setSettings'),
-      detectGame: async () => ({ gamePath: null, auto: false, via: null }),
-      getProjectsDir: async () => '/docs/HOI4 Mod Studio/Proyectos',
-      saveProjectDialog: async (_j: string, def: string) => {
-        calls.push(['dialog', def])
-        return def
-      },
-      saveProjectToPath: rec('saveToPath'),
-      openFolder: rec('openFolder', true),
-      onCloseRequest: () => () => {},
-      onMapProgress: () => () => {}
-    }
-  }, settings)
+    },
+    [settings, modsRoot] as const
+  )
   await page.goto(url)
   await page.waitForSelector('text=Nuevo proyecto')
   return page
@@ -675,6 +697,109 @@ describe('guardar: elegir dónde y ver la ruta (parte 2)', () => {
           x[0] === 'setSettings' && (x[1] as { askWhereToSave: boolean }).askWhereToSave === false
       )
     ).toBe(true)
+    await page.close()
+  }, 60_000)
+})
+
+describe('mod sincronizado al guardar (parte 3)', () => {
+  const open = (page: Page, focuses: unknown[]): Promise<void> =>
+    page.evaluate(
+      ([f, country]) => {
+        const st = (window as unknown as HoiWindow).__hoiStore as never as {
+          openInNewTab(p: unknown, f: string, r: string): void
+        }
+        st.openInNewTab(
+          {
+            version: 6,
+            template: 'content',
+            modName: 'Mi Mod',
+            tag: '',
+            countries: [country],
+            focusTrees: [{ id: 'arbol_1', name: 'A' }],
+            focuses: f,
+            ideas: [],
+            icons: [],
+            countryFlags: [],
+            stateEdits: {},
+            mapSettings: {
+              base: 'game',
+              mod: null,
+              unpainted: 'keep',
+              noNation: { tag: '', name: 'x', keepGameCores: false }
+            }
+          },
+          '/p/proyecto.json',
+          'focos'
+        )
+      },
+      [
+        focuses,
+        {
+          ...newCountry({ mode: 'existente', tag: 'NVG', name: 'N' }),
+          light: true,
+          leaders: [],
+          focusTreeId: 'arbol_1'
+        }
+      ] as const
+    )
+  const focus = (name: string): unknown => ({
+    uid: 'f1',
+    treeId: 'arbol_1',
+    id: 'mi_mod_NVG_uno',
+    name,
+    description: '',
+    cost: 10,
+    icon: { kind: 'game', gfx: 'GFX_goal_unknown' },
+    iconAuto: false,
+    x: 0,
+    y: 0,
+    prerequisites: [],
+    mutuallyExclusive: [],
+    blocks: null,
+    scripts: { available: '', bypass: '', reward: '' }
+  })
+
+  it('sin errores: guarda el proyecto y actualiza el mod; la primera vez avisa del launcher', async ({
+    skip
+  }) => {
+    if (!browser) skip()
+    const page = await withFakeApi({ askWhereToSave: false }, '/docs/hoi4/mod')
+    await open(page, [focus('Uno')])
+    await page.keyboard.press('Control+s')
+    await page.waitForSelector('text=Activa este mod UNA vez en el launcher de HOI4')
+    await page.click('button:text-is("Entendido")')
+    await page.waitForSelector('text=Mod actualizado en el juego')
+    const c = await calls(page)
+    expect(c.some((x) => x[0] === 'saveToPath')).toBe(true)
+    const sync = c.find((x) => x[0] === 'syncMod')!
+    expect((sync[1] as { exportPath: string }).exportPath).toBe('/docs/hoi4/mod')
+    await page.close()
+  }, 60_000)
+
+  it('con errores del validador: el proyecto se guarda pero el mod NO se actualiza', async ({
+    skip
+  }) => {
+    if (!browser) skip()
+    const page = await withFakeApi({ askWhereToSave: false }, '/docs/hoi4/mod')
+    await open(page, [focus('')]) // foco sin nombre = error
+    await page.keyboard.press('Control+s')
+    await page.waitForSelector('text=/No se actualizó el mod: \\d+ error/')
+    const c = await calls(page)
+    expect(c.some((x) => x[0] === 'saveToPath')).toBe(true)
+    expect(c.some((x) => x[0] === 'syncMod')).toBe(false)
+    await page.click('button:text-is("Ver")')
+    await page.waitForSelector('text=/Hay \\d+ error/')
+    await page.close()
+  }, 60_000)
+
+  it('sin carpeta de mods del juego no se sincroniza (solo se guarda)', async ({ skip }) => {
+    if (!browser) skip()
+    const page = await withFakeApi({ askWhereToSave: false }, null)
+    await open(page, [focus('Uno')])
+    await page.keyboard.press('Control+s')
+    await page.waitForSelector('text=Proyecto guardado en')
+    await page.waitForTimeout(400)
+    expect((await calls(page)).some((x) => x[0] === 'syncMod')).toBe(false)
     await page.close()
   }, 60_000)
 })

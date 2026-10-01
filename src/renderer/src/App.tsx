@@ -16,7 +16,15 @@ import PromptDialog from './ui/PromptDialog'
 import ToastHost from './ui/ToastHost'
 import { loadGameSettings } from './ui/SettingsDialog'
 import { registerCommands } from './ui/commands'
-import { closeTabAsk, confirmCloseAll, openContent, openWithDialog, saveActive } from './ui/fileOps'
+import { modDestination } from './export/modSync'
+import {
+  dirOf,
+  closeTabAsk,
+  confirmCloseAll,
+  openContent,
+  openWithDialog,
+  saveActive
+} from './ui/fileOps'
 import { setIconRenderer, setPlaceholderRenderers } from './icons/renderer'
 import {
   drawFlagPlaceholder,
@@ -65,7 +73,20 @@ export default function App(): JSX.Element {
     const off = registerCommands({
       fileSave: () => void saveActive(),
       fileSaveAs: () => void saveActive(true),
-      fileOpen: () => void openWithDialog()
+      fileOpen: () => void openWithDialog(),
+      openProjectFolder: () => {
+        const fp = store.get().filePath
+        if (fp) void window.electronAPI?.openFolder(dirOf(fp))
+        else store.toast('Este proyecto todavía no se ha guardado.')
+      },
+      openModFolder: () => {
+        const p = store.get().project
+        if (p)
+          void modDestination(p).then((d) => {
+            if (d) void window.electronAPI?.openFolder(d.folder)
+            else store.toast('No se encontró la carpeta de mods de HOI4.')
+          })
+      }
     })
     // Cerrar la ventana: una sola pregunta con los proyectos sin guardar
     const offClose = window.electronAPI?.onCloseRequest(() => {

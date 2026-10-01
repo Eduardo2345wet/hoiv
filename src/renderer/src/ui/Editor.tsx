@@ -131,7 +131,7 @@ export default function Editor(): JSX.Element {
     else if (res.message !== 'Exportación cancelada.')
       store.toast('❌ ' + res.message, { kind: 'error' })
   }
-  const startExport = async (): Promise<void> => {
+  const startExport = async (validateOnly = false): Promise<void> => {
     const { map, gamePath } = store.get()
     // Parche de los estados modificados (solo mapa real); sus errores van al validador
     try {
@@ -148,6 +148,7 @@ export default function Editor(): JSX.Element {
       gameTags: game?.countries.map(([t]) => t)
     })
     if (found.length) setIssues(found)
+    else if (validateOnly) store.toast('Validador: sin problemas')
     else void doExport()
   }
 
@@ -209,6 +210,7 @@ export default function Editor(): JSX.Element {
     () =>
       registerCommands({
         exportMod: () => void latest.current.startExport(),
+        validate: () => void latest.current.startExport(true),
         focusAdd: () => void latest.current.addFocus(),
         countryNew: () => setWizard({}),
         countryQuick: () =>

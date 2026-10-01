@@ -36,6 +36,18 @@ export interface RecentProject {
   date: string
 }
 
+export interface SyncModResult {
+  status: 'ok' | 'needs-confirm' | 'error'
+  error?: string
+  modFolder?: string
+  modFile?: string
+  written: string[]
+  removed: string[]
+  unchanged: number
+  unknown: string[]
+  firstTime: boolean
+}
+
 export interface Settings {
   recent?: RecentProject[]
   openTabs?: string[]
@@ -82,6 +94,11 @@ export interface ElectronAPI {
   onCloseRequest: (cb: () => void) => () => void
   ackCloseRequest: () => Promise<void>
   confirmClose: () => Promise<void>
+  /** Carpeta de mods de HOI4 en Documentos (null si HOI4 no ha creado sus datos) */
+  getModDestination: () => Promise<{ docs: string | null; modsRoot: string | null }>
+  isHoi4Running: () => Promise<boolean>
+  /** Sincroniza el mod con la carpeta de mods (manifiesto, solo cambios, borra lo que ya no se genera) */
+  syncMod: (payload: ExportModPayload, confirmForeign?: boolean) => Promise<SyncModResult>
   /** Abre una carpeta (o muestra un archivo) en el explorador */
   openFolder: (p: string) => Promise<boolean>
   /** Documentos/HOI4 Mod Studio/Proyectos */

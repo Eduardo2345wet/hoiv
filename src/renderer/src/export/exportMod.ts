@@ -1,6 +1,7 @@
 // Prepara todos los archivos del mod y pide al proceso principal (Node) que
 // los escriba. La interfaz nunca toca el disco directamente.
 import type { Project } from '../types'
+import type { ExportModPayload } from '../../../preload/index.d'
 import { generateAllFocusTrees, generateLocalisation } from '../generator/focusTree'
 import { generateIdeas } from '../generator/ideas'
 import { safeFolderName } from '../../../shared/names'
@@ -88,13 +89,45 @@ export function plannedPaths(project: Project, game: GameCatalog | null = null):
   return paths
 }
 
+/**
+ * Arma lo que se escribe en disco (con la auto-revisión de banderas). Lo usan "Exportar a otra
+ * carpeta…" y la sincronización con el juego: los dos dejan exactamente lo mismo.
+ */
+export async function buildModPayload(
+  project: Project,
+  exportPath: string,
+  extraFiles: ModFile[] = []
+): Promise<{ ok: true; payload: ExportModPayload } | { ok: false; message: string }> {
+  // País técnico "Sin nación": su capital es el primer estado pendiente
+  project = withTechnicalCapital(project, store.get().map)
+  const extra = await buildExtraFiles(project, pngToRGBA, pngToRGBAResized, store.catalogGame())
+  // Auto-revisión: cada bandera exportada trae sus 3 tamaños
+  const generated = new Set([...extra, ...extraFiles].map((f) => f.path))
+  const missing = missingFlagSizes(project, [...generated])
+  if (missing.length)
+    return { ok: false, message: `Faltan archivos de bandera (3 tamaños): ${missing.join(', ')}` }
+  const mod = baseMod(project)
+  return {
+    ok: true,
+    payload: {
+      // Base de mapa de otro mod: el nuestro depende de él
+      dependencies: mod ? [mod.name] : [],
+      exportPath,
+      modName: project.modName,
+      tag: project.tag,
+      // Los árboles van en `files` (uno por país)
+      focusTreeScript: '',
+      locYaml: generateLocalisation(project),
+      files: [...extra, ...extraFiles]
+    }
+  }
+}
+
 /** Exporta el mod; `extraFiles` = archivos ya preparados (estados parchados del mapa) */
 export async function exportMod(
   project: Project,
   extraFiles: ModFile[] = []
 ): Promise<{ ok: boolean; message: string }> {
-  // País técnico "Sin nación": su capital es el primer estado pendiente
-  project = withTechnicalCapital(project, store.get().map)
   const api = window.electronAPI
   if (!api)
     return {
@@ -104,26 +137,9 @@ export async function exportMod(
 
   const folder = await api.selectFolder()
   if (!folder) return { ok: false, message: 'Exportación cancelada.' }
-
-  const extra = await buildExtraFiles(project, pngToRGBA, pngToRGBAResized, store.catalogGame())
-  // Auto-revisión: cada bandera exportada trae sus 3 tamaños
-  const generated = new Set([...extra, ...extraFiles].map((f) => f.path))
-  const missing = missingFlagSizes(project, [...generated])
-  if (missing.length)
-    return { ok: false, message: `Faltan archivos de bandera (3 tamaños): ${missing.join(', ')}` }
-
-  const mod = baseMod(project)
-  const result = await api.exportMod({
-    // Base de mapa de otro mod: el nuestro depende de él
-    dependencies: mod ? [mod.name] : [],
-    exportPath: folder,
-    modName: project.modName,
-    tag: project.tag,
-    // Los árboles van en `files` (uno por país)
-    focusTreeScript: '',
-    locYaml: generateLocalisation(project),
-    files: [...extra, ...extraFiles]
-  })
+  const built = await buildModPayload(project, folder, extraFiles)
+  if (!built.ok) return built
+  const result = await api.exportMod(built.payload)
   if (!result.success) return { ok: false, message: result.error ?? 'Error desconocido' }
   return { ok: true, message: `Mod exportado en:\n${result.modFolder}` }
 }

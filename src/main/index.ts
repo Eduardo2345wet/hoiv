@@ -3,9 +3,10 @@ import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import fs from 'fs'
 import path from 'path'
-import { handleExportMod } from './export'
+import { handleExportMod, type ExportModPayload } from './export'
 import { saveImage } from './saveImage'
 import { readGameFlags } from './gameFlags'
+import { findHoi4Documents, hoi4DocumentsCandidates, isHoi4Running, syncMod } from './modSync'
 import { createProjectFolder, readProjectFile } from './projectFiles'
 import { getJomini, loadRealMap } from './mapLoader'
 import { listInstalledMods, type ModLayer } from './mods'
@@ -147,6 +148,21 @@ app.whenReady().then(() => {
     createProjectFolder(parent, name, json)
   )
   ipcMain.handle('open-project-path', async (_, file: string) => readProjectFile(file))
+
+  // Carpeta de mods de HOI4 (Documentos/Paradox Interactive/Hearts of Iron IV/mod, con OneDrive)
+  ipcMain.handle('get-mod-destination', async () => {
+    const docs = findHoi4Documents(
+      hoi4DocumentsCandidates(
+        app.getPath('documents'),
+        process.env as Record<string, string | undefined>
+      )
+    )
+    return { docs, modsRoot: docs ? path.join(docs, 'mod') : null }
+  })
+  ipcMain.handle('is-hoi4-running', async () => isHoi4Running())
+  ipcMain.handle('sync-mod', async (_, payload: ExportModPayload, confirmForeign = false) =>
+    syncMod({ payload, confirmForeign })
+  )
 
   // Abre una carpeta (o muestra un archivo seleccionado) en el explorador del sistema
   ipcMain.handle('open-folder', async (_, p: string) => {

@@ -4,6 +4,7 @@ import type { Project } from '../types'
 import { store } from '../store/appStore'
 import { migrateProject } from '../migrate'
 import { templateOf } from '../templates'
+import { syncAfterSave } from '../export/modSync'
 import { safeFolderName } from '../../../shared/names'
 
 const RECENT_MAX = 12
@@ -64,6 +65,8 @@ export async function saveActive(saveAs = false): Promise<boolean> {
   store.toast(`Proyecto guardado en ${fp}`, {
     action: { label: 'Abrir carpeta', run: () => void api.openFolder(dirOf(fp)) }
   })
+  // Mod sincronizado con el juego (si hay destino y la opción está activa)
+  void syncAfterSave(s.project)
   return true
 }
 
