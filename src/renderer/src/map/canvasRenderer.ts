@@ -2,10 +2,10 @@
 // estados cuyo color cambió, más las mismas fronteras vectoriales dibujadas con trazos de ancho
 // constante en pantalla. (No dibuja rayas, fronteras de provincia ni el aclarado del cursor.)
 import type { MapData } from '../../../shared/map/types'
-import { MAP_THEME, THEME_RGB, rgbToHex } from '../../../shared/map/theme'
+import { MAP_THEME, THEME_RGB } from '../../../shared/map/theme'
 import type { Palette } from './colors'
 import { FLAG } from './colors'
-import { segmentStyle, type BorderPass } from './borderStyle'
+import { strokeBorders } from './borderStroke'
 import type { MapRenderer, RenderOptions, RendererOptions, View } from './renderer'
 
 export function createCanvasRenderer(
@@ -31,44 +31,6 @@ export function createCanvasRenderer(
   const slotOfState = new Map(map.states.map((s, i) => [s.id, i + 1]))
   let prev: Uint8Array | null = null
   let pal: Palette | null = null
-
-  const info = (li: number): Parameters<typeof segmentStyle>[1] => {
-    const sa = map.borders.a[li] ? (slotOfState.get(map.borders.a[li]) ?? 0) : 0
-    const sb = slotOfState.get(map.borders.b[li]) ?? 0
-    const at = (slot: number, arr: ArrayLike<number>, stride: number, off2: number): number =>
-      slot ? arr[(slot - 1) * stride + off2] : 0
-    return {
-      slotA: sa,
-      slotB: sb,
-      ownerA: at(sa, pal!.owners, 1, 0),
-      ownerB: at(sb, pal!.owners, 1, 0),
-      flagsA: at(sa, pal!.rgba, 4, 3),
-      flagsB: at(sb, pal!.rgba, 4, 3)
-    }
-  }
-
-  const strokePass = (pass: BorderPass, hoverSlot: number, kScale: number): void => {
-    const { points, starts } = map.borders
-    const groups = new Map<string, { path: Path2D; color: string; w: number }>()
-    for (let li = 0; li < map.borders.a.length; li++) {
-      const st = segmentStyle(pass, info(li), hoverSlot)
-      if (!st) continue
-      const k = st.widthCss + rgbToHex(st.color)
-      let g = groups.get(k)
-      if (!g) groups.set(k, (g = { path: new Path2D(), color: rgbToHex(st.color), w: st.widthCss }))
-      for (let p = starts[li]; p < starts[li + 1]; p++) {
-        if (p === starts[li]) g.path.moveTo(points[p * 2], points[p * 2 + 1])
-        else g.path.lineTo(points[p * 2], points[p * 2 + 1])
-      }
-    }
-    ctx.lineJoin = 'round'
-    ctx.lineCap = 'round'
-    for (const g of groups.values()) {
-      ctx.strokeStyle = g.color
-      ctx.lineWidth = g.w / kScale
-      ctx.stroke(g.path)
-    }
-  }
 
   return {
     kind: 'canvas2d',
@@ -111,10 +73,12 @@ export function createCanvasRenderer(
       ctx.setTransform(k, 0, 0, k, view.x * dpr, view.y * dpr)
       ctx.drawImage(off, 0, 0)
       if (!pal) return
-      strokePass('normal', 0, k)
-      if (opts.activeContour) strokePass('active', 0, k)
+      // 1 px CSS = 1 / view.scale píxeles del mapa (el trazo no depende del zoom ni del DPR)
+      const unit = 1 / view.scale
+      strokeBorders(ctx, map, pal, slotOfState, 'normal', 0, unit)
+      if (opts.activeContour) strokeBorders(ctx, map, pal, slotOfState, 'active', 0, unit)
       const hover = opts.hoverStateId ? (slotOfState.get(opts.hoverStateId) ?? 0) : 0
-      if (hover) strokePass('hover', hover, k)
+      if (hover) strokeBorders(ctx, map, pal, slotOfState, 'hover', hover, unit)
     },
     destroy() {}
   }

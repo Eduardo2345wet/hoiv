@@ -18,6 +18,18 @@ import {
 } from '../src/shared/map/vector'
 import { serializeMap, deserializeMap } from '../src/shared/map/serialize'
 import { layoutLabels, capitalLabels, type LayoutInput } from '../src/renderer/src/map/labelLayout'
+import {
+  MAX_SCALE,
+  ZOOM_MS,
+  clampView,
+  fitScale,
+  inertiaStep,
+  minScaleFor,
+  releaseVelocity,
+  startZoom,
+  zoomFrame
+} from '../src/renderer/src/map/viewMath'
+import { FLAG } from '../src/renderer/src/map/colors'
 import { buildSegmentBuffer } from '../src/renderer/src/map/borderGeometry'
 import { segmentStyle } from '../src/renderer/src/map/borderStyle'
 import { buildPalette } from '../src/renderer/src/map/colors'
@@ -505,5 +517,153 @@ describe('etiquetas (parte 3)', () => {
       () => true
     )
     expect(list.map((c) => c.tag)).toEqual(['DMA'])
+  })
+})
+
+describe('contornos, rayas y vista (parte 4)', () => {
+  const info = (slotA: number, slotB: number, flagsA = 0, flagsB = 0) => ({
+    slotA,
+    slotB,
+    ownerA: 0,
+    ownerB: 0,
+    flagsA,
+    flagsB
+  })
+
+  it('contorno ámbar de 2 px solo donde un lado es del país activo y el otro no (también la costa)', () => {
+    const inside = info(1, 2, FLAG.active, FLAG.active)
+    expect(segmentStyle('active', inside, 0)).toBeNull()
+    const edge = segmentStyle('active', info(1, 2, FLAG.active, 0), 0)!
+    expect(rgbToHex(edge.color)).toBe('#FBBF24')
+    expect(edge.widthCss).toBe(2)
+    // Costa del país activo (el otro lado es mar): también lleva contorno
+    expect(segmentStyle('active', info(0, 2, 0, FLAG.active), 0)).not.toBeNull()
+    expect(segmentStyle('active', info(0, 2, 0, 0), 0)).toBeNull()
+  })
+
+  it('contorno gris oscuro de 2 px alrededor del estado bajo el cursor', () => {
+    const st = segmentStyle('hover', info(3, 4), 3)!
+    expect(rgbToHex(st.color)).toBe('#3A3A3A')
+    expect(st.widthCss).toBe(2)
+    expect(segmentStyle('hover', info(4, 5), 3)).toBeNull()
+    expect(segmentStyle('hover', info(0, 3), 3)).not.toBeNull() // su costa
+    expect(segmentStyle('hover', info(0, 3), 0)).toBeNull() // sin cursor sobre un estado
+  })
+
+  it('"Ver pendientes" marca con rayas solo a los estados sin pintar', () => {
+    let pr = emptyProject()
+    pr = { ...pr, mapSettings: { ...pr.mapSettings, base: 'blank', unpainted: 'keep' } }
+    const opts = {
+      mode: 'politico' as const,
+      activeTag: null,
+      selectedId: null,
+      gameColors: false,
+      blankUnpainted: true,
+      highlightPending: true
+    }
+    const on = buildPalette(demo, pr, null, opts)
+    expect(demo.states.every((_, i) => (on.rgba[i * 4 + 3] & FLAG.highlight) !== 0)).toBe(true)
+    const off = buildPalette(demo, pr, null, { ...opts, highlightPending: false })
+    expect(demo.states.every((_, i) => (off.rgba[i * 4 + 3] & FLAG.highlight) === 0)).toBe(true)
+  })
+
+  it('"Colores como en el juego" apaga el color (saturación ×0.6, valor ×0.8)', () => {
+    let pr = emptyProject()
+    pr = { ...pr, mapSettings: { ...pr.mapSettings, base: 'game', unpainted: 'keep' } }
+    const base = {
+      mode: 'politico' as const,
+      activeTag: null,
+      selectedId: null,
+      blankUnpainted: false,
+      highlightPending: false
+    }
+    const full = buildPalette(demo, pr, null, { ...base, gameColors: false })
+    const game = buildPalette(demo, pr, null, { ...base, gameColors: true })
+    expect([...game.rgba.slice(0, 3)]).not.toEqual([...full.rgba.slice(0, 3)])
+    // El valor máximo baja a ×0.8 (aprox.)
+    expect(Math.max(...game.rgba.slice(0, 3))).toBeLessThanOrEqual(
+      Math.round(Math.max(...full.rgba.slice(0, 3)) * 0.8) + 1
+    )
+  })
+
+  const W = 1000
+  const H = 600
+  const [MW, MH] = [5632, 2048]
+  it('los límites no dejan perder el mapa ni alejarse de más', () => {
+    for (const v of [
+      { scale: 1, x: -50000, y: -50000 },
+      { scale: 1, x: 50000, y: 50000 },
+      { scale: 3, x: -3 * MW + 10, y: 0 }
+    ]) {
+      const c = clampView(v, MW, MH, W, H)
+      const right = c.x + MW * c.scale
+      const bottom = c.y + MH * c.scale
+      // Siempre queda al menos 150 px del mapa a la vista en cada eje
+      expect(right).toBeGreaterThanOrEqual(150 - 1e-6)
+      expect(c.x).toBeLessThanOrEqual(W - 150 + 1e-6)
+      expect(bottom).toBeGreaterThanOrEqual(150 - 1e-6)
+      expect(c.y).toBeLessThanOrEqual(H - 150 + 1e-6)
+    }
+    expect(clampView({ scale: 0.0001, x: 0, y: 0 }, MW, MH, W, H).scale).toBeCloseTo(
+      minScaleFor(MW, MH, W, H)
+    )
+    expect(clampView({ scale: 999, x: 0, y: 0 }, MW, MH, W, H).scale).toBe(MAX_SCALE)
+    expect(minScaleFor(MW, MH, W, H)).toBeCloseTo(fitScale(MW, MH, W, H) / 2)
+  })
+
+  it('zoom animado de ~120 ms: el punto bajo el cursor no se mueve y termina en la meta', () => {
+    const cur = { scale: 1, x: 100, y: 50 }
+    const [sx, sy] = [400, 300]
+    const a = startZoom(cur, null, 2, sx, sy, 1000, MW, MH, W, H)!
+    expect(a.dur).toBe(ZOOM_MS)
+    expect(ZOOM_MS).toBeGreaterThanOrEqual(100)
+    expect(ZOOM_MS).toBeLessThanOrEqual(150)
+    const mapPoint = [(sx - cur.x) / cur.scale, (sy - cur.y) / cur.scale]
+    let prev = cur.scale
+    for (const dt of [0, 20, 40, 60, 80, 100, 120, 200]) {
+      const { view, done } = zoomFrame(a, 1000 + dt)
+      expect(view.x + mapPoint[0] * view.scale).toBeCloseTo(sx, 6)
+      expect(view.y + mapPoint[1] * view.scale).toBeCloseTo(sy, 6)
+      expect(view.scale).toBeGreaterThanOrEqual(prev - 1e-9)
+      prev = view.scale
+      expect(done).toBe(dt >= 120)
+    }
+    expect(prev).toBeCloseTo(2, 9)
+  })
+
+  it('varios giros seguidos suman y el zoom nunca pasa de los límites', () => {
+    let a = startZoom({ scale: 1, x: 0, y: 0 }, null, 1.5, 300, 300, 0, MW, MH, W, H)!
+    a = startZoom({ scale: 1.2, x: 0, y: 0 }, a, 1.5, 300, 300, 30, MW, MH, W, H)!
+    expect(a.to).toBeCloseTo(2.25, 9)
+    const big = startZoom({ scale: 20, x: 0, y: 0 }, null, 100, 0, 0, 0, MW, MH, W, H)!
+    expect(big.to).toBe(MAX_SCALE)
+  })
+
+  it('inercia ligera: solo si se suelta con velocidad, y se apaga sola', () => {
+    expect(releaseVelocity([{ t: 0, x: 0, y: 0 }])).toBeNull()
+    expect(
+      releaseVelocity([
+        { t: 0, x: 0, y: 0 },
+        { t: 100, x: 2, y: 0 }
+      ])
+    ).toBeNull() // muy lento
+    const v = releaseVelocity([
+      { t: 0, x: 0, y: 0 },
+      { t: 50, x: 20, y: 10 },
+      { t: 100, x: 60, y: 30 }
+    ])!
+    expect(v.vx).toBeGreaterThan(0.5)
+    let [vx, vy] = [v.vx, v.vy]
+    let total = 0
+    let steps = 0
+    for (; steps < 1000; steps++) {
+      const st = inertiaStep(vx, vy, 16)
+      total += st.dx
+      ;[vx, vy] = [st.vx, st.vy]
+      if (st.done) break
+    }
+    expect(steps).toBeLessThan(200) // se detiene (≈ 1–2 s)
+    expect(total).toBeGreaterThan(30) // se desliza un poco
+    expect(total).toBeLessThan(800) // pero es ligera
   })
 })

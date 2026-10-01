@@ -9,8 +9,18 @@ import { buildPalette, type PaletteOptions } from '../../map/colors'
 import type { MapRenderer, View } from '../../map/renderer'
 import { createWebGLRenderer } from '../../map/webglRenderer'
 import { createCanvasRenderer } from '../../map/canvasRenderer'
-import { MAP_THEME, THEME_RGB } from '../../../../shared/map/theme'
+import { MAP_THEME } from '../../../../shared/map/theme'
 import { effectiveCores, effectiveOwner, lookup } from '../../map/mapOps'
+import {
+  clampView,
+  fitScale,
+  inertiaStep,
+  minScaleFor,
+  releaseVelocity,
+  startZoom,
+  zoomFrame,
+  type ZoomAnim
+} from '../../map/viewMath'
 import {
   LABEL_MODES,
   canvasMeasure,
@@ -21,6 +31,7 @@ import {
   type PlacedLabel
 } from '../../map/labelLayout'
 import { isPainted } from '../../map/colors'
+import { drawMinimap, minimapSize } from '../../map/minimap'
 import { countryLabel } from '../../map/brush'
 import { DEMO_TAGS } from '../../../../shared/map/demo'
 
@@ -70,9 +81,6 @@ interface Props {
   onRendererKind?: (k: string) => void
 }
 
-const MIN_SCALE = 0.1
-const MAX_SCALE = 24
-
 export default forwardRef<MapViewHandle, Props>(function MapView(props, ref) {
   const { map, project, game, paletteOptions } = props
   const activeTag = paletteOptions.activeTag
@@ -96,6 +104,7 @@ export default forwardRef<MapViewHandle, Props>(function MapView(props, ref) {
     last: number
   } | null>(null)
   const space = useRef(false)
+  const panSamples = useRef<{ t: number; x: number; y: number }[]>([])
   const byId = useMemo(() => lookup(map), [map])
 
   const palette = useMemo(
@@ -107,28 +116,84 @@ export default forwardRef<MapViewHandle, Props>(function MapView(props, ref) {
   const paletteRef = useRef(palette)
   paletteRef.current = palette
 
-  // ---- Ajustar al mapa ----
+  // ---- Vista: límites, zoom animado e inercia ----
+  const sizeRef = useRef(size)
+  sizeRef.current = size
+  const zoomAnim = useRef<ZoomAnim | null>(null)
+  const inertia = useRef<{ vx: number; vy: number; last: number } | null>(null)
+  const rafId = useRef(0)
+  /** Aplica una vista nueva respetando los límites (el mapa nunca se pierde de vista) */
+  const commit = (v: View): void => {
+    const { w, h } = sizeRef.current
+    setView(clampView(v, map.width, map.height, w, h))
+  }
   const fitView = (w = size.w, h = size.h): View => {
-    const scale = Math.max(MIN_SCALE, Math.min(w / map.width, h / map.height) * 0.95)
+    const scale = Math.max(
+      minScaleFor(map.width, map.height, w, h),
+      fitScale(map.width, map.height, w, h) * 0.95
+    )
     return { scale, x: (w - map.width * scale) / 2, y: (h - map.height * scale) / 2 }
   }
-  const zoomAt = (factor: number, sx: number, sy: number): void =>
-    setView((v) => {
-      const scale = Math.max(MIN_SCALE, Math.min(MAX_SCALE, v.scale * factor))
-      const k = scale / v.scale
-      return { scale, x: sx - (sx - v.x) * k, y: sy - (sy - v.y) * k }
-    })
+  /** Un solo bucle de animación para zoom e inercia */
+  const loop = (): void => {
+    rafId.current = 0
+    const now = performance.now()
+    let again = false
+    const a = zoomAnim.current
+    if (a) {
+      const f = zoomFrame(a, now)
+      commit(f.view)
+      if (f.done) zoomAnim.current = null
+      else again = true
+    }
+    const inr = inertia.current
+    if (inr) {
+      const st = inertiaStep(inr.vx, inr.vy, Math.min(50, now - inr.last))
+      inr.vx = st.vx
+      inr.vy = st.vy
+      inr.last = now
+      commit({ ...viewRef.current, x: viewRef.current.x + st.dx, y: viewRef.current.y + st.dy })
+      if (st.done) inertia.current = null
+      else again = true
+    }
+    if (again) rafId.current = requestAnimationFrame(loop)
+  }
+  const kick = (): void => {
+    if (!rafId.current) rafId.current = requestAnimationFrame(loop)
+  }
+  useEffect(() => () => cancelAnimationFrame(rafId.current), [])
+  /** Zoom de ~120 ms centrado en el punto (sx, sy) de la pantalla */
+  const zoomAt = (factor: number, sx: number, sy: number): void => {
+    const { w, h } = sizeRef.current
+    const a = startZoom(
+      viewRef.current,
+      zoomAnim.current,
+      factor,
+      sx,
+      sy,
+      performance.now(),
+      map.width,
+      map.height,
+      w,
+      h
+    )
+    if (!a) return
+    zoomAnim.current = a
+    kick()
+  }
 
   useImperativeHandle(ref, () => ({
-    fit: () => setView(fitView()),
+    fit: () => {
+      zoomAnim.current = null
+      commit(fitView())
+    },
     zoomBy: (f) => zoomAt(f, size.w / 2, size.h / 2),
     centerOn: (id) => {
       const c = map.stateCenters[id]
       if (!c) return
-      setView((v) => {
-        const scale = Math.max(v.scale, 2)
-        return { scale, x: size.w / 2 - c[0] * scale, y: size.h / 2 - c[1] * scale }
-      })
+      zoomAnim.current = null
+      const scale = Math.max(viewRef.current.scale, 2)
+      commit({ scale, x: size.w / 2 - c[0] * scale, y: size.h / 2 - c[1] * scale })
     }
   }))
 
@@ -149,7 +214,7 @@ export default forwardRef<MapViewHandle, Props>(function MapView(props, ref) {
     // Paleta actual al renderizador nuevo (el efecto de la paleta ya pudo haber corrido)
     r?.setPalette(paletteRef.current)
     props.onRendererKind?.(r?.kind ?? 'ninguno')
-    setView(fitView())
+    commit(fitView())
     return () => {
       r?.destroy()
       rendererRef.current = null
@@ -275,31 +340,10 @@ export default forwardRef<MapViewHandle, Props>(function MapView(props, ref) {
   }
 
   // ---- Minimapa (se recalcula al cambiar la paleta) ----
-  const miniSize = useMemo(() => {
-    const w = 200
-    return { w, h: Math.max(40, Math.round((w * map.height) / map.width)) }
-  }, [map])
+  const miniSize = useMemo(() => minimapSize(map), [map])
   useEffect(() => {
     const c = miniRef.current
-    if (!c) return
-    c.width = miniSize.w
-    c.height = miniSize.h
-    const ctx = c.getContext('2d')!
-    const img = ctx.createImageData(miniSize.w, miniSize.h)
-    const slotOf = new Map(map.states.map((s, i) => [s.id, i]))
-    for (let y = 0; y < miniSize.h; y++)
-      for (let x = 0; x < miniSize.w; x++) {
-        const mx = Math.floor(((x + 0.5) / miniSize.w) * map.width)
-        const my = Math.floor(((y + 0.5) / miniSize.h) * map.height)
-        const st = map.provinceToState[map.provinceIndex[my * map.width + mx]]
-        const o = (y * miniSize.w + x) * 4
-        if (!st) img.data.set([...THEME_RGB.sea, 255], o)
-        else {
-          const s = slotOf.get(st)! * 4
-          img.data.set([palette.rgba[s], palette.rgba[s + 1], palette.rgba[s + 2], 255], o)
-        }
-      }
-    ctx.putImageData(img, 0, 0)
+    if (c) drawMinimap(c, map, palette, miniSize.w, miniSize.h, window.devicePixelRatio || 1)
   }, [palette, map, miniSize])
 
   // ---- Coordenadas ----
@@ -335,6 +379,8 @@ export default forwardRef<MapViewHandle, Props>(function MapView(props, ref) {
     ;(e.currentTarget as Element).setPointerCapture(e.pointerId)
     const p = toMap(e.clientX, e.clientY)
     if (e.button === 1 || (e.button === 0 && space.current)) {
+      inertia.current = null
+      panSamples.current = [{ t: performance.now(), x: e.clientX, y: e.clientY }]
       drag.current = { kind: 'pan', sx: e.clientX, sy: e.clientY, vx: view.x, vy: view.y, last: 0 }
       return
     }
@@ -347,7 +393,11 @@ export default forwardRef<MapViewHandle, Props>(function MapView(props, ref) {
     const p = toMap(e.clientX, e.clientY)
     const d = drag.current
     if (d?.kind === 'pan') {
-      setView((v) => ({ ...v, x: d.vx + e.clientX - d.sx, y: d.vy + e.clientY - d.sy }))
+      zoomAnim.current = null
+      const samples = panSamples.current
+      samples.push({ t: performance.now(), x: e.clientX, y: e.clientY })
+      if (samples.length > 8) samples.shift()
+      commit({ ...viewRef.current, x: d.vx + e.clientX - d.sx, y: d.vy + e.clientY - d.sy })
       return
     }
     setHover(p.province ? p : null)
@@ -358,6 +408,14 @@ export default forwardRef<MapViewHandle, Props>(function MapView(props, ref) {
     }
   }
   const onPointerUp = (e: React.PointerEvent): void => {
+    if (drag.current?.kind === 'pan') {
+      // Inercia ligera: sigue un momento con la velocidad con que se soltó
+      const v = releaseVelocity(panSamples.current)
+      if (v) {
+        inertia.current = { ...v, last: performance.now() }
+        kick()
+      }
+    }
     if (drag.current?.kind === 'paint')
       props.onStroke('end', 0, { shift: e.shiftKey, erase: !!drag.current.erase })
     drag.current = null
@@ -383,7 +441,9 @@ export default forwardRef<MapViewHandle, Props>(function MapView(props, ref) {
       style={{ cursor: props.cursor, background: MAP_THEME.sea }}
       onWheel={(e) => {
         const r = boxRef.current!.getBoundingClientRect()
-        zoomAt(e.deltaY < 0 ? 1.15 : 1 / 1.15, e.clientX - r.left, e.clientY - r.top)
+        // Proporcional al giro (ratón: ≈ ×1.16 por muesca; touchpad: suave)
+        const f = Math.exp(-Math.max(-300, Math.min(300, e.deltaY)) * 0.0015)
+        zoomAt(f, e.clientX - r.left, e.clientY - r.top)
       }}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
@@ -447,11 +507,16 @@ export default forwardRef<MapViewHandle, Props>(function MapView(props, ref) {
           const r = e.currentTarget.getBoundingClientRect()
           const mx = ((e.clientX - r.left) / miniSize.w) * map.width
           const my = ((e.clientY - r.top) / miniSize.h) * map.height
-          setView((v) => ({ ...v, x: size.w / 2 - mx * v.scale, y: size.h / 2 - my * v.scale }))
+          zoomAnim.current = null
+          commit({
+            ...viewRef.current,
+            x: size.w / 2 - mx * viewRef.current.scale,
+            y: size.h / 2 - my * viewRef.current.scale
+          })
         }}
         onWheel={(e) => e.stopPropagation()}
       >
-        <canvas ref={miniRef} className="block" />
+        <canvas ref={miniRef} className="block h-full w-full" />
         <div className="pointer-events-none absolute border-2 border-amber-400" style={rect} />
       </div>
     </div>
