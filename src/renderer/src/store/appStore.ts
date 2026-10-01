@@ -40,6 +40,18 @@ export const HISTORY_LIMIT = 100
 /** Tiempo sin teclear que cierra un grupo de escritura */
 export const GROUP_IDLE_MS = 500
 
+export interface Toast {
+  id: number
+  message: string
+  /** Mostrar el botón "Deshacer" */
+  undo: boolean
+  kind: 'info' | 'error'
+}
+
+/** Tiempo que se ve un aviso */
+export const TOAST_MS = 4000
+let toastId = 0
+
 export interface AppState {
   project: Project | null
   /** Historial (snapshots del proyecto; son inmutables, así que comparten memoria) */
@@ -59,12 +71,16 @@ export interface AppState {
   gamePath: string | null
   // ---- Mapa (no se guarda en el proyecto ni en el historial) ----
   map: MapData | null
+  /** Qué mapa está cargado: 'demo', 'game' o 'mod:<carpeta>' */
+  mapKey: string | null
   /** Carga en curso del mapa real: porcentaje y mensaje */
   mapLoading: { pct: number; message: string } | null
   mapError: string | null
   /** País activo del mapa (tag) y estado seleccionado */
   activeTag: string | null
   selectedStateId: number | null
+  /** Avisos pequeños que se cierran solos (nunca ventanas durante el pintado) */
+  toasts: Toast[]
   /** Pedido para centrar la vista del mapa en un estado (lo consume el mapa) */
   focusStateRequest: { id: number; n: number } | null
 }
@@ -82,11 +98,13 @@ let state: AppState = {
   game: null,
   gamePath: null,
   map: null,
+  mapKey: null,
   mapLoading: null,
   mapError: null,
   activeTag: null,
   selectedStateId: null,
-  focusStateRequest: null
+  focusStateRequest: null,
+  toasts: []
 }
 const listeners = new Set<() => void>()
 // Grupo abierto del historial (no forma parte del estado visible)
@@ -217,19 +235,50 @@ export const store = {
   async loadMap(forceDemo = false): Promise<void> {
     const api = window.electronAPI
     const gamePath = state.gamePath
-    if (forceDemo || !gamePath || !api) {
-      store.set({ map: generateDemoMap(), mapLoading: null, mapError: null })
+    const key = forceDemo ? 'demo' : store.desiredMapKey()
+    if (key === 'demo' || !gamePath || !api) {
+      store.set({ map: generateDemoMap(), mapKey: 'demo', mapLoading: null, mapError: null })
       return
     }
-    store.set({ mapLoading: { pct: 0, message: 'Preparando…' }, mapError: null })
+    const mod = key.startsWith('mod:') ? (state.project?.mapSettings.mod ?? null) : null
+    store.set({
+      mapLoading: { pct: 0, message: mod ? `Preparando (mod: ${mod.name})…` : 'Preparando…' },
+      mapError: null
+    })
     const off = api.onMapProgress((p) => store.set({ mapLoading: p }))
     try {
-      const res = await api.loadMap(gamePath)
-      if (res.ok) store.set({ map: res.map, mapLoading: null })
+      const res = await api.loadMap(gamePath, mod)
+      if (res.ok) store.set({ map: res.map, mapKey: key, mapLoading: null })
       else store.set({ mapLoading: null, mapError: res.error })
     } finally {
       off()
     }
+  },
+
+  /** Qué mapa corresponde a la base del proyecto: demo (sin juego), juego o un mod */
+  desiredMapKey(): string {
+    if (!state.gamePath || !window.electronAPI) return 'demo'
+    const ms = state.project?.mapSettings
+    if (ms?.base === 'mod' && ms.mod) return `mod:${ms.mod.path}`
+    return 'game'
+  },
+
+  /** Carga el mapa si el que hay no corresponde a la base actual */
+  async ensureMap(): Promise<void> {
+    if (state.mapLoading) return
+    if (!state.map || state.mapKey !== store.desiredMapKey()) await store.loadMap()
+  },
+
+  /** Aviso pequeño que se cierra solo (con "Deshacer" opcional) */
+  toast(message: string, opts: { undo?: boolean; kind?: Toast['kind'] } = {}): void {
+    const t: Toast = { id: ++toastId, message, undo: !!opts.undo, kind: opts.kind ?? 'info' }
+    // Como mucho 3 a la vez: el más viejo se va
+    store.set({ toasts: [...state.toasts.slice(-2), t] })
+    setTimeout(() => store.dismissToast(t.id), TOAST_MS)
+  },
+  dismissToast(id: number): void {
+    if (state.toasts.some((t) => t.id === id))
+      store.set({ toasts: state.toasts.filter((t) => t.id !== id) })
   },
 
   /** Centrar el mapa en un estado */

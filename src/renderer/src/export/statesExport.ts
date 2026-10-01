@@ -31,6 +31,11 @@ export interface StateExportPlan {
   errors: { file: string; id?: number; message: string }[]
 }
 
+/** Mod usado como base del mapa (o null) */
+export function baseMod(project: Project): Project['mapSettings']['mod'] {
+  return project.mapSettings?.base === 'mod' ? project.mapSettings.mod : null
+}
+
 /** Pide al proceso principal los archivos parchados (sin escribirlos todavía) */
 export async function planStateExport(
   project: Project,
@@ -41,6 +46,8 @@ export async function planStateExport(
     return { files: [], errors: [] }
   const requests = stateRequests(project, map)
   if (!requests.length) return { files: [], errors: [] }
-  const res = await window.electronAPI.planStatePatches(gamePath, requests)
+  // Con base de mod se parcha A PARTIR de los archivos del mod
+  const mod = baseMod(project)
+  const res = await window.electronAPI.planStatePatches(gamePath, requests, mod)
   return { files: res.files.map((f) => ({ path: f.path, data: f.data })), errors: res.errors }
 }

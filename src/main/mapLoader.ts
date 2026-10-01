@@ -12,6 +12,7 @@ import { buildMapData } from '../shared/map/build'
 import { deserializeMap, serializeMap } from '../shared/map/serialize'
 import type { MapData, MapState } from '../shared/map/types'
 import { parseLocalisation } from './game'
+import { listGameDir, resolveGameFile, type ModLayer } from './mods'
 
 export type Progress = (pct: number, message: string) => void
 
@@ -40,39 +41,30 @@ function statFiles(files: string[]): string {
 export async function loadRealMap(
   gamePath: string,
   cacheDir: string,
-  progress: Progress
+  progress: Progress,
+  /** Mod usado como base: sus archivos se cargan ENCIMA de los del juego */
+  mod: ModLayer | null = null
 ): Promise<MapData> {
-  const bmpPath = path.join(gamePath, 'map', 'provinces.bmp')
-  const csvPath = path.join(gamePath, 'map', 'definition.csv')
-  const statesDir = path.join(gamePath, 'history', 'states')
-  const locDir = path.join(gamePath, 'localisation', 'english')
-  if (!fs.existsSync(bmpPath) || !fs.existsSync(csvPath))
+  const bmpPath = resolveGameFile(gamePath, mod, 'map/provinces.bmp')
+  const csvPath = resolveGameFile(gamePath, mod, 'map/definition.csv')
+  if (!bmpPath || !csvPath)
     throw new Error(
-      'No se encontró map/provinces.bmp o map/definition.csv en la carpeta del juego.'
+      `No se encontró map/provinces.bmp o map/definition.csv en la carpeta del juego${mod ? ' ni en el mod' : ''}.`
     )
-  const stateFiles = fs.existsSync(statesDir)
-    ? fs
-        .readdirSync(statesDir)
-        .filter((f) => f.endsWith('.txt'))
-        .sort()
-    : []
+  const stateEntries = listGameDir(gamePath, mod, 'history/states', (f) => f.endsWith('.txt'))
+  const stateFiles = stateEntries.map((e) => e.name)
+  const statePath = new Map(stateEntries.map((e) => [e.name, e.abs]))
   // por verificar: los nombres de estado están en localisation/english/*state_names*.yml
-  const locFiles = fs.existsSync(locDir)
-    ? fs.readdirSync(locDir).filter((f) => /state_names/.test(f))
-    : []
+  const locEntries = listGameDir(gamePath, mod, 'localisation/english', (f) =>
+    /state_names/.test(f)
+  )
+  const locFiles = locEntries.map((e) => e.abs)
 
   // ---- Caché: clave = rutas + tamaños + fechas de modificación ----
   progress(1, 'Revisando la caché…')
   const key = crypto
     .createHash('sha1')
-    .update(
-      statFiles([
-        bmpPath,
-        csvPath,
-        ...stateFiles.map((f) => path.join(statesDir, f)),
-        ...locFiles.map((f) => path.join(locDir, f))
-      ])
-    )
+    .update(statFiles([bmpPath, csvPath, ...stateEntries.map((e) => e.abs), ...locFiles]))
     .digest('hex')
   const cacheFile = path.join(cacheDir, `mapa-${key}.bin`)
   if (fs.existsSync(cacheFile)) {
@@ -129,15 +121,13 @@ export async function loadRealMap(
   const jomini = await getJomini()
   const loc = new Map<string, string>()
   for (const f of locFiles)
-    for (const [k, v] of parseLocalisation(
-      decodeGameText(new Uint8Array(fs.readFileSync(path.join(locDir, f))))
-    ))
+    for (const [k, v] of parseLocalisation(decodeGameText(new Uint8Array(fs.readFileSync(f)))))
       loc.set(k, v)
   const states: MapState[] = []
   for (let n = 0; n < stateFiles.length; n++) {
     const f = stateFiles[n]
     try {
-      const text = decodeGameText(new Uint8Array(fs.readFileSync(path.join(statesDir, f))))
+      const text = decodeGameText(new Uint8Array(fs.readFileSync(statePath.get(f)!)))
       for (const s of parseStateFile(jomini, text, f)) {
         s.name = loc.get(s.nameKey) ?? `Estado ${s.id}`
         states.push(s)

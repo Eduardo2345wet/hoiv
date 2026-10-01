@@ -1,6 +1,23 @@
 import type { MapData } from '../shared/map/types'
 
+export interface ModLayer {
+  path: string
+  name: string
+  replacePaths: string[]
+}
+export interface InstalledMod extends ModLayer {
+  source: 'documentos' | 'workshop'
+  hasMap: boolean
+  hasStates: boolean
+}
+export interface StatePatchRequestData {
+  file: string
+  targets: { id: number; owner: string; cores: string[]; stripDated?: string[] }[]
+}
+
 export interface ExportModPayload {
+  /** Mods de los que depende el nuestro */
+  dependencies?: string[]
   exportPath: string
   modName: string
   tag: string
@@ -45,14 +62,22 @@ export interface ElectronAPI {
     gamePath: string,
     fileName: string
   ) => Promise<{ fileName: string; text: string } | null>
-  /** Carga el mapa real (con progreso por onMapProgress) */
-  loadMap: (gamePath: string) => Promise<{ ok: true; map: MapData } | { ok: false; error: string }>
+  /** Mods instalados (Documentos y Workshop) */
+  listMods: (gamePath: string | null) => Promise<InstalledMod[]>
+  /** Carga el mapa real (con progreso por onMapProgress); `mod` = base de otro mod */
+  loadMap: (
+    gamePath: string,
+    mod?: ModLayer | null
+  ) => Promise<{ ok: true; map: MapData } | { ok: false; error: string }>
+  /** Progreso del parche de estados (exportación) */
+  onStatesProgress: (cb: (p: { done: number; total: number }) => void) => () => void
   /** Suscribirse al progreso de carga del mapa; devuelve la función para desuscribirse */
   onMapProgress: (cb: (p: { pct: number; message: string }) => void) => () => void
   /** Parchea (sin escribir) los archivos de estado modificados y los verifica */
   planStatePatches: (
     gamePath: string,
-    requests: { file: string; targets: { id: number; owner: string; cores: string[] }[] }[]
+    requests: StatePatchRequestData[],
+    mod?: ModLayer | null
   ) => Promise<{
     files: { path: string; data: Uint8Array }[]
     errors: { file: string; id?: number; message: string }[]

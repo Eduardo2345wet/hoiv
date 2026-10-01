@@ -6,6 +6,7 @@ import { patchStateText, type StateTarget } from '../shared/map/statePatch'
 import { decodeGameText } from '../shared/map/text'
 import { statesFromParsed, type JominiParser } from '../shared/map/stateFile'
 import { getJomini } from './mapLoader'
+import { resolveGameFile, type ModLayer } from './mods'
 
 export interface StatePatchRequest {
   /** Nombre del archivo en history/states (el mismo que se exportará) */
@@ -21,11 +22,16 @@ export interface StatePatchResult {
 export async function planStatePatches(
   gamePath: string,
   requests: StatePatchRequest[],
-  jomini?: JominiParser
+  jomini?: JominiParser,
+  /** Mod usado como base: se parcha A PARTIR de sus archivos (si los tiene) */
+  mod: ModLayer | null = null,
+  onProgress?: (done: number, total: number) => void
 ): Promise<StatePatchResult> {
   const parser = jomini ?? (await getJomini())
   const out: StatePatchResult = { files: [], errors: [] }
+  let done = 0
   for (const req of requests) {
+    onProgress?.(done++, requests.length)
     const err = (message: string, id?: number): void => {
       out.errors.push({ file: req.file, id, message })
     }
@@ -34,10 +40,12 @@ export async function planStatePatches(
       continue
     }
     let bytes: Buffer
+    const src = resolveGameFile(gamePath, mod, `history/states/${req.file}`)
     try {
-      bytes = fs.readFileSync(path.join(gamePath, 'history', 'states', req.file))
+      if (!src) throw new Error()
+      bytes = fs.readFileSync(src)
     } catch {
-      err('No se encontró el archivo en la carpeta del juego.')
+      err(`No se encontró el archivo en la carpeta del juego${mod ? ' ni en el mod' : ''}.`)
       continue
     }
     // latin1: 1 byte = 1 carácter, así los bytes que no tocamos quedan idénticos

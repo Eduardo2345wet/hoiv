@@ -2,7 +2,7 @@
 import { useState } from 'react'
 import { FolderOpen, Plus } from 'lucide-react'
 import { validateTag } from '../export/validator'
-import { PROJECT_VERSION, type Project } from '../types'
+import { DEFAULT_MAP_SETTINGS, PROJECT_VERSION, type Project } from '../types'
 import { createFocus } from './projectOps'
 import { migrateProject } from '../migrate'
 import { store } from '../store/appStore'
@@ -43,7 +43,8 @@ export default function StartScreen(): JSX.Element {
       ideas: [],
       icons: [],
       countryFlags: [],
-      stateEdits: {}
+      stateEdits: {},
+      mapSettings: { ...DEFAULT_MAP_SETTINGS, noNation: { ...DEFAULT_MAP_SETTINGS.noNation } }
     }
     onOpen(createFocus(empty, 0, 0, 'Mi primer foco', 'arbol_1').project, null)
   }

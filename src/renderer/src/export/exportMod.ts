@@ -15,6 +15,7 @@ import {
 } from './countryExport'
 import type { GameCatalog } from '../catalog/catalog'
 import { store } from '../store/appStore'
+import { baseMod } from './statesExport'
 
 export interface ModFile {
   /** Ruta dentro de la carpeta del mod, con "/" */
@@ -100,7 +101,10 @@ export async function exportMod(
   const folder = await api.selectFolder()
   if (!folder) return { ok: false, message: 'Exportación cancelada.' }
 
+  const mod = baseMod(project)
   const result = await api.exportMod({
+    // Base de mapa de otro mod: el nuestro depende de él
+    dependencies: mod ? [mod.name] : [],
     exportPath: folder,
     modName: project.modName,
     tag: project.tag,

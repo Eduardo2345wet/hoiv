@@ -28,8 +28,30 @@ export function validateMap(project: Project, ctx: MapContext): Issue[] {
       stateId: e.id
     })
 
+  // Base de un mod: necesita la carpeta del juego y el mod tiene que estar activo antes
+  const ms = project.mapSettings
+  if (ms?.base === 'mod' && ms.mod) {
+    issues.push({
+      severity: 'aviso',
+      message: `La base del mapa es el mod "${ms.mod.name}": tu mod necesitará ese mod activado y cargado antes (se agrega a dependencies).`
+    })
+    if (!ctx.gamePath)
+      issues.push({
+        severity: 'error',
+        message: 'La base del mapa es un mod, pero no hay carpeta del juego configurada.'
+      })
+  }
+
   if (!map) return issues
   const byId = lookup(map)
+
+  // Estados pintados que no existen en la base actual
+  const missing = edits.filter((id) => !byId.has(Number(id)))
+  if (missing.length)
+    issues.push({
+      severity: 'aviso',
+      message: `La base actual no tiene ${missing.length} estado(s) que pintaste (${missing.slice(0, 8).join(', ')}${missing.length > 8 ? '…' : ''}): esos cambios no se exportarán.`
+    })
 
   // Estado modificado que queda sin dueño
   for (const id of edits) {

@@ -1,5 +1,5 @@
 // Proyectos de ejemplo compartidos por las pruebas
-import type { Project } from '../src/renderer/src/types'
+import { DEFAULT_MAP_SETTINGS, type Project } from '../src/renderer/src/types'
 import { createFocus } from '../src/renderer/src/ui/projectOps'
 import { newCountry } from '../src/renderer/src/countries/countryOps'
 
@@ -10,7 +10,7 @@ export function emptyProject(): Project {
     focusTreeId: 'arbol_1'
   }
   return {
-    version: 4,
+    version: 5,
     modName: 'Mi Mod',
     tag: 'MEX',
     countries: [country],
@@ -19,7 +19,8 @@ export function emptyProject(): Project {
     ideas: [],
     icons: [],
     countryFlags: [],
-    stateEdits: {}
+    stateEdits: {},
+    mapSettings: { ...DEFAULT_MAP_SETTINGS, base: 'game', noNation: { ...DEFAULT_MAP_SETTINGS.noNation } }
   }
 }
 

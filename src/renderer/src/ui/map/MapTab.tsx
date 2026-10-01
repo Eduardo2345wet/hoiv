@@ -27,6 +27,7 @@ import MapView, {
 import { VIEW_MODES, type ViewMode } from '../../map/colors'
 import { handleStroke, type ToolId } from '../../map/tools'
 import CountryCard from './CountryCard'
+import MapBaseDialog from './MapBaseDialog'
 import MapSidePanel from './MapSidePanel'
 
 interface Props {
@@ -112,11 +113,12 @@ export default function MapTab({
   const viewRef = useRef<MapViewHandle>(null)
   const hoverState = hover?.stateId ? map?.states.find((s) => s.id === hover.stateId) : undefined
 
-  // Cargar el mapa la primera vez
+  // Base del mapa: se pregunta UNA vez; el mapa cargado sigue a la base elegida
+  const ms = project.mapSettings
+  const [baseDialog, setBaseDialog] = useState(ms.base === null)
   useEffect(() => {
-    if (!map && !loading) void store.loadMap()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+    void store.ensureMap()
+  }, [ms.base, ms.mod?.path, gamePath])
 
   // Pedidos de "centrar en un estado" (lista de estados, validador, capital)
   useEffect(() => {
@@ -253,6 +255,18 @@ export default function MapTab({
           </div>
         )}
         <div className="flex-1" />
+        <button
+          className="btn px-2 text-xs"
+          title="Punto de partida del mapa"
+          onClick={() => setBaseDialog(true)}
+        >
+          🗺 Base:{' '}
+          {ms.base === 'blank'
+            ? 'lienzo en blanco'
+            : ms.base === 'mod'
+              ? `mod "${ms.mod?.name}"`
+              : 'mapa del juego'}
+        </button>
         {/* Imagen de referencia (solo visual) */}
         <label
           className="btn cursor-pointer px-2 text-xs"
@@ -311,7 +325,7 @@ export default function MapTab({
                 activeTag,
                 selectedId,
                 gameColors,
-                blankUnpainted: false,
+                blankUnpainted: ms.base === 'blank',
                 highlightPending: false
               }}
               labels={labels}
@@ -442,6 +456,7 @@ export default function MapTab({
           {message || lastValidatorMessage}
         </span>
       </div>
+      {baseDialog && <MapBaseDialog project={project} onClose={() => setBaseDialog(false)} />}
     </div>
   )
 }

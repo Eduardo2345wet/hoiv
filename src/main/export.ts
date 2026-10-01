@@ -4,6 +4,8 @@ import path from 'path'
 import { safeFolderName } from '../shared/names'
 
 export interface ExportModPayload {
+  /** Nombres de los mods de los que depende (dependencies = { … }) */
+  dependencies?: string[]
   exportPath: string
   modName: string
   tag: string
@@ -60,7 +62,12 @@ export async function handleExportMod(payload: ExportModPayload): Promise<Export
     fs.mkdirSync(modFolder, { recursive: true })
 
     const tags = `tags={\n\t"Alternative History"\n\t"National Focuses"\n}`
-    const descriptor = `version="1.0"\n${tags}\nname="${escapeQuotes(modName)}"\nsupported_version="1.*"\n`
+    // Base de mapa de otro mod: el nuestro depende de él (debe cargarse antes)
+    const deps = (payload.dependencies ?? []).filter(Boolean)
+    const dependencies = deps.length
+      ? `dependencies={\n${deps.map((d) => `\t"${escapeQuotes(d)}"`).join('\n')}\n}\n`
+      : ''
+    const descriptor = `version="1.0"\n${tags}\nname="${escapeQuotes(modName)}"\n${dependencies}supported_version="1.*"\n`
 
     // 1. NOMBRE/descriptor.mod (UTF-8 SIN BOM: Node no añade BOM con 'utf-8')
     fs.writeFileSync(path.join(modFolder, 'descriptor.mod'), descriptor, 'utf-8')

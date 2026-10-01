@@ -4,6 +4,7 @@ import { store, useApp } from './store/appStore'
 import StartScreen from './ui/StartScreen'
 import Editor from './ui/Editor'
 import PromptDialog from './ui/PromptDialog'
+import ToastHost from './ui/ToastHost'
 import { loadGameSettings } from './ui/SettingsDialog'
 import { setIconRenderer, setPlaceholderRenderers } from './icons/renderer'
 import { drawFlagPlaceholder, drawPortraitPlaceholder } from './countries/placeholders'
@@ -29,6 +30,7 @@ export default function App(): JSX.Element {
     <>
       {hasProject ? <Editor /> : <StartScreen />}
       <PromptDialog />
+      <ToastHost />
     </>
   )
 }

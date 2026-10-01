@@ -16,13 +16,20 @@ contextBridge.exposeInMainWorld('electronAPI', {
   readGameCatalog: (gamePath: string) => ipcRenderer.invoke('read-game-catalog', gamePath),
   readCountryHistory: (gamePath: string, fileName: string) =>
     ipcRenderer.invoke('read-country-history', gamePath, fileName),
-  loadMap: (gamePath: string) => ipcRenderer.invoke('load-map', gamePath),
+  listMods: (gamePath: string | null) => ipcRenderer.invoke('list-mods', gamePath),
+  loadMap: (gamePath: string, mod?: unknown) =>
+    ipcRenderer.invoke('load-map', gamePath, mod ?? null),
   onMapProgress: (cb: (p: { pct: number; message: string }) => void) => {
     const listener = (_: unknown, p: { pct: number; message: string }): void => cb(p)
     ipcRenderer.on('map-progress', listener)
     return () => ipcRenderer.removeListener('map-progress', listener)
   },
-  planStatePatches: (gamePath: string, requests: unknown) =>
-    ipcRenderer.invoke('plan-state-patches', gamePath, requests),
+  planStatePatches: (gamePath: string, requests: unknown, mod?: unknown) =>
+    ipcRenderer.invoke('plan-state-patches', gamePath, requests, mod ?? null),
+  onStatesProgress: (cb: (p: { done: number; total: number }) => void) => {
+    const listener = (_: unknown, p: { done: number; total: number }): void => cb(p)
+    ipcRenderer.on('states-progress', listener)
+    return () => ipcRenderer.removeListener('states-progress', listener)
+  },
   exportMod: (payload: ExportModPayload) => ipcRenderer.invoke('export-mod', payload)
 })

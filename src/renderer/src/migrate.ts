@@ -1,5 +1,5 @@
 // Migración automática de proyecto.json: los proyectos viejos se abren sin error.
-import { PROJECT_VERSION, type Project } from './types'
+import { DEFAULT_MAP_SETTINGS, PROJECT_VERSION, type Project } from './types'
 import { newCountry } from './countries/countryOps'
 import { BUILTIN_COUNTRIES } from './catalog/builtin'
 
@@ -53,6 +53,18 @@ export function migrateProject(raw: any): Project {
   p.countries = Array.isArray(p.countries) ? p.countries : []
   // v3 → v4: cambios del mapa (vacío al principio)
   p.stateEdits = p.stateEdits && typeof p.stateEdits === 'object' ? p.stateEdits : {}
+  // v4 → v5: base del mapa. Si ya había pintado, lo hizo sobre el mapa del juego.
+  if (!p.mapSettings || typeof p.mapSettings !== 'object') {
+    p.mapSettings = {
+      ...DEFAULT_MAP_SETTINGS,
+      base: Object.keys(p.stateEdits).length ? 'game' : null
+    }
+  } else
+    p.mapSettings = {
+      ...DEFAULT_MAP_SETTINGS,
+      ...p.mapSettings,
+      noNation: { ...DEFAULT_MAP_SETTINGS.noNation, ...p.mapSettings.noNation }
+    }
   p.modName = p.modName ?? 'mod'
   p.version = PROJECT_VERSION
   return p as Project

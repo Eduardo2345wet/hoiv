@@ -1,7 +1,7 @@
 // Tipos de datos del proyecto (lo que se guarda en proyecto.json)
 
 /** Versión actual del formato de proyecto.json (ver migrate.ts) */
-export const PROJECT_VERSION = 4
+export const PROJECT_VERSION = 5
 
 /** Texto ya generado de las 3 ranuras de Blockly de un foco */
 export interface FocusScripts {
@@ -176,6 +176,41 @@ export interface FocusTree {
   name: string
 }
 
+// ======================= Mapa =======================
+
+export type MapBaseKind = 'blank' | 'game' | 'mod'
+
+/** Mod usado como base del mapa */
+export interface MapModRef {
+  /** Carpeta del mod */
+  path: string
+  /** Nombre de su descriptor.mod (va en dependencies = { … }) */
+  name: string
+  replacePaths: string[]
+}
+
+export interface MapSettings {
+  /** Punto de partida del mapa; null = todavía no se eligió (se pregunta una vez) */
+  base: MapBaseKind | null
+  mod: MapModRef | null
+  /** Lienzo en blanco: qué pasa al exportar con los estados que no pinté */
+  unpainted: 'keep' | 'noNation'
+  /** País técnico "Sin nación" (dueño de lo pendiente) */
+  noNation: {
+    tag: string
+    name: string
+    /** Conservar los cores del juego en los estados pendientes */
+    keepGameCores: boolean
+  }
+}
+
+export const DEFAULT_MAP_SETTINGS: MapSettings = {
+  base: null,
+  mod: null,
+  unpainted: 'keep',
+  noNation: { tag: '', name: 'Sin nación', keepGameCores: false }
+}
+
 /** Cambios a un estado del mapa (lo único que se guarda del mapa: nunca el mapa entero) */
 export interface StateEdit {
   owner?: string
@@ -195,6 +230,8 @@ export interface Project {
   icons: IconAsset[]
   /** Cambios de estados por id de estado */
   stateEdits: Record<string, StateEdit>
+  /** Base del mapa y modo de los estados no pintados */
+  mapSettings: MapSettings
   /** Marcas creadas a mano con "+ Crear nueva…" (además de las usadas en set_country_flag) */
   countryFlags: string[]
 }

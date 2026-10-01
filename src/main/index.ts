@@ -5,6 +5,7 @@ import fs from 'fs'
 import path from 'path'
 import { handleExportMod } from './export'
 import { loadRealMap } from './mapLoader'
+import { listInstalledMods, type ModLayer } from './mods'
 import { planStatePatches, type StatePatchRequest } from './statesExport'
 import {
   loadSettings,
@@ -133,12 +134,20 @@ app.whenReady().then(() => {
   )
 
   // ---- Mapa real (con progreso). Los arreglos viajan como arreglos tipados, no como JSON ----
-  ipcMain.handle('load-map', async (event, gamePath: string) => {
+  ipcMain.handle('list-mods', async (_, gamePath: string | null) =>
+    listInstalledMods(
+      path.join(app.getPath('documents'), 'Paradox Interactive', 'Hearts of Iron IV'),
+      gamePath
+    )
+  )
+
+  ipcMain.handle('load-map', async (event, gamePath: string, mod: ModLayer | null) => {
     try {
       const map = await loadRealMap(
         gamePath,
         path.join(app.getPath('userData'), 'cache'),
-        (pct, message) => event.sender.send('map-progress', { pct, message })
+        (pct, message) => event.sender.send('map-progress', { pct, message }),
+        mod
       )
       return { ok: true, map }
     } catch (e) {
@@ -146,8 +155,12 @@ app.whenReady().then(() => {
     }
   })
 
-  ipcMain.handle('plan-state-patches', async (_, gamePath: string, requests: StatePatchRequest[]) =>
-    planStatePatches(gamePath, requests)
+  ipcMain.handle(
+    'plan-state-patches',
+    async (event, gamePath: string, requests: StatePatchRequest[], mod: ModLayer | null) =>
+      planStatePatches(gamePath, requests, undefined, mod, (done, total) =>
+        event.sender.send('states-progress', { done, total })
+      )
   )
 
   ipcMain.handle('export-mod', async (_, payload) => {
