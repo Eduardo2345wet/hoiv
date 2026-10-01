@@ -326,3 +326,198 @@ describe('"En el mapa" solo con mis estados (partes 2 y 3)', () => {
     await page.close()
   }, 60_000)
 })
+
+// ---------- Barras de desplazamiento de Blockly (arreglos) ----------
+const visible = (page: Page, sel: string): Promise<{ n: number; shown: number }> =>
+  page.evaluate((q) => {
+    const els = [...document.querySelectorAll(q)] as HTMLElement[]
+    return {
+      n: els.length,
+      shown: els.filter((e) => getComputedStyle(e).display !== 'none').length
+    }
+  }, sel)
+
+const handleRect = (
+  page: Page,
+  sel: string
+): Promise<{ x: number; y: number; w: number; h: number }> =>
+  page.evaluate((q) => {
+    const all = [...document.querySelectorAll(q)] as SVGElement[]
+    // la del área de trabajo: la que NO es del flyout y está visible
+    const el = all.find(
+      (e) =>
+        !e.classList.contains('blocklyFlyoutScrollbar') && getComputedStyle(e).display !== 'none'
+    )!
+    const r = el.querySelector('.blocklyScrollbarHandle')!.getBoundingClientRect()
+    return { x: r.x, y: r.y, w: r.width, h: r.height }
+  }, sel)
+
+describe('barras de desplazamiento de Blockly', () => {
+  it('al cerrar una categoría, la barra del flyout se oculta por completo', async ({ skip }) => {
+    if (!browser) skip()
+    const page = await fresh()
+    await focusEditor(page)
+    expect((await visible(page, '.blocklyFlyoutScrollbar')).shown).toBe(0)
+    await page.click('.blocklyToolboxCategory >> nth=0')
+    await page.waitForTimeout(400)
+    expect((await visible(page, '.blocklyFlyoutScrollbar')).shown).toBeGreaterThan(0)
+    // 1) clic en el área de trabajo
+    await page.mouse.click(880, 620)
+    await page.waitForTimeout(300)
+    expect((await visible(page, '.blocklyFlyoutScrollbar')).shown).toBe(0)
+    // 2) Esc
+    await page.click('.blocklyToolboxCategory >> nth=1')
+    await page.waitForTimeout(300)
+    await page.keyboard.press('Escape')
+    await page.waitForTimeout(300)
+    expect((await visible(page, '.blocklyFlyoutScrollbar')).shown).toBe(0)
+    // 3) abrir una ventana con el flyout abierto
+    await page.click('.blocklyToolboxCategory >> nth=0')
+    await page.waitForTimeout(300)
+    await page.evaluate(() => void (window as unknown as HoiWindow).__hoiStore.pickCountry('X'))
+    await page.waitForSelector('[data-window]')
+    expect((await visible(page, '.blocklyFlyoutScrollbar')).shown).toBe(0)
+    await page.keyboard.press('Escape')
+    await page.close()
+  }, 120_000)
+
+  it('las barras del área de trabajo se arrastran, también tras abrir y cerrar categorías y ventanas', async ({
+    skip
+  }) => {
+    if (!browser) skip()
+    const page = await fresh()
+    await focusEditor(page)
+    for (const round of [0, 1, 2]) {
+      if (round === 1) {
+        await page.click('.blocklyToolboxCategory >> nth=0')
+        await page.waitForTimeout(300)
+        await page.mouse.click(880, 620)
+        await page.waitForTimeout(300)
+      }
+      if (round === 2) {
+        await page.evaluate(() => void (window as unknown as HoiWindow).__hoiStore.pickCountry('X'))
+        await page.waitForSelector('[data-window]')
+        await page.keyboard.press('Escape')
+        await page.waitForFunction(() => !document.getElementById('root')!.hasAttribute('inert'))
+      }
+      for (const [sel, axis] of [
+        ['.blocklyScrollbarVertical', 'y'],
+        ['.blocklyScrollbarHorizontal', 'x']
+      ] as const) {
+        const before = await handleRect(page, sel)
+        const cx = before.x + before.w / 2
+        const cy = before.y + before.h / 2
+        // El punto del mouse debe caer en la barra (no en un elemento encima)
+        const top = await page.evaluate(
+          ([x, y]) => document.elementFromPoint(x, y)?.getAttribute('class') ?? '',
+          [cx, cy]
+        )
+        expect(top, `${sel} ronda ${round}`).toContain('blocklyScrollbarHandle')
+        await page.mouse.move(cx, cy)
+        await page.mouse.down()
+        // Se arrastra hacia el lado donde la barra tiene espacio (si no, ya estaría en su tope)
+        const room = await page.evaluate(
+          ([q, ax]) => {
+            const el = [...document.querySelectorAll(q)].find(
+              (e) =>
+                !e.classList.contains('blocklyFlyoutScrollbar') &&
+                getComputedStyle(e).display !== 'none'
+            )!
+            const t = el.getBoundingClientRect()
+            const h = el.querySelector('.blocklyScrollbarHandle')!.getBoundingClientRect()
+            return ax === 'y'
+              ? [h.top - t.top, t.bottom - h.bottom]
+              : [h.left - t.left, t.right - h.right]
+          },
+          [sel, axis]
+        )
+        const d = room[0] > room[1] ? -40 : 40
+        await page.mouse.move(axis === 'y' ? cx : cx + d, axis === 'y' ? cy + d : cy, { steps: 6 })
+        await page.mouse.up()
+        const after = await handleRect(page, sel)
+        expect(Math.abs(after[axis] - before[axis]), `${sel} ronda ${round}`).toBeGreaterThan(5)
+      }
+    }
+    await page.close()
+  }, 120_000)
+
+  it('la rueda del mouse mueve el área de trabajo', async ({ skip }) => {
+    if (!browser) skip()
+    const page = await fresh()
+    await focusEditor(page)
+    const before = await handleRect(page, '.blocklyScrollbarVertical')
+    await page.mouse.move(800, 600)
+    await page.mouse.wheel(0, 120)
+    await page.waitForTimeout(300)
+    const after = await handleRect(page, '.blocklyScrollbarVertical')
+    expect(Math.abs(after.y - before.y)).toBeGreaterThan(2)
+    await page.close()
+  }, 60_000)
+
+  it('los controles de zoom, centrar y la papelera reciben los clics', async ({ skip }) => {
+    if (!browser) skip()
+    const page = await fresh()
+    await focusEditor(page)
+    // Posiciones de los controles respecto al área (las imágenes de Blockly son una hoja de
+    // sprites recortada, por eso se mide desde el contenedor): centrar, acercar, alejar y papelera
+    const bad = await page.evaluate(() => {
+      const box = document.querySelector('.injectionDiv')!.getBoundingClientRect()
+      const pts: [string, number, number, string][] = [
+        ['centrar', box.right - 51, box.top + 34, '.blocklyZoomReset'],
+        ['acercar', box.right - 51, box.top + 78, '.blocklyZoomIn'],
+        ['alejar', box.right - 51, box.top + 111, '.blocklyZoomOut'],
+        ['papelera', box.right - 59, box.bottom - 63, '.blocklyTrash']
+      ]
+      const out: string[] = []
+      for (const [name, x, y, cls] of pts) {
+        const hit = document.elementFromPoint(x, y)
+        if (!hit || !hit.closest(cls))
+          out.push(`${name}: ${hit?.getAttribute('class') ?? hit?.tagName}`)
+      }
+      return out
+    })
+    expect(bad).toEqual([])
+    await page.close()
+  }, 60_000)
+
+  it('al cambiar el tamaño del contenedor se avisa a Blockly y las barras quedan dentro', async ({
+    skip
+  }) => {
+    if (!browser) skip()
+    const page = await fresh()
+    await focusEditor(page)
+    const resizes = (): Promise<number> =>
+      page.evaluate(
+        () => (window as unknown as { __hoiBlockly: { resizes: number } }).__hoiBlockly.resizes
+      )
+    const r0 = await resizes()
+    await page.setViewportSize({ width: 1000, height: 640 })
+    await page.waitForTimeout(500)
+    expect(await resizes()).toBeGreaterThan(r0)
+    const inside = await page.evaluate(() => {
+      const box = document.querySelector('.injectionDiv')!.getBoundingClientRect()
+      return ['.blocklyScrollbarVertical', '.blocklyScrollbarHorizontal'].every((s) => {
+        const el = [...document.querySelectorAll(s)].find(
+          (e) =>
+            !e.classList.contains('blocklyFlyoutScrollbar') &&
+            getComputedStyle(e).display !== 'none'
+        )!
+        const r = el.getBoundingClientRect()
+        return (
+          r.right <= box.right + 1 &&
+          r.bottom <= box.bottom + 1 &&
+          r.left >= box.left - 1 &&
+          r.top >= box.top - 1
+        )
+      })
+    })
+    expect(inside).toBe(true)
+    // Cambiar de pestaña de la cinta y volver también avisa
+    const r1 = await resizes()
+    await page.click('button:text-is("Países")')
+    await page.click('button:text-is("Focos")')
+    await page.waitForTimeout(400)
+    expect(await resizes()).toBeGreaterThan(r1)
+    await page.close()
+  }, 120_000)
+})

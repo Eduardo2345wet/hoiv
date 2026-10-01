@@ -12,7 +12,12 @@ Blockly.Css.register(
     `.injectionDiv .blocklyToolboxCategoryLabel,
 .injectionDiv .blocklyTreeLabel { font: ${TOOLBOX_FONT_PX}px 'Segoe UI', sans-serif !important; }`,
     `.injectionDiv .blocklyToolboxCategory, .injectionDiv .blocklyTreeRow { height: 30px !important; line-height: 30px !important; }`,
-    `.blocklyWidgetDiv, .blocklyDropDownDiv { z-index: ${Z.blocklyFloating} !important; }`,
+    // Tailwind (preflight) pone `svg { display: block }`, que gana al atributo display="none" con el
+    // que Blockly oculta las barras de desplazamiento: quedaban flotando (y tapaban clics).
+    `.injectionDiv svg[display='none'] { display: none !important; }`,
+    // (la barra del flyout de la papelera nunca llega a tener tamaño: sin `height` mediría 150 px)
+  `.injectionDiv svg.blocklyFlyoutScrollbar:not([height]) { display: none !important; }`,
+  `.blocklyWidgetDiv, .blocklyDropDownDiv { z-index: ${Z.blocklyFloating} !important; }`,
     `.blocklyTooltipDiv { z-index: ${Z.blocklyFloating} !important; }`
   ].join('\n')
 )

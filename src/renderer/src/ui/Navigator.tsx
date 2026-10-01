@@ -8,6 +8,7 @@ import { setBrush } from '../map/brush'
 import { getOwnerCounts } from '../map/mapOps'
 import { treeCountry } from '../countries/countryOps'
 import FlagThumb from './FlagThumb'
+import { requestBlocklyResize } from './BlocklyEditor'
 import PalettePanel from './map/PalettePanel'
 
 function Section({
@@ -63,7 +64,13 @@ export default function Navigator({ project }: { project: Project }): JSX.Elemen
   if (collapsed)
     return (
       <div className="flex w-8 shrink-0 flex-col items-center border-r border-hoi-border bg-hoi-panel py-2">
-        <button title="Mostrar el navegador" onClick={() => setCollapsed(false)}>
+        <button
+          title="Mostrar el navegador"
+          onClick={() => {
+            setCollapsed(false)
+            setTimeout(requestBlocklyResize, 0)
+          }}
+        >
           <ChevronRight size={16} />
         </button>
         <span className="mt-4 rotate-180 text-xs text-hoi-muted [writing-mode:vertical-rl]">
@@ -93,7 +100,13 @@ export default function Navigator({ project }: { project: Project }): JSX.Elemen
     <aside className="flex w-64 shrink-0 flex-col border-r border-hoi-border bg-hoi-panel">
       <div className="flex items-center justify-between border-b border-hoi-border px-3 py-1.5">
         <span className="text-sm font-semibold text-hoi-accent">Navegador del proyecto</span>
-        <button title="Plegar" onClick={() => setCollapsed(true)}>
+        <button
+          title="Plegar"
+          onClick={() => {
+            setCollapsed(true)
+            setTimeout(requestBlocklyResize, 0)
+          }}
+        >
           <ChevronLeft size={16} />
         </button>
       </div>

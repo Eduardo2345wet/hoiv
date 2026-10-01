@@ -5,6 +5,7 @@ import { useEffect, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import * as Blockly from 'blockly'
 import { Z } from './layers'
+import { requestBlocklyResize } from './BlocklyEditor'
 
 let open = 0
 let returnFocus: HTMLElement | null = null
@@ -35,6 +36,7 @@ function unlock(): void {
   const f = returnFocus
   returnFocus = null
   if (f && document.contains(f)) f.focus()
+  requestBlocklyResize()
 }
 
 export default function Overlay({

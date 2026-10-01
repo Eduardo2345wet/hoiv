@@ -8,6 +8,20 @@ import { generateSlots } from '../generator/pdx'
 import type { Focus, FocusScripts } from '../types'
 import { hoiDarkTheme } from './theme'
 import { Z } from './layers'
+import { store } from '../store/appStore'
+
+/** Avisos de tamaño: Blockly calcula sus barras y controles con el tamaño que tenía el contenedor */
+export const blocklyStats = { resizes: 0 }
+const resizers = new Set<() => void>()
+/** Pide recalcular el tamaño del editor de bloques (cambio de pestaña, panel, ventana cerrada…) */
+export function requestBlocklyResize(): void {
+  resizers.forEach((f) => f())
+}
+if (
+  typeof window !== 'undefined' &&
+  (import.meta as unknown as { env?: { DEV?: boolean } }).env?.DEV
+)
+  (window as unknown as { __hoiBlockly: typeof blocklyStats }).__hoiBlockly = blocklyStats
 
 interface Props {
   focus: Focus | null
@@ -37,12 +51,13 @@ export default function BlocklyEditor({ focus, onChange }: Props): JSX.Element {
       grid: { spacing: 24, length: 2, colour: '#2a2a32', snap: true },
       zoom: {
         controls: true,
-        wheel: true,
+        wheel: false,
         startScale: 0.75,
         maxScale: 2,
         minScale: 0.3
       },
-      move: { scrollbars: true, drag: true, wheel: false }
+      // La rueda y el arrastre del fondo mueven el área (el zoom va con los botones)
+      move: { scrollbars: true, drag: true, wheel: true }
     })
     wsRef.current = ws
     // Los bloques sueltos (fuera de una ranura) se ven desactivados y no generan código
@@ -53,9 +68,34 @@ export default function BlocklyEditor({ focus, onChange }: Props): JSX.Element {
       lastSaved.current = blocks
       onChangeRef.current(uidRef.current, blocks, generateSlots(ws))
     })
-    const ro = new ResizeObserver(() => Blockly.svgResize(ws))
+    let raf = 0
+    const resize = (): void => {
+      cancelAnimationFrame(raf)
+      raf = requestAnimationFrame(() => {
+        if (!divRef.current?.isConnected) return
+        Blockly.svgResize(ws)
+        blocklyStats.resizes++
+      })
+    }
+    const ro = new ResizeObserver(resize)
     ro.observe(divRef.current!)
+    resizers.add(resize)
+    window.addEventListener('resize', resize)
+    // Cambio de pestaña de documento o de la cinta: el contenedor pasa de oculto a visible
+    let last = `${store.get().activeTabId}|${store.get().ui.ribbon}`
+    const off = store.subscribe(() => {
+      const k = `${store.get().activeTabId}|${store.get().ui.ribbon}`
+      if (k !== last) {
+        last = k
+        resize()
+      }
+    })
+    resize()
     return () => {
+      cancelAnimationFrame(raf)
+      resizers.delete(resize)
+      window.removeEventListener('resize', resize)
+      off()
       ro.disconnect()
       ws.dispose()
       // El próximo espacio de trabajo tiene que volver a cargar el foco
