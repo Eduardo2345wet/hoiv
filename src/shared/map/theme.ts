@@ -81,3 +81,18 @@ export function textIsWhite(bg: RGB3): boolean {
 
 /** Ancho de línea en píxeles del dispositivo: siempre `css` píxeles CSS, a cualquier DPR */
 export const deviceWidth = (cssPx: number, dpr: number): number => cssPx * dpr
+
+/** Luminancia relativa (0 = negro, 1 = blanco) */
+export function luminance(c: RGB3): number {
+  const lin = (v: number): number => {
+    const s = v / 255
+    return s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4
+  }
+  return 0.2126 * lin(c[0]) + 0.7152 * lin(c[1]) + 0.0722 * lin(c[2])
+}
+
+/** Relación de contraste WCAG entre dos colores (1–21) */
+export function contrastRatio(a: RGB3, b: RGB3): number {
+  const [hi, lo] = [luminance(a), luminance(b)].sort((x, y) => y - x)
+  return (hi + 0.05) / (lo + 0.05)
+}

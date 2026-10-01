@@ -4,6 +4,7 @@ import type { MapData, MapState } from './types'
 import { PROVINCE_TYPE } from './types'
 import { computeStateLabels } from './labels'
 import { vectorizeBorders } from './vector'
+import { computeLabelBoxes } from './labelBoxes'
 
 export interface RawMap {
   source: MapData['source']
@@ -81,6 +82,9 @@ export function buildMapData(raw: RawMap): MapData {
   })
 
   const vector = vectorizeBorders({ width, height, provinceIndex, provinceToState })
+  const tBoxes = performance.now()
+  const labelBoxes = computeLabelBoxes(width, statePixelIndex, offsets)
+  const labelBoxesMs = performance.now() - tBoxes
 
   return {
     source: raw.source,
@@ -99,7 +103,9 @@ export function buildMapData(raw: RawMap): MapData {
     stateCenters,
     stateLabels: computeStateLabels(width, height, provinceIndex, provinceToState),
     borders: vector.borders,
-    borderStats: vector.stats
+    borderStats: vector.stats,
+    labelBoxes,
+    labelBoxesMs
   }
 }
 

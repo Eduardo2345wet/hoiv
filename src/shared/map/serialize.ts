@@ -34,12 +34,14 @@ const ARRAYS: Slot[] = [
   border('points', Float32Array),
   border('starts', Uint32Array),
   border('a', Uint16Array),
-  border('b', Uint16Array)
+  border('b', Uint16Array),
+  top('labelBoxes', Float32Array)
 ]
 const BIG_KEYS = new Set<string>(ARRAYS.map((s) => s.name.split('.')[0]))
 // 2: añade stateLabels (centro visual de cada estado)
 // 3: añade las fronteras vectoriales (borders)
-export const MAP_CACHE_VERSION = 3
+// 4: añade los rectángulos de las etiquetas (labelBoxes)
+export const MAP_CACHE_VERSION = 4
 
 export function serializeMap(map: MapData): Uint8Array {
   const meta: Record<string, unknown> = { v: MAP_CACHE_VERSION }

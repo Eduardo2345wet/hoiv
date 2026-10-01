@@ -50,6 +50,7 @@ export interface GameCatalogData {
   graphicalCultures2d?: string[]
   historyFiles?: Record<string, string>
   countryColors?: Record<string, [number, number, number]>
+  countryCapitals?: Record<string, number>
   goalsShineShape?: string
 }
 

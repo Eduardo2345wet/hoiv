@@ -17,6 +17,7 @@ import {
   vectorizeBorders
 } from '../src/shared/map/vector'
 import { serializeMap, deserializeMap } from '../src/shared/map/serialize'
+import { layoutLabels, capitalLabels, type LayoutInput } from '../src/renderer/src/map/labelLayout'
 import { buildSegmentBuffer } from '../src/renderer/src/map/borderGeometry'
 import { segmentStyle } from '../src/renderer/src/map/borderStyle'
 import { buildPalette } from '../src/renderer/src/map/colors'
@@ -347,5 +348,162 @@ describe('fronteras vectoriales: casos raros (parte 2)', () => {
     const straight = vectorizeBorders(grid(['AAbb', 'AAbb', 'AAbb'])).borders
     expect(straight.a.length).toBe(1)
     expect(lineXY(straight, 0)).toEqual([2, 0, 2, 3]) // de arriba a abajo del mapa
+  })
+})
+
+describe('etiquetas (parte 3)', () => {
+  const measure = (t: string, bold: boolean): number => t.length * (bold ? 0.62 : 0.56)
+  const capitals = [
+    { tag: 'DMA', name: 'Demolandia del Norte', stateId: 9 },
+    { tag: 'DMB', name: 'Demolandia del Este', stateId: 31 },
+    { tag: 'DMC', name: 'Demolandia del Sur', stateId: 26 },
+    { tag: 'DMD', name: 'Demolandia del Oeste', stateId: 12 }
+  ]
+  const input = (scale: number, over: Partial<LayoutInput> = {}): LayoutInput => ({
+    map: demo,
+    view: { scale, x: 0, y: 0 },
+    width: demo.width * scale,
+    height: demo.height * scale,
+    mode: 'ambos',
+    capitals,
+    colorOf: () => [255, 255, 255],
+    measure,
+    ...over
+  })
+
+  it('ninguna etiqueta se encima con otra, a varios zooms', () => {
+    for (const scale of [0.6, 1, 2, 4]) {
+      const labels = layoutLabels(input(scale))
+      expect(labels.length).toBeGreaterThan(5)
+      const rects = labels.map((l) => {
+        const x = l.mx * scale
+        const y = l.my * scale
+        return [x - l.w / 2, y - l.h / 2, x + l.w / 2, y + l.h / 2]
+      })
+      for (let i = 0; i < rects.length; i++)
+        for (let j = i + 1; j < rects.length; j++) {
+          const [a, b] = [rects[i], rects[j]]
+          const overlap = a[0] < b[2] && a[2] > b[0] && a[1] < b[3] && a[3] > b[1]
+          expect(overlap).toBe(false)
+        }
+    }
+  })
+
+  it('cada etiqueta cae entera dentro de su estado', () => {
+    for (const scale of [1, 2.5]) {
+      for (const mode of ['id', 'nombre', 'ambos'] as const) {
+        const labels = layoutLabels(input(scale, { mode }))
+        const prov = demo.provinceIndex
+        for (const l of labels) {
+          const x0 = Math.floor(l.mx - l.w / 2 / scale)
+          const x1 = Math.floor(l.mx + l.w / 2 / scale)
+          const y0 = Math.floor(l.my - l.h / 2 / scale)
+          const y1 = Math.floor(l.my + l.h / 2 / scale)
+          for (let y = y0; y <= y1; y++)
+            for (let x = x0; x <= x1; x++) {
+              expect(x >= 0 && y >= 0 && x < demo.width && y < demo.height).toBe(true)
+              expect(demo.provinceToState[prov[y * demo.width + x]]).toBe(l.stateId)
+            }
+        }
+      }
+    }
+  })
+
+  it('las capitales van primero y los estados grandes antes que los chicos', () => {
+    const labels = layoutLabels(input(1.5))
+    const kinds = labels.map((l) => l.kind)
+    const firstState = kinds.indexOf('state')
+    expect(kinds.slice(0, firstState).every((k) => k === 'capital')).toBe(true)
+    expect(kinds.slice(firstState).every((k) => k === 'state')).toBe(true)
+    const area = (id: number): number => {
+      const i = demo.states.findIndex((s) => s.id === id)
+      return demo.statePixelOffsets[i + 1] - demo.statePixelOffsets[i]
+    }
+    const states = labels.filter((l) => l.kind === 'state')
+    for (let i = 1; i < states.length; i++)
+      expect(area(states[i - 1].stateId)).toBeGreaterThanOrEqual(area(states[i].stateId))
+  })
+
+  it('una capital no la desplazan las etiquetas de estado: gana en los choques', () => {
+    // Con solo las capitales, estas se colocan; al sumar los estados (todas las etiquetas
+    // largas) las mismas capitales siguen estando, con el mismo texto
+    const alone = layoutLabels(input(1.5, { mode: 'ninguna' }))
+    const both = layoutLabels(input(1.5, { mode: 'ambos' }))
+    expect(alone.length).toBeGreaterThan(0)
+    for (const c of alone) {
+      const same = both.find((l) => l.kind === 'capital' && l.stateId === c.stateId)
+      expect(same).toBeDefined()
+      expect(same!.text).toBe(c.text)
+    }
+    // Y ninguna etiqueta de estado ocupa el estado de una capital
+    for (const c of alone) expect(both.filter((l) => l.stateId === c.stateId).length).toBe(1)
+  })
+
+  it('capital: el nombre en negrita con ★; si no cabe el tag; si tampoco, solo ★', () => {
+    const long = [{ tag: 'DMA', name: 'N'.repeat(60), stateId: 9 }]
+    const big = layoutLabels(input(4, { mode: 'ninguna', capitals: [capitals[0]] }))
+    expect(big[0]).toMatchObject({
+      kind: 'capital',
+      star: true,
+      bold: true,
+      text: capitals[0].name
+    })
+    expect(big[0].size).toBeGreaterThanOrEqual(11)
+    expect(big[0].size).toBeLessThanOrEqual(16)
+    // Nombre larguísimo: cae al tag
+    const asTag = layoutLabels(input(1.2, { mode: 'ninguna', capitals: long }))
+    expect(asTag[0]?.text).toBe('DMA')
+    // Medidor exagerado: ni el tag cabe → solo la estrella
+    const starOnly = layoutLabels(
+      input(1.2, { mode: 'ninguna', capitals: long, measure: (t) => (t ? 40 : 0) })
+    )
+    expect(starOnly[0]).toMatchObject({ star: true, text: '' })
+  })
+
+  it('los tamaños están entre 9 y 14 px (estados) y 11 y 16 px (capitales)', () => {
+    for (const l of layoutLabels(input(3))) {
+      if (l.kind === 'state') {
+        expect(l.size).toBeGreaterThanOrEqual(9)
+        expect(l.size).toBeLessThanOrEqual(14)
+      } else {
+        expect(l.size).toBeGreaterThanOrEqual(11)
+        expect(l.size).toBeLessThanOrEqual(16)
+      }
+    }
+  })
+
+  it('se oculta lo que no cabe: con muy poco zoom casi no hay etiquetas de estado', () => {
+    const far = layoutLabels(input(0.12, { capitals: null, mode: 'ambos' }))
+    const near = layoutLabels(input(2, { capitals: null, mode: 'ambos' }))
+    expect(far.length).toBeLessThan(near.length)
+  })
+
+  it('el texto es negro sobre blanco y blanco sobre colores oscuros', () => {
+    const white = layoutLabels(input(2, { mode: 'id', capitals: null }))
+    expect(white.every((l) => !l.white && !l.halo)).toBe(true)
+    const dark = layoutLabels(
+      input(2, { mode: 'id', capitals: null, colorOf: () => [30, 40, 110] })
+    )
+    expect(dark.length).toBeGreaterThan(0)
+    expect(dark.every((l) => l.white)).toBe(true)
+    // Tono medio: contraste bajo → contorno fino del color contrario
+    const mid = layoutLabels(
+      input(2, { mode: 'id', capitals: null, colorOf: () => [128, 128, 128] })
+    )
+    expect(mid.some((l) => l.halo)).toBe(true)
+  })
+
+  it('capitalLabels solo muestra la capital si el estado es del país', () => {
+    const owner = (id: number): string | undefined => (id === 9 ? 'DMA' : 'DMB')
+    const list = capitalLabels(
+      [
+        { tag: 'DMA', name: 'A', stateId: 9 },
+        { tag: 'DMC', name: 'C', stateId: 26 }, // el estado es de DMB
+        { tag: 'DMD', name: 'D', stateId: null }
+      ],
+      owner,
+      () => true
+    )
+    expect(list.map((c) => c.tag)).toEqual(['DMA'])
   })
 })

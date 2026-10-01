@@ -147,6 +147,8 @@ export interface GameCatalogResult {
   historyFiles: Record<string, string>
   /** tag → color RGB de common/countries */
   countryColors: Record<string, [number, number, number]>
+  /** tag → estado de la capital (capital = N en history/countries) */
+  countryCapitals: Record<string, number>
   /** Forma (claves en orden) de una entrada real de interface/goals_shine.gfx */
   goalsShineShape?: string
 }
@@ -199,6 +201,18 @@ export function readGameCatalog(gamePath: string): GameCatalogResult | null {
     // sin carpeta de historia
   }
 
+  // Capitales: "capital = N" al nivel superior de cada archivo de history/countries
+  // (por verificar: que siempre empiece en la columna 0, fuera de los bloques con fecha)
+  const countryCapitals: Record<string, number> = {}
+  for (const [tag, file] of Object.entries(historyFiles))
+    try {
+      const txt = fs.readFileSync(path.join(gamePath, 'history', 'countries', file), 'latin1')
+      const m = stripComments(txt).match(/^capital\s*=\s*(\d+)/m)
+      if (m) countryCapitals[tag] = Number(m[1])
+    } catch {
+      // archivo ilegible: sin capital conocida
+    }
+
   // Colores: country_tags (TAG = "countries/X.txt") → color = rgb { R G B } / { R G B }
   const countryColors: Record<string, [number, number, number]> = {}
   for (const t of readDir(tagsDir))
@@ -234,6 +248,7 @@ export function readGameCatalog(gamePath: string): GameCatalogResult | null {
   const result: GameCatalogResult = {
     goalsShineShape,
     countryColors,
+    countryCapitals,
     countries: tags.map((t): [string, string] => [t, loc.get(t) ?? t]),
     ideas: ideas.map((i): [string, string] => [i, loc.get(i) ?? i]),
     states,

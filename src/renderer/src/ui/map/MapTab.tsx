@@ -117,6 +117,7 @@ export default function MapTab({
   const [mode, setMode] = useState<ViewMode>('politico')
   // Estilo del mapa
   const [labels, setLabels] = useState<LabelMode>('id')
+  const [capitals, setCapitals] = useState(true)
   const [provinceBorders, setProvinceBorders] = useState(false)
   const [gameColors, setGameColors] = useState(false)
   const [hover, setHover] = useState<MapPointer | null>(null)
@@ -398,6 +399,7 @@ export default function MapTab({
                 highlightPending: noNation && pendingView
               }}
               labels={labels}
+              capitals={capitals}
               provinceBorders={provinceBorders}
               cursor={pick ? 'crosshair' : (brushCursor ?? toolInfo.cursor)}
               reference={reference}
@@ -472,6 +474,17 @@ export default function MapTab({
               ))}
             </select>
             <div className="flex flex-col gap-0.5 rounded border border-hoi-border bg-hoi-panel/95 px-2 py-1 text-xs">
+              <label
+                className="flex items-center gap-1"
+                title="Nombre del país con ★ en su capital"
+              >
+                <input
+                  type="checkbox"
+                  checked={capitals}
+                  onChange={(e) => setCapitals(e.target.checked)}
+                />
+                Capitales
+              </label>
               <label className="flex items-center gap-1">
                 <input
                   type="checkbox"

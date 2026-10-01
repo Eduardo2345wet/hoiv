@@ -27,3 +27,4 @@ const bin = serializeMap(map)
 console.log(
   `caché completa: ${(bin.length / 1048576).toFixed(1)} MB (${(performance.now() - t1).toFixed(0)} ms)`
 )
+console.log(`rectángulos de etiquetas: ${map.labelBoxesMs.toFixed(0)} ms, ${(map.labelBoxes.byteLength / 1024).toFixed(0)} KB`)

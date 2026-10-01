@@ -11,14 +11,21 @@ import { createWebGLRenderer } from '../../map/webglRenderer'
 import { createCanvasRenderer } from '../../map/canvasRenderer'
 import { MAP_THEME, THEME_RGB } from '../../../../shared/map/theme'
 import { effectiveCores, effectiveOwner, lookup } from '../../map/mapOps'
+import {
+  LABEL_MODES,
+  canvasMeasure,
+  capitalLabels,
+  drawLabels,
+  layoutLabels,
+  type LabelMode,
+  type PlacedLabel
+} from '../../map/labelLayout'
+import { isPainted } from '../../map/colors'
+import { countryLabel } from '../../map/brush'
+import { DEMO_TAGS } from '../../../../shared/map/demo'
 
-export type LabelMode = 'ninguna' | 'id' | 'nombre' | 'ambos'
-export const LABEL_MODES: [LabelMode, string][] = [
-  ['ninguna', 'Ninguna'],
-  ['id', 'ID'],
-  ['nombre', 'Nombre'],
-  ['ambos', 'ID + nombre']
-]
+export type { LabelMode }
+export { LABEL_MODES }
 
 export interface StrokeEvent {
   shift: boolean
@@ -47,6 +54,8 @@ interface Props {
   paletteOptions: PaletteOptions
   /** Etiquetas de los estados */
   labels: LabelMode
+  /** Etiquetas de capital (nombre del país con ★) */
+  capitals: boolean
   /** Fronteras de provincia (muy tenues) */
   provinceBorders: boolean
   cursor: string
@@ -183,15 +192,77 @@ export default forwardRef<MapViewHandle, Props>(function MapView(props, ref) {
         activeContour: !!activeTag,
         dpr
       })
-      drawOverlay()
+      redrawOverlay()
     })
     props.onViewChange?.(view)
     return () => cancelAnimationFrame(id)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [view, size, palette, hover?.stateId, props.provinceBorders, props.labels, activeTag])
 
-  // ---- Estrellas en las capitales de los países del mod ----
-  const drawOverlay = (): void => {
+  // ---- Etiquetas ----
+  // La colocación (qué texto, dónde, de qué tamaño) se calcula al terminar el zoom o el
+  // desplazamiento, o cuando cambia una capital, el modo o los colores; mientras se mueve la
+  // vista las etiquetas viajan con el mapa (coordenadas del mapa) sin recalcular.
+  const measure = useMemo(() => canvasMeasure(), [])
+  const labelsRef = useRef<PlacedLabel[]>([])
+  const capitalEntries = useMemo(() => {
+    const entries: { tag: string; name: string; stateId: number | null | undefined }[] = []
+    for (const c of project.countries)
+      entries.push({ tag: c.tag, name: c.names.name || c.tag, stateId: c.capital })
+    for (const [tag, st] of Object.entries(game?.countryCapitals ?? {}))
+      if (!project.countries.some((c) => c.tag === tag))
+        entries.push({ tag, name: countryLabel(tag, project, game), stateId: st })
+    if (map.source === 'demo')
+      // Mapa de demostración: la capital de cada país ficticio es su estado más grande
+      for (const tag of DEMO_TAGS) {
+        let best: number | null = null
+        let bestArea = -1
+        map.states.forEach((s, i) => {
+          const a = map.statePixelOffsets[i + 1] - map.statePixelOffsets[i]
+          if (s.owner === tag && a > bestArea) [best, bestArea] = [s.id, a]
+        })
+        entries.push({ tag, name: countryLabel(tag, project, game), stateId: best })
+      }
+    return entries
+  }, [project, game, map])
+
+  const relayout = (v: View = viewRef.current): void => {
+    const pal = paletteRef.current
+    const capitals = props.capitals
+      ? capitalLabels(
+          capitalEntries,
+          (id) => {
+            const st = byId.get(id)
+            return st ? effectiveOwner(st, project) : undefined
+          },
+          (id) => !paletteOptions.blankUnpainted || isPainted(id, project)
+        )
+      : null
+    labelsRef.current = layoutLabels({
+      map,
+      view: v,
+      width: size.w,
+      height: size.h,
+      mode: props.labels,
+      capitals,
+      colorOf: (slot) => [pal.rgba[slot * 4], pal.rgba[slot * 4 + 1], pal.rgba[slot * 4 + 2]],
+      measure
+    })
+    redrawOverlay()
+  }
+  // Cambios que obligan a recolocar YA
+  useEffect(() => {
+    relayout()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [map, palette, props.labels, props.capitals, capitalEntries, size])
+  // Zoom / desplazamiento: recolocar al terminar (pequeña espera)
+  useEffect(() => {
+    const t = setTimeout(() => relayout(view), 140)
+    return () => clearTimeout(t)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [view])
+
+  const redrawOverlay = (): void => {
     const o = overlayRef.current
     if (!o) return
     const dpr = window.devicePixelRatio || 1
@@ -200,50 +271,7 @@ export default forwardRef<MapViewHandle, Props>(function MapView(props, ref) {
     const ctx = o.getContext('2d')!
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
     ctx.clearRect(0, 0, size.w, size.h)
-    drawLabels(ctx)
-    for (const c of project.countries) {
-      if (!c.capital) continue
-      const center = map.stateCenters[c.capital]
-      if (!center) continue
-      const sx = view.x + (center[0] + 0.5) * view.scale
-      const sy = view.y + (center[1] + 0.5) * view.scale
-      if (sx < -20 || sy < -20 || sx > size.w + 20 || sy > size.h + 20) continue
-      star(ctx, sx, sy, c.tag === activeTag ? 9 : 6, c.tag === activeTag ? '#fbbf24' : '#f5f5f5')
-    }
-  }
-
-  // ---- Etiquetas: ID y/o nombre en el centro visual, solo si caben ----
-  const drawLabels = (ctx: CanvasRenderingContext2D): void => {
-    if (props.labels === 'ninguna') return
-    ctx.textAlign = 'center'
-    ctx.textBaseline = 'middle'
-    ctx.lineJoin = 'round'
-    for (const s of map.states) {
-      const lab = map.stateLabels?.[s.id]
-      if (!lab) continue
-      const sx = view.x + (lab[0] + 0.5) * view.scale
-      const sy = view.y + (lab[1] + 0.5) * view.scale
-      const R = lab[2] * view.scale
-      if (R < 5 || sx < -R || sy < -R || sx > size.w + R || sy > size.h + R) continue
-      const text =
-        props.labels === 'id'
-          ? String(s.id)
-          : props.labels === 'nombre'
-            ? s.name
-            : `${s.id} ${s.name}`
-      // El rectángulo del texto debe caber dentro del círculo del estado (así nunca se encima con otro)
-      for (const px of [12, 10, 8]) {
-        ctx.font = `600 ${px}px "Segoe UI", sans-serif`
-        const w = ctx.measureText(text).width
-        if ((w / 2) ** 2 + (px / 2) ** 2 > R * R) continue
-        ctx.lineWidth = 3
-        ctx.strokeStyle = 'rgba(255,255,255,0.95)'
-        ctx.strokeText(text, sx, sy)
-        ctx.fillStyle = '#333a44'
-        ctx.fillText(text, sx, sy)
-        break
-      }
-    }
+    drawLabels(ctx, labelsRef.current, viewRef.current, size.w, size.h)
   }
 
   // ---- Minimapa (se recalcula al cambiar la paleta) ----
@@ -429,18 +457,3 @@ export default forwardRef<MapViewHandle, Props>(function MapView(props, ref) {
     </div>
   )
 })
-
-function star(ctx: CanvasRenderingContext2D, x: number, y: number, r: number, color: string): void {
-  ctx.beginPath()
-  for (let i = 0; i < 10; i++) {
-    const a = -Math.PI / 2 + (i * Math.PI) / 5
-    const rr = i % 2 ? r * 0.45 : r
-    ctx.lineTo(x + Math.cos(a) * rr, y + Math.sin(a) * rr)
-  }
-  ctx.closePath()
-  ctx.fillStyle = color
-  ctx.strokeStyle = '#000'
-  ctx.lineWidth = 1.5
-  ctx.fill()
-  ctx.stroke()
-}

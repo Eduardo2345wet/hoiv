@@ -61,6 +61,13 @@ export interface MapData {
   borders: BorderSet
   /** Cuánto costó calcularlas (para el overlay F3) */
   borderStats: BorderStats
+  /**
+   * Rectángulos de las etiquetas: por estado y proporción, el mayor rectángulo que cabe dentro
+   * (ver labelBoxes.ts). Calculados una vez y guardados en la caché.
+   */
+  labelBoxes: Float32Array
+  /** Cuánto costó calcular los rectángulos (ms) */
+  labelBoxesMs: number
 }
 
 /** Posición de un estado en `states` por id */
