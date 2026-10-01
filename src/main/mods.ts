@@ -3,6 +3,7 @@
 // - Las carpetas de replace_path del descriptor sustituyen por completo la carpeta del juego.
 import fs from 'fs'
 import path from 'path'
+import { HOI4_APP_ID } from './steamDetect'
 
 export interface ModLayer {
   /** Carpeta del mod (donde está su descriptor.mod) */
@@ -95,8 +96,7 @@ export function listInstalledMods(userDir: string, gamePath: string | null): Ins
     let dir = path.resolve(gamePath)
     for (let i = 0; i < 4 && path.basename(dir).toLowerCase() !== 'steamapps'; i++)
       dir = path.dirname(dir)
-    // por verificar: 394360 es el id de Steam de Hearts of Iron IV
-    const ws = path.join(dir, 'workshop', 'content', '394360')
+    const ws = path.join(dir, 'workshop', 'content', HOI4_APP_ID)
     try {
       if (path.basename(dir).toLowerCase() === 'steamapps')
         for (const id of fs.readdirSync(ws)) add(describe(path.join(ws, id), 'workshop'))

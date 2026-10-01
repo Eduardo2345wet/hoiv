@@ -30,6 +30,15 @@ export interface ExportModPayload {
 export interface Settings {
   /** Carpeta de instalación de HOI4 (opcional) */
   gamePath: string | null
+  /** La encontró la app sola */
+  gamePathAuto?: boolean
+}
+
+export interface DetectGameResult {
+  gamePath: string | null
+  auto: boolean
+  via: string | null
+  libraries?: string[]
 }
 
 export interface GameCatalogData {
@@ -53,6 +62,8 @@ export interface ElectronAPI {
   openProjectDialog: () => Promise<{ path: string; content: string } | null>
   getDefaultModPath: () => Promise<string>
   getSettings: () => Promise<Settings>
+  /** Busca HOI4 (registro de Windows, bibliotecas de Steam, rutas típicas) */
+  detectGame: () => Promise<DetectGameResult>
   setSettings: (s: Settings) => Promise<void>
   selectGameFolder: () => Promise<string | null>
   /** Lee países e ideas del juego (con caché); null si no hay carpeta o no es válida */

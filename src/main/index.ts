@@ -6,6 +6,7 @@ import path from 'path'
 import { handleExportMod } from './export'
 import { loadRealMap } from './mapLoader'
 import { listInstalledMods, type ModLayer } from './mods'
+import { findHoi4, isHoi4Install, systemEnv } from './steamDetect'
 import { planStatePatches, type StatePatchRequest } from './statesExport'
 import {
   loadSettings,
@@ -127,6 +128,24 @@ app.whenReady().then(() => {
     })
     return result.canceled ? null : result.filePaths[0]
   })
+  // ---- Detección automática de HOI4 (al arrancar, sin bloquear) ----
+  ipcMain.handle('detect-game', async () => {
+    const s = loadSettings(settingsFile)
+    const env = systemEnv()
+    // Una ruta elegida a mano se respeta mientras siga siendo válida
+    if (s.gamePath && !s.gamePathAuto && isHoi4Install(env, s.gamePath))
+      return { gamePath: s.gamePath, auto: false, via: 'manual' }
+    const found = await findHoi4(env)
+    if (found.gamePath) {
+      saveSettings(settingsFile, { ...s, gamePath: found.gamePath, gamePathAuto: true })
+      return { gamePath: found.gamePath, auto: true, via: found.via }
+    }
+    // No se encontró: si había una ruta guardada que ya no existe, se olvida
+    if (s.gamePath && !isHoi4Install(env, s.gamePath))
+      saveSettings(settingsFile, { ...s, gamePath: null })
+    return { gamePath: null, auto: false, via: null, libraries: found.libraries }
+  })
+
   ipcMain.handle('read-game-catalog', async (_, gamePath: string) => readGameCatalog(gamePath))
 
   ipcMain.handle('read-country-history', async (_, gamePath: string, fileName: string) =>

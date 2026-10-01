@@ -69,6 +69,8 @@ export interface AppState {
   game: GameCatalog | null
   /** Carpeta del juego configurada (null = sin juego) */
   gamePath: string | null
+  /** Cómo se obtuvo la carpeta del juego */
+  gameDetect: { searching: boolean; auto: boolean; via: string | null }
   // ---- Mapa (no se guarda en el proyecto ni en el historial) ----
   map: MapData | null
   /** Qué mapa está cargado: 'demo', 'game' o 'mod:<carpeta>' */
@@ -101,6 +103,7 @@ let state: AppState = {
   prompt: null,
   game: null,
   gamePath: null,
+  gameDetect: { searching: false, auto: false, via: null },
   map: null,
   mapKey: null,
   mapLoading: null,

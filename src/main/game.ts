@@ -6,13 +6,15 @@ import { shineShape } from '../shared/shine'
 
 export interface Settings {
   gamePath: string | null
+  /** true = la ruta la encontró la app sola (se vuelve a detectar si deja de existir) */
+  gamePathAuto?: boolean
 }
 
 export function loadSettings(file: string): Settings {
   try {
-    return { gamePath: null, ...JSON.parse(fs.readFileSync(file, 'utf-8')) }
+    return { gamePath: null, gamePathAuto: false, ...JSON.parse(fs.readFileSync(file, 'utf-8')) }
   } catch {
-    return { gamePath: null }
+    return { gamePath: null, gamePathAuto: false }
   }
 }
 
