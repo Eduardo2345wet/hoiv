@@ -8,6 +8,20 @@ export interface Settings {
   gamePath: string | null
   /** true = la ruta la encontró la app sola (se vuelve a detectar si deja de existir) */
   gamePathAuto?: boolean
+  /** Proyectos abiertos hace poco (más reciente primero) */
+  recent?: RecentProject[]
+  /** Proyectos que estaban abiertos en pestañas al cerrar la app */
+  openTabs?: string[]
+  /** Volver a abrir las pestañas al iniciar (por defecto sí) */
+  restoreTabs?: boolean
+}
+
+export interface RecentProject {
+  path: string
+  name: string
+  template: string
+  /** ISO */
+  date: string
 }
 
 export function loadSettings(file: string): Settings {

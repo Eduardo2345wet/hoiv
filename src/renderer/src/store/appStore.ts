@@ -3,6 +3,10 @@
 // (por ejemplo, los menús de FieldCatalog consultan el proyecto actual).
 import { useSyncExternalStore } from 'react'
 import type { Project } from '../types'
+import type { ToolId } from '../map/tools'
+import type { ViewMode } from '../map/colors'
+import type { LabelMode } from '../map/labelLayout'
+import type { View } from '../map/renderer'
 import type { CatalogKind, GameCatalog } from '../catalog/catalog'
 import type { MapData } from '../../../shared/map/types'
 import { DEMO_COUNTRY_NAMES, generateDemoMap } from '../../../shared/map/demo'
@@ -52,7 +56,89 @@ export interface Toast {
 export const TOAST_MS = 4000
 let toastId = 0
 
+// ======================= Pestañas de proyectos =======================
+export type RibbonId = 'inicio' | 'mapa' | 'focos' | 'paises' | 'ideas' | 'iconos' | 'exportar'
+
+/** Estado de la interfaz que es PROPIO de cada pestaña (nada se comparte entre pestañas) */
+export interface TabUi {
+  ribbon: RibbonId
+  tool: ToolId
+  focusTool: 'select' | 'prereq' | 'exclusive'
+  mapMode: ViewMode
+  labels: LabelMode
+  capitals: boolean
+  provinceBorders: boolean
+  gameColors: boolean
+  /** Opciones del Pincel */
+  brushOpts: { giveCore: boolean; removePreviousCores: boolean }
+  /** Vista del mapa (zoom y posición); null = ajustar al abrir */
+  mapView: View | null
+}
+
+export const DEFAULT_TAB_UI: TabUi = {
+  ribbon: 'inicio',
+  tool: 'select',
+  focusTool: 'select',
+  mapMode: 'politico',
+  labels: 'id',
+  capitals: true,
+  provinceBorders: false,
+  gameColors: false,
+  brushOpts: { giveCore: true, removePreviousCores: false },
+  mapView: null
+}
+
+/** Todo lo que cambia de una pestaña a otra */
+const TAB_KEYS = [
+  'project',
+  'past',
+  'future',
+  'filePath',
+  'dirty',
+  'selectedUid',
+  'activeTreeId',
+  'activeTag',
+  'recentTags',
+  'pendingView',
+  'selectedStateId',
+  'ui'
+] as const
+type TabKey = (typeof TAB_KEYS)[number]
+export type TabSnapshot = Pick<AppState, TabKey>
+
+export interface TabRec {
+  id: string
+  /** Estado guardado mientras la pestaña NO es la activa */
+  snap: TabSnapshot
+}
+
+let tabSeq = 0
+const blankTab = (): TabSnapshot => ({
+  project: null,
+  past: [],
+  future: [],
+  filePath: null,
+  dirty: false,
+  selectedUid: null,
+  activeTreeId: null,
+  activeTag: null,
+  recentTags: [],
+  pendingView: false,
+  selectedStateId: null,
+  ui: { ...DEFAULT_TAB_UI }
+})
+
+/** Mapas ya cargados, COMPARTIDOS entre pestañas (clave: 'demo', 'game' o 'mod:<carpeta>') */
+const mapCache = new Map<string, MapData>()
+
 export interface AppState {
+  /** Pestañas abiertas; la activa guarda su estado vivo en los campos de abajo */
+  tabs: TabRec[]
+  activeTabId: string | null
+  /** Interfaz de la pestaña activa */
+  ui: TabUi
+  /** Datos de la barra de estado que publica el mapa (no son de una pestaña) */
+  mapStatus: { hover: string; zoom: number; engine: string }
   project: Project | null
   /** Historial (snapshots del proyecto; son inmutables, así que comparten memoria) */
   past: Project[]
@@ -89,9 +175,30 @@ export interface AppState {
   toasts: Toast[]
   /** Pedido para centrar la vista del mapa en un estado (lo consume el mapa) */
   focusStateRequest: { id: number; n: number } | null
+  /** Ventanas generales (no son de una pestaña) */
+  newProjectDialog: { name: string } | null
+  propsDialog: boolean
+  /** Pedido de abrir el asistente de un país (lo consume el editor) */
+  wizardRequest: { uid?: string; step?: number; n: number } | null
+  settingsDialog: boolean
+  /** Pregunta con varios botones (guardar / no guardar / cancelar…) */
+  ask: AskRequest | null
+}
+
+export interface AskRequest {
+  title: string
+  message: string
+  /** Texto adicional en lista (por ejemplo, los proyectos con cambios) */
+  items?: string[]
+  buttons: { label: string; value: string; primary?: boolean }[]
+  resolve: (value: string) => void
 }
 
 let state: AppState = {
+  tabs: [],
+  activeTabId: null,
+  ui: { ...DEFAULT_TAB_UI },
+  mapStatus: { hover: '', zoom: 1, engine: '' },
   project: null,
   past: [],
   future: [],
@@ -113,12 +220,29 @@ let state: AppState = {
   pendingView: false,
   selectedStateId: null,
   focusStateRequest: null,
+  newProjectDialog: null,
+  propsDialog: false,
+  wizardRequest: null,
+  settingsDialog: false,
+  ask: null,
   toasts: []
 }
 const listeners = new Set<() => void>()
 // Grupo abierto del historial (no forma parte del estado visible)
 let openGroup: { key: string; time: number } | null = null
 let catalogMemo: { game: GameCatalog | null; map: MapData; value: GameCatalog } | null = null
+
+function freshSnapshot(project: Project, filePath: string | null, ribbon: RibbonId): TabSnapshot {
+  const tree = project.focusTrees[0]?.id ?? null
+  return {
+    ...blankTab(),
+    project,
+    filePath,
+    activeTreeId: tree,
+    selectedUid: project.focuses.find((f) => f.treeId === tree)?.uid ?? null,
+    ui: { ...DEFAULT_TAB_UI, ribbon }
+  }
+}
 
 export const store = {
   get: (): AppState => state,
@@ -205,19 +329,110 @@ export const store = {
     store.set({ project: next, past: [...state.past, state.project], future: rest, dirty: true })
   },
 
-  /** Abre otro proyecto: el historial empieza vacío */
+  /**
+   * Abre un proyecto en la pestaña ACTIVA (el historial empieza vacío); si no hay pestañas,
+   * crea una. Con `null` cierra la pestaña activa.
+   */
   openProject(project: Project | null, filePath: string | null): void {
     openGroup = null
-    const tree = project?.focusTrees[0]?.id ?? null
-    store.set({
-      project,
-      filePath,
-      dirty: false,
-      past: [],
-      future: [],
-      activeTreeId: tree,
-      selectedUid: project?.focuses.find((f) => f.treeId === tree)?.uid ?? null
+    if (!project) {
+      if (state.activeTabId) store.closeTab(state.activeTabId)
+      return
+    }
+    const snap = freshSnapshot(project, filePath, state.ui.ribbon)
+    if (!state.activeTabId) {
+      const id = `t${++tabSeq}`
+      store.set({ tabs: [{ id, snap }], activeTabId: id, ...snap })
+      return
+    }
+    store.set({ ...snap, ui: { ...snap.ui, ribbon: state.ui.ribbon } })
+  },
+
+  /** Abre un proyecto en una pestaña NUEVA (o activa la que ya lo tenía abierto) */
+  openInNewTab(project: Project, filePath: string | null, ribbon?: RibbonId): string {
+    openGroup = null
+    if (filePath) {
+      const same = store.listTabs().find((t) => t.filePath === filePath)
+      if (same) {
+        store.switchTab(same.id)
+        return same.id
+      }
+    }
+    store.saveActiveTab()
+    const id = `t${++tabSeq}`
+    const snap = freshSnapshot(project, filePath, ribbon ?? 'inicio')
+    store.set({ tabs: [...state.tabs, { id, snap }], activeTabId: id, ...snap })
+    void store.ensureMap()
+    return id
+  },
+
+  /** Guarda el estado vivo en la ficha de la pestaña activa */
+  saveActiveTab(): void {
+    const id = state.activeTabId
+    if (!id) return
+    const snap = {} as Record<string, unknown>
+    for (const k of TAB_KEYS) snap[k] = state[k]
+    state = {
+      ...state,
+      tabs: state.tabs.map((t) => (t.id === id ? { ...t, snap: snap as TabSnapshot } : t))
+    }
+  },
+
+  switchTab(id: string): void {
+    if (id === state.activeTabId) return
+    const target = state.tabs.find((t) => t.id === id)
+    if (!target) return
+    openGroup = null
+    store.saveActiveTab()
+    store.set({ activeTabId: id, ...target.snap, pick: null })
+    void store.ensureMap()
+  },
+
+  /** Pestaña siguiente (+1) o anterior (−1), dando la vuelta */
+  cycleTab(dir: number): void {
+    const n = state.tabs.length
+    if (n < 2) return
+    const i = state.tabs.findIndex((t) => t.id === state.activeTabId)
+    store.switchTab(state.tabs[(i + dir + n) % n].id)
+  },
+
+  /** Cierra una pestaña (la interfaz ya preguntó si había cambios sin guardar) */
+  closeTab(id: string): void {
+    const idx = state.tabs.findIndex((t) => t.id === id)
+    if (idx < 0) return
+    openGroup = null
+    const rest = state.tabs.filter((t) => t.id !== id)
+    if (id !== state.activeTabId) return store.set({ tabs: rest })
+    const next = rest[Math.min(idx, rest.length - 1)]
+    if (!next) store.set({ tabs: [], activeTabId: null, ...blankTab(), pick: null })
+    else store.set({ tabs: rest, activeTabId: next.id, ...next.snap, pick: null })
+    void store.ensureMap()
+  },
+
+  /** Lista de pestañas con sus datos visibles (la activa lee el estado vivo) */
+  listTabs(): {
+    id: string
+    name: string
+    dirty: boolean
+    filePath: string | null
+    active: boolean
+  }[] {
+    return state.tabs.map((t) => {
+      const live = t.id === state.activeTabId
+      const src = live ? state : t.snap
+      return {
+        id: t.id,
+        name: src.project?.modName ?? '—',
+        dirty: src.dirty,
+        filePath: src.filePath,
+        active: live
+      }
     })
+  },
+
+  /** Cambia la interfaz propia de la pestaña activa */
+  setUi(patch: Partial<TabUi>): void {
+    store.set({ ui: { ...state.ui, ...patch } })
   },
 
   /**
@@ -241,12 +456,20 @@ export const store = {
   },
 
   /** Carga el mapa: el REAL si hay carpeta del juego, si no el de DEMOSTRACIÓN */
-  async loadMap(forceDemo = false): Promise<void> {
-    const api = window.electronAPI
+  async loadMap(forceDemo = false, forceReload = false): Promise<void> {
+    const api = typeof window === 'undefined' ? undefined : window.electronAPI
     const gamePath = state.gamePath
     const key = forceDemo ? 'demo' : store.desiredMapKey()
+    // Los mapas se COMPARTEN entre pestañas: el que ya se cargó no se vuelve a leer
+    const cached = !forceDemo || key === 'demo' ? mapCache.get(key) : undefined
+    if (cached && !forceReload) {
+      store.set({ map: cached, mapKey: key, mapLoading: null, mapError: null })
+      return
+    }
     if (key === 'demo' || !gamePath || !api) {
-      store.set({ map: generateDemoMap(), mapKey: 'demo', mapLoading: null, mapError: null })
+      const demo = mapCache.get('demo') ?? generateDemoMap()
+      mapCache.set('demo', demo)
+      store.set({ map: demo, mapKey: 'demo', mapLoading: null, mapError: null })
       return
     }
     const mod = key.startsWith('mod:') ? (state.project?.mapSettings.mod ?? null) : null
@@ -257,19 +480,28 @@ export const store = {
     const off = api.onMapProgress((p) => store.set({ mapLoading: p }))
     try {
       const res = await api.loadMap(gamePath, mod)
-      if (res.ok) store.set({ map: res.map, mapKey: key, mapLoading: null })
-      else store.set({ mapLoading: null, mapError: res.error })
+      if (res.ok) {
+        mapCache.set(key, res.map)
+        store.set({ map: res.map, mapKey: key, mapLoading: null })
+      } else store.set({ mapLoading: null, mapError: res.error })
     } finally {
       off()
     }
+    // Si mientras cargaba se cambió de pestaña, cargar el mapa de la pestaña de ahora
+    if (state.map && state.mapKey !== store.desiredMapKey()) void store.ensureMap()
   },
 
   /** Qué mapa corresponde a la base del proyecto: demo (sin juego), juego o un mod */
   desiredMapKey(): string {
-    if (!state.gamePath || !window.electronAPI) return 'demo'
+    if (!state.gamePath || typeof window === 'undefined' || !window.electronAPI) return 'demo'
     const ms = state.project?.mapSettings
     if (ms?.base === 'mod' && ms.mod) return `mod:${ms.mod.path}`
     return 'game'
+  },
+
+  /** Olvida los mapas en memoria (al cambiar la carpeta del juego) */
+  clearMapCache(): void {
+    mapCache.clear()
   },
 
   /** Carga el mapa si el que hay no corresponde a la base actual */
@@ -313,6 +545,16 @@ export const store = {
     const p = state.pick
     store.set({ pick: null })
     p?.onCancel?.()
+  },
+
+  /** Pregunta con botones; devuelve el `value` del botón elegido ('' si se cierra) */
+  askUser(req: Omit<AskRequest, 'resolve'>): Promise<string> {
+    return new Promise((resolve) => store.set({ ask: { ...req, resolve } }))
+  },
+  answerAsk(value: string): void {
+    const a = state.ask
+    store.set({ ask: null })
+    a?.resolve(value)
   },
 
   // ---- Diálogo de texto ----

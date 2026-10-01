@@ -27,7 +27,17 @@ export interface ExportModPayload {
   files?: { path: string; text?: string; bom?: boolean; data?: Uint8Array }[]
 }
 
+export interface RecentProject {
+  path: string
+  name: string
+  template: string
+  date: string
+}
+
 export interface Settings {
+  recent?: RecentProject[]
+  openTabs?: string[]
+  restoreTabs?: boolean
   /** Carpeta de instalación de HOI4 (opcional) */
   gamePath: string | null
   /** La encontró la app sola */
@@ -62,6 +72,18 @@ export interface ElectronAPI {
     bytes: Uint8Array,
     defaultName?: string
   ) => Promise<{ path: string } | { error: string } | null>
+  /** La ventana se quiere cerrar: la interfaz debe responder con ackCloseRequest y confirmClose */
+  onCloseRequest: (cb: () => void) => () => void
+  ackCloseRequest: () => Promise<void>
+  confirmClose: () => Promise<void>
+  /** Documentos/HOI4 Mod Studio/Proyectos */
+  getProjectsDir: () => Promise<string>
+  createProject: (
+    parent: string,
+    name: string,
+    json: string
+  ) => Promise<{ ok: true; path: string; folder: string } | { ok: false; error: string }>
+  openProjectPath: (file: string) => Promise<{ path: string; content: string } | null>
   saveProjectDialog: (content: string, defaultName?: string) => Promise<string | null>
   /** Guarda directamente en una ruta ya conocida */
   saveProjectToPath: (filePath: string, content: string) => Promise<boolean>
@@ -70,7 +92,7 @@ export interface ElectronAPI {
   getSettings: () => Promise<Settings>
   /** Busca HOI4 (registro de Windows, bibliotecas de Steam, rutas típicas) */
   detectGame: () => Promise<DetectGameResult>
-  setSettings: (s: Settings) => Promise<void>
+  setSettings: (s: Partial<Settings>) => Promise<void>
   selectGameFolder: () => Promise<string | null>
   /** Lee países e ideas del juego (con caché); null si no hay carpeta o no es válida */
   readGameCatalog: (gamePath: string) => Promise<GameCatalogData | null>

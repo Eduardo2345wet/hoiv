@@ -5,6 +5,7 @@ import fs from 'fs'
 import path from 'path'
 import { handleExportMod } from './export'
 import { saveImage } from './saveImage'
+import { createProjectFolder, readProjectFile } from './projectFiles'
 import { getJomini, loadRealMap } from './mapLoader'
 import { listInstalledMods, type ModLayer } from './mods'
 import { findHoi4, isHoi4Install, systemEnv } from './steamDetect'
@@ -36,6 +37,32 @@ function createWindow(): void {
 
   mainWindow.on('ready-to-show', () => {
     mainWindow.show()
+  })
+
+  // Cerrar la app: la interfaz pregunta UNA vez por los proyectos sin guardar. Si no contesta
+  // enseguida (por ejemplo, no cargó), se cierra igual.
+  let allowClose = false
+  let acked = false
+  mainWindow.on('close', (e) => {
+    if (allowClose) return
+    e.preventDefault()
+    acked = false
+    mainWindow.webContents.send('app-close-request')
+    setTimeout(() => {
+      if (!acked && !mainWindow.isDestroyed()) {
+        allowClose = true
+        mainWindow.close()
+      }
+    }, 1500)
+  })
+  ipcMain.removeHandler('app-close-ack')
+  ipcMain.handle('app-close-ack', () => {
+    acked = true
+  })
+  ipcMain.removeHandler('app-close-confirmed')
+  ipcMain.handle('app-close-confirmed', () => {
+    allowClose = true
+    if (!mainWindow.isDestroyed()) mainWindow.close()
   })
 
   if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
@@ -110,6 +137,15 @@ app.whenReady().then(() => {
     return 'error' in r ? { error: r.error } : { path: result.filePath }
   })
 
+  // Proyectos: carpeta por defecto, crear uno nuevo y abrir por ruta (recientes / pestañas)
+  ipcMain.handle('get-projects-dir', async () =>
+    path.join(app.getPath('documents'), 'HOI4 Mod Studio', 'Proyectos')
+  )
+  ipcMain.handle('create-project', async (_, parent: string, name: string, json: string) =>
+    createProjectFolder(parent, name, json)
+  )
+  ipcMain.handle('open-project-path', async (_, file: string) => readProjectFile(file))
+
   ipcMain.handle('save-project-to-path', async (_, filePath: string, content: string) => {
     if (!filePath.toLowerCase().endsWith('.json')) return false
     fs.writeFileSync(filePath, content, 'utf-8')
@@ -133,7 +169,10 @@ app.whenReady().then(() => {
   // ---- Ajustes y juego base (opcional) ----
   const settingsFile = path.join(app.getPath('userData'), 'settings.json')
   ipcMain.handle('get-settings', async () => loadSettings(settingsFile))
-  ipcMain.handle('set-settings', async (_, s: Settings) => saveSettings(settingsFile, s))
+  // Se mezcla con lo guardado: quien cambia un campo no borra los demás
+  ipcMain.handle('set-settings', async (_, s: Partial<Settings>) =>
+    saveSettings(settingsFile, { ...loadSettings(settingsFile), ...s })
+  )
   ipcMain.handle('select-game-folder', async () => {
     const result = await dialog.showOpenDialog({
       title: 'Carpeta de instalación de Hearts of Iron IV',

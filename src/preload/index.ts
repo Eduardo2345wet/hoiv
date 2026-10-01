@@ -8,6 +8,17 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.invoke('save-project-dialog', content, defaultName),
   saveImageDialog: (bytes: Uint8Array, defaultName?: string) =>
     ipcRenderer.invoke('save-image-dialog', bytes, defaultName),
+  onCloseRequest: (cb: () => void) => {
+    const listener = (): void => cb()
+    ipcRenderer.on('app-close-request', listener)
+    return () => ipcRenderer.removeListener('app-close-request', listener)
+  },
+  ackCloseRequest: () => ipcRenderer.invoke('app-close-ack'),
+  confirmClose: () => ipcRenderer.invoke('app-close-confirmed'),
+  getProjectsDir: () => ipcRenderer.invoke('get-projects-dir'),
+  createProject: (parent: string, name: string, json: string) =>
+    ipcRenderer.invoke('create-project', parent, name, json),
+  openProjectPath: (file: string) => ipcRenderer.invoke('open-project-path', file),
   saveProjectToPath: (filePath: string, content: string) =>
     ipcRenderer.invoke('save-project-to-path', filePath, content),
   openProjectDialog: () => ipcRenderer.invoke('open-project-dialog'),

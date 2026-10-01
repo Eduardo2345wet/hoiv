@@ -1,11 +1,12 @@
 // Migración automática de proyecto.json: los proyectos viejos se abren sin error.
 import { DEFAULT_MAP_SETTINGS, PROJECT_VERSION, type Project } from './types'
+import { templateOf } from './templates'
 import { newCountry } from './countries/countryOps'
 import { BUILTIN_COUNTRIES } from './catalog/builtin'
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 export function migrateProject(raw: any): Project {
-  if (!raw || typeof raw !== 'object' || !Array.isArray(raw.focuses) || !raw.tag)
+  if (!raw || typeof raw !== 'object' || !Array.isArray(raw.focuses) || typeof raw.tag !== 'string')
     throw new Error('No es un proyecto válido de HOI4 Mod Studio')
   const p = { ...raw }
   const version = typeof p.version === 'number' ? p.version : 1
@@ -66,6 +67,9 @@ export function migrateProject(raw: any): Project {
       noNation: { ...DEFAULT_MAP_SETTINGS.noNation, ...p.mapSettings.noNation }
     }
   p.modName = p.modName ?? 'mod'
+  // v5 → v6: la plantilla es parte del proyecto. Un proyecto viejo toma la de su base guardada
+  // y NO se borra nada (los estados ya pintados se conservan tal cual).
+  p.template = p.template ?? templateOf(p)
   p.version = PROJECT_VERSION
   return p as Project
 }

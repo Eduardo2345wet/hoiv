@@ -1,7 +1,7 @@
 // Tipos de datos del proyecto (lo que se guarda en proyecto.json)
 
 /** Versión actual del formato de proyecto.json (ver migrate.ts) */
-export const PROJECT_VERSION = 5
+export const PROJECT_VERSION = 6
 
 /** Texto ya generado de las 3 ranuras de Blockly de un foco */
 export interface FocusScripts {
@@ -220,8 +220,13 @@ export interface StateEdit {
   removeCores?: string[]
 }
 
+/** Plantilla con la que se CREÓ el proyecto (queda fija; ver templates.ts) */
+export type TemplateId = 'blank' | 'blankNoNation' | 'game' | 'mod' | 'content'
+
 export interface Project {
   version: number
+  /** Plantilla de creación. Los proyectos viejos la toman de la base del mapa que tenían. */
+  template?: TemplateId
   modName: string
   /** Tag con el que se creó el mod (compatibilidad); los países mandan */
   tag: string

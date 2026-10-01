@@ -472,7 +472,7 @@ describe('migración v3 → v4', () => {
     const v3 = { ...emptyProject(), version: 3 } as Record<string, unknown>
     delete v3.stateEdits
     const m = migrateProject(v3)
-    expect(m.version).toBe(5)
+    expect(m.version).toBe(6)
     expect(m.stateEdits).toEqual({})
     expect(m.countries).toHaveLength(1)
   })

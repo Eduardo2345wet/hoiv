@@ -1,40 +1,19 @@
 // Pestaña "Mapa": barra de herramientas, tarjeta del país activo, panel derecho,
 // mapa en el centro y barra inferior. Tipo Paint: se pinta por ESTADO.
 import { useEffect, useMemo, useRef, useState } from 'react'
-import {
-  Eraser,
-  Maximize,
-  MousePointer2,
-  PaintBucket,
-  Paintbrush,
-  Pipette,
-  Redo2,
-  Shield,
-  Star,
-  Undo2,
-  ZoomIn,
-  ZoomOut
-} from 'lucide-react'
+import { registerCommands } from '../commands'
+import { Eraser, MousePointer2, PaintBucket, Paintbrush, Pipette, Shield, Star } from 'lucide-react'
 import type { Project } from '../../types'
 import { store, useApp } from '../../store/appStore'
-import MapView, {
-  LABEL_MODES,
-  type LabelMode,
-  type MapPointer,
-  type MapViewHandle,
-  type StrokeEvent
-} from './MapView'
-import { VIEW_MODES, type ViewMode } from '../../map/colors'
+import MapView, { type MapPointer, type MapViewHandle, type StrokeEvent } from './MapView'
 import { handleStroke, type ToolId } from '../../map/tools'
 import CountryCard from './CountryCard'
-import PalettePanel from './PalettePanel'
 import NoNationSettings from './NoNationSettings'
 import ExportImageDialog from './ExportImageDialog'
 import { nextPendingIndex, noNationActive, pendingStates } from '../../map/noNation'
 import { brushForKey, NO_NATION, setBrush } from '../../map/brush'
 import { countryDrawColor } from '../../map/colors'
 import { toHex } from '../../countries/color'
-import MapBaseDialog from './MapBaseDialog'
 import MapSidePanel from './MapSidePanel'
 
 interface Props {
@@ -100,7 +79,7 @@ export default function MapTab({
   project,
   onOpenWizard,
   onGoTab,
-  lastValidatorMessage
+  lastValidatorMessage: _lastValidatorMessage
 }: Props): JSX.Element {
   const map = useApp((s) => s.map)
   const loading = useApp((s) => s.mapLoading)
@@ -110,29 +89,44 @@ export default function MapTab({
   const selectedId = useApp((s) => s.selectedStateId)
   const focusReq = useApp((s) => s.focusStateRequest)
   const pick = useApp((s) => (s.pick?.kind === 'state' ? s.pick : null))
-  const canUndo = useApp((s) => s.past.length > 0)
-  const canRedo = useApp((s) => s.future.length > 0)
   const game = useApp(() => store.catalogGame())
-  // Herramienta por defecto: el Pincel si ya hay un país como pincel
-  const [tool, setTool] = useState<ToolId>(() => (store.get().activeTag ? 'brush' : 'select'))
-  const [mode, setMode] = useState<ViewMode>('politico')
-  // Estilo del mapa
-  const [labels, setLabels] = useState<LabelMode>('id')
-  const [capitals, setCapitals] = useState(true)
-  const [provinceBorders, setProvinceBorders] = useState(false)
-  const [gameColors, setGameColors] = useState(false)
+  // Herramienta, vista y estilo: son de CADA pestaña (se guardan en store.ui) y la cinta los cambia
+  const ui = useApp((s) => s.ui)
+  const { tool, mapMode: mode, labels, capitals, provinceBorders, gameColors } = ui
+  const setTool = (t: ToolId): void => store.setUi({ tool: t })
   const [exportOpen, setExportOpen] = useState(false)
   const [hover, setHover] = useState<MapPointer | null>(null)
-  const [zoom, setZoom] = useState(1)
-  const [rendererKind, setRendererKind] = useState('')
-  const [brushOpts, setBrushOpts] = useState({ giveCore: true, removePreviousCores: false })
+  const brushOpts = ui.brushOpts
   const [reference, setReference] = useState<{
     src: string
     opacity: number
     visible: boolean
   } | null>(null)
   const viewRef = useRef<MapViewHandle>(null)
-  const hoverState = hover?.stateId ? map?.states.find((s) => s.id === hover.stateId) : undefined
+  // Lo que está bajo el cursor, para la barra de estado general
+  useEffect(() => {
+    const st = hover?.stateId ? map?.states.find((x) => x.id === hover.stateId) : undefined
+    const text = hover
+      ? st
+        ? `${st.name} #${st.id} · provincia ${hover.province}`
+        : `provincia ${hover.province} (mar/lago)`
+      : ''
+    if (store.get().mapStatus.hover !== text)
+      store.set({ mapStatus: { ...store.get().mapStatus, hover: text } })
+  }, [hover, map])
+  // Comandos de la cinta (zoom, ajustar, imagen PNG, Sin nación…)
+  useEffect(
+    () =>
+      registerCommands({
+        mapZoomIn: () => viewRef.current?.zoomBy(1.25),
+        mapZoomOut: () => viewRef.current?.zoomBy(0.8),
+        mapFit: () => viewRef.current?.fit(),
+        mapExportPng: () => setExportOpen(true),
+        mapNoNation: () => setNnDialog(true),
+        mapReload: () => void store.loadMap(false, true)
+      }),
+    []
+  )
 
   // Base del mapa: se pregunta UNA vez; el mapa cargado sigue a la base elegida
   const ms = project.mapSettings
@@ -151,7 +145,6 @@ export default function MapTab({
     setPendingIdx(i)
     store.focusState(pending[i])
   }
-  const [baseDialog, setBaseDialog] = useState(ms.base === null)
   useEffect(() => {
     void store.ensureMap()
   }, [ms.base, ms.mod?.path, gamePath])
@@ -242,148 +235,7 @@ export default function MapTab({
   }, [tool, activeTag, project, game, gameColors])
   return (
     <div className="flex h-full min-h-0 flex-col">
-      {/* 1. Barra de herramientas */}
-      <div className="flex flex-wrap items-center gap-1 border-b border-hoi-border bg-hoi-panel px-2 py-1.5">
-        {TOOLS.map((t) => (
-          <button
-            key={t.id}
-            title={`${t.label} (${t.key})`}
-            className={tool === t.id ? 'btn-primary px-2' : 'btn px-2'}
-            onClick={() => setTool(t.id)}
-          >
-            {t.icon}
-          </button>
-        ))}
-        <div className="mx-1 h-6 w-px bg-hoi-border" />
-        <button
-          className="btn px-2"
-          title="Acercar (+)"
-          onClick={() => viewRef.current?.zoomBy(1.25)}
-        >
-          <ZoomIn size={16} />
-        </button>
-        <button
-          className="btn px-2"
-          title="Alejar (–)"
-          onClick={() => viewRef.current?.zoomBy(0.8)}
-        >
-          <ZoomOut size={16} />
-        </button>
-        <button
-          className="btn px-2"
-          title="Ajustar al mapa (F)"
-          onClick={() => viewRef.current?.fit()}
-        >
-          <Maximize size={16} />
-        </button>
-        <button
-          className="btn px-2 disabled:opacity-40"
-          title="Deshacer (Ctrl+Z)"
-          disabled={!canUndo}
-          onClick={() => store.undo()}
-        >
-          <Undo2 size={16} />
-        </button>
-        <button
-          className="btn px-2 disabled:opacity-40"
-          title="Rehacer (Ctrl+Y)"
-          disabled={!canRedo}
-          onClick={() => store.redo()}
-        >
-          <Redo2 size={16} />
-        </button>
-        {tool === 'brush' && (
-          <div className="ml-2 flex items-center gap-3 text-xs">
-            <label className="flex items-center gap-1">
-              <input
-                type="checkbox"
-                checked={brushOpts.giveCore}
-                onChange={(e) => setBrushOpts({ ...brushOpts, giveCore: e.target.checked })}
-              />
-              Dar core al pintar
-            </label>
-            <label className="flex items-center gap-1">
-              <input
-                type="checkbox"
-                checked={brushOpts.removePreviousCores}
-                onChange={(e) =>
-                  setBrushOpts({ ...brushOpts, removePreviousCores: e.target.checked })
-                }
-              />
-              Quitar cores del dueño anterior
-            </label>
-          </div>
-        )}
-        <div className="flex-1" />
-        <button
-          className="btn px-2 text-xs"
-          title="Punto de partida del mapa"
-          onClick={() => setBaseDialog(true)}
-        >
-          🗺 Base:{' '}
-          {ms.base === 'blank'
-            ? 'lienzo en blanco'
-            : ms.base === 'mod'
-              ? `mod "${ms.mod?.name}"`
-              : 'mapa del juego'}
-          {noNation && ' · Sin nación'}
-        </button>
-        {noNation && (
-          <button
-            className="btn px-2 text-xs"
-            title="Nombre, tag y cores del país técnico"
-            onClick={() => setNnDialog(true)}
-          >
-            ⚙ Sin nación
-          </button>
-        )}
-        {/* Imagen de referencia (solo visual) */}
-        <label
-          className="btn cursor-pointer px-2 text-xs"
-          title="Subir una imagen PNG para calcar encima del mapa"
-        >
-          🖼 Referencia
-          <input
-            type="file"
-            accept=".png,.jpg,.jpeg,.webp"
-            className="hidden"
-            onChange={(e) => loadReference(e.target.files?.[0])}
-          />
-        </label>
-        {reference && (
-          <div className="flex items-center gap-1 text-xs">
-            <button
-              className="btn px-2 py-1"
-              onClick={() => setReference({ ...reference, visible: !reference.visible })}
-            >
-              {reference.visible ? 'Ocultar' : 'Mostrar'}
-            </button>
-            <input
-              type="range"
-              min={0}
-              max={100}
-              value={reference.opacity}
-              onChange={(e) => setReference({ ...reference, opacity: Number(e.target.value) })}
-              className="w-24 accent-orange-500"
-              title="Opacidad"
-            />
-            <span className="w-8">{reference.opacity}%</span>
-          </div>
-        )}
-        {gamePath && (
-          <button
-            className="btn px-2 text-xs"
-            title="Volver a leer el mapa del juego"
-            onClick={() => void store.loadMap()}
-          >
-            Recargar mapa
-          </button>
-        )}
-      </div>
-
       <div className="flex min-h-0 flex-1">
-        {/* Paleta de países (izquierda, plegable) */}
-        <PalettePanel project={project} gameColors={gameColors} onOpenWizard={onOpenWizard} />
         {/* 4. Mapa en el centro */}
         <div className="relative min-w-0 flex-1">
           {map && (
@@ -407,8 +259,17 @@ export default function MapTab({
               reference={reference}
               onStroke={onStroke}
               onHover={setHover}
-              onViewChange={(v) => setZoom(v.scale)}
-              onRendererKind={setRendererKind}
+              initialView={ui.mapView}
+              onViewChange={(v) => {
+                // Sin avisar a React en cada cuadro: la vista se guarda en la pestaña
+                store.get().ui.mapView = v
+                const z = Math.round(v.scale * 100)
+                if (Math.round(store.get().mapStatus.zoom * 100) !== z)
+                  store.set({ mapStatus: { ...store.get().mapStatus, zoom: v.scale } })
+              }}
+              onRendererKind={(k) =>
+                store.set({ mapStatus: { ...store.get().mapStatus, engine: k } })
+              }
             />
           )}
           {loading && (
@@ -442,7 +303,7 @@ export default function MapTab({
             <CountryCard project={project} gameColors={gameColors} onOpenWizard={onOpenWizard} />
           </div>
 
-          {/* Etiqueta del mapa y selector de modo de vista */}
+          {/* Aviso del mapa de demostración y la imagen de referencia (solo para calcar) */}
           <div className="absolute right-3 top-3 z-10 flex flex-col items-end gap-1">
             {map?.source === 'demo' && (
               <div
@@ -452,69 +313,41 @@ export default function MapTab({
                 Mapa de demostración
               </div>
             )}
-            <select
-              className="rounded border border-hoi-border bg-hoi-panel px-2 py-1 text-xs"
-              value={mode}
-              onChange={(e) => setMode(e.target.value as ViewMode)}
-            >
-              {VIEW_MODES.map(([m, l]) => (
-                <option key={m} value={m}>
-                  Vista: {l}
-                </option>
-              ))}
-            </select>
-            <select
-              className="rounded border border-hoi-border bg-hoi-panel px-2 py-1 text-xs"
-              value={labels}
-              onChange={(e) => setLabels(e.target.value as LabelMode)}
-              title="Etiquetas de los estados (solo se muestran si caben)"
-            >
-              {LABEL_MODES.map(([m, l]) => (
-                <option key={m} value={m}>
-                  Etiquetas: {l}
-                </option>
-              ))}
-            </select>
-            <div className="flex flex-col gap-0.5 rounded border border-hoi-border bg-hoi-panel/95 px-2 py-1 text-xs">
+            <div className="flex items-center gap-1 rounded border border-hoi-border bg-hoi-panel/95 px-2 py-1 text-xs">
               <label
-                className="flex items-center gap-1"
-                title="Nombre del país con ★ en su capital"
+                className="cursor-pointer"
+                title="Subir una imagen PNG para calcar encima del mapa"
               >
+                🖼 Referencia
                 <input
-                  type="checkbox"
-                  checked={capitals}
-                  onChange={(e) => setCapitals(e.target.checked)}
+                  type="file"
+                  accept=".png,.jpg,.jpeg,.webp"
+                  className="hidden"
+                  onChange={(e) => loadReference(e.target.files?.[0])}
                 />
-                Capitales
               </label>
-              <label className="flex items-center gap-1">
-                <input
-                  type="checkbox"
-                  checked={provinceBorders}
-                  onChange={(e) => setProvinceBorders(e.target.checked)}
-                />
-                Fronteras de provincia
-              </label>
-              <label
-                className="flex items-center gap-1"
-                title="Aplica el apagado del juego: saturación ×0.6 y valor ×0.8"
-              >
-                <input
-                  type="checkbox"
-                  checked={gameColors}
-                  onChange={(e) => setGameColors(e.target.checked)}
-                />
-                Colores como en el juego
-              </label>
+              {reference && (
+                <>
+                  <button
+                    className="btn px-2 py-0.5"
+                    onClick={() => setReference({ ...reference, visible: !reference.visible })}
+                  >
+                    {reference.visible ? 'Ocultar' : 'Mostrar'}
+                  </button>
+                  <input
+                    type="range"
+                    min={0}
+                    max={100}
+                    value={reference.opacity}
+                    onChange={(e) =>
+                      setReference({ ...reference, opacity: Number(e.target.value) })
+                    }
+                    className="w-20 accent-orange-500"
+                    title="Opacidad"
+                  />
+                </>
+              )}
             </div>
-            <button
-              className="btn px-2 text-xs"
-              title="Guarda el mapa como imagen PNG (5632×2048, 2× o la vista actual)"
-              disabled={!map}
-              onClick={() => setExportOpen(true)}
-            >
-              🖼 Exportar imagen del mapa (PNG)
-            </button>
           </div>
 
           {pick && (
@@ -530,18 +363,9 @@ export default function MapTab({
         </aside>
       </div>
 
-      {/* 5. Barra inferior */}
-      <div className="flex items-center gap-4 border-t border-hoi-border bg-hoi-panel px-3 py-1 text-xs text-hoi-muted">
-        <span className="text-hoi-text">{pick ? 'Elegir en el mapa' : toolInfo.label}</span>
-        <span>
-          {hover
-            ? hoverState
-              ? `${hoverState.name} #${hoverState.id} · provincia ${hover.province}`
-              : `provincia ${hover.province} (mar/lago)`
-            : '—'}
-        </span>
-        <span>Zoom {Math.round(zoom * 100)} %</span>
-        {noNation && map && (
+      {/* Barra de pendientes (solo con Sin nación); lo demás está en la barra de estado general */}
+      {noNation && map && (
+        <div className="flex items-center gap-4 border-t border-hoi-border bg-hoi-panel px-3 py-1 text-xs text-hoi-muted">
           <span className="flex items-center gap-2 text-hoi-text">
             <span title="Estados que todavía son Sin nación">
               Pendientes: <b>{pending.length}</b> de {map.states.length} estados
@@ -585,15 +409,8 @@ export default function MapTab({
               </>
             )}
           </span>
-        )}
-        {rendererKind && (
-          <span title="Motor de dibujo">{rendererKind === 'webgl2' ? 'WebGL2' : 'Canvas 2D'}</span>
-        )}
-        <span className="flex-1 truncate text-right" title={lastValidatorMessage}>
-          {lastValidatorMessage}
-        </span>
-      </div>
-      {baseDialog && <MapBaseDialog project={project} onClose={() => setBaseDialog(false)} />}
+        </div>
+      )}
       {nnDialog && <NoNationSettings project={project} onClose={() => setNnDialog(false)} />}
       {exportOpen && (
         <ExportImageDialog

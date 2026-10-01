@@ -84,6 +84,8 @@ interface Props {
    */
   onStroke: (phase: 'start' | 'move' | 'end', stateId: number, e: StrokeEvent) => void
   onHover: (p: MapPointer | null) => void
+  /** Vista guardada de la pestaña (null = ajustar al mapa) */
+  initialView?: View | null
   onViewChange?: (v: View) => void
   onRendererKind?: (k: string) => void
 }
@@ -253,7 +255,7 @@ export default forwardRef<MapViewHandle, Props>(function MapView(props, ref) {
     // Paleta actual al renderizador nuevo (el efecto de la paleta ya pudo haber corrido)
     r?.setPalette(paletteRef.current)
     props.onRendererKind?.(r?.kind ?? 'ninguno')
-    commit(fitView())
+    commit(props.initialView ?? fitView())
     return () => {
       r?.destroy()
       rendererRef.current = null

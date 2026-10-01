@@ -7,7 +7,7 @@ import { getCatalogOptions } from '../../catalog/catalog'
 import { validateTag } from '../../export/validator'
 import { proposeNoNationTag } from '../../map/noNation'
 import Modal from '../Modal'
-import { setMapSettings } from './MapBaseDialog'
+import { setMapSettings } from '../../map/resetMap'
 
 export default function NoNationSettings({
   project,

@@ -46,7 +46,8 @@ export async function handleExportMod(payload: ExportModPayload): Promise<Export
   try {
     const { exportPath, modName, tag, focusTreeScript, locYaml } = payload
 
-    if (!exportPath || !modName || !tag) {
+    // (los proyectos nuevos no tienen un tag propio: los árboles van en `files`, uno por país)
+    if (!exportPath || !modName) {
       return { success: false, error: 'Parámetros de exportación inválidos' }
     }
     if (isGameInstallFolder(exportPath)) {
@@ -85,7 +86,7 @@ export async function handleExportMod(payload: ExportModPayload): Promise<Export
     const focusDir = path.join(modFolder, 'common', 'national_focus')
     if (focusTreeScript) {
       fs.mkdirSync(focusDir, { recursive: true })
-      fs.writeFileSync(path.join(focusDir, `${tag}_focus.txt`), focusTreeScript, 'utf-8')
+      fs.writeFileSync(path.join(focusDir, `${tag || 'mod'}_focus.txt`), focusTreeScript, 'utf-8')
     }
 
     // 4. localisation/english/NOMBRE_l_english.yml en UTF-8 CON BOM (﻿)

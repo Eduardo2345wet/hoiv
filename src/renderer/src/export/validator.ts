@@ -77,7 +77,8 @@ export function validateProject(
   // (los tags de los países se validan en countries/validateCountries.ts)
   if (!project.modName.trim())
     issues.push({ severity: 'error', message: 'El mod no tiene nombre.' })
-  if (project.focuses.length === 0)
+  // Un mod solo de mapa (sin árboles) puede no tener focos; con árboles, cada uno necesita alguno
+  if (project.focuses.length === 0 && project.focusTrees.length > 0)
     issues.push({
       severity: 'error',
       message: 'El árbol no tiene ningún foco.'

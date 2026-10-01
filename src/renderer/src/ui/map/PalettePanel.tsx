@@ -20,9 +20,16 @@ interface Props {
   project: Project
   gameColors: boolean
   onOpenWizard: (countryUid?: string, step?: number) => void
+  /** Dentro del Navegador del proyecto: sin borde, ancho ni botón de plegar */
+  embedded?: boolean
 }
 
-export default function PalettePanel({ project, gameColors, onOpenWizard }: Props): JSX.Element {
+export default function PalettePanel({
+  project,
+  gameColors,
+  onOpenWizard,
+  embedded
+}: Props): JSX.Element {
   const map = useApp((s) => s.map)
   const activeTag = useApp((s) => s.activeTag)
   const recent = useApp((s) => s.recentTags)
@@ -158,7 +165,7 @@ export default function PalettePanel({ project, gameColors, onOpenWizard }: Prop
     store.toast(`País creado: ${c.names.name} (${c.tag}) · ya puedes pintar`, { undo: true })
   }
 
-  if (collapsed)
+  if (collapsed && !embedded)
     return (
       <div className="flex w-8 flex-col items-center border-r border-hoi-border bg-hoi-panel py-2">
         <button title="Mostrar la paleta" onClick={() => setCollapsed(false)}>
@@ -171,8 +178,16 @@ export default function PalettePanel({ project, gameColors, onOpenWizard }: Prop
     )
 
   return (
-    <div className="flex w-60 shrink-0 flex-col border-r border-hoi-border bg-hoi-panel">
-      <div className="flex items-center justify-between border-b border-hoi-border px-3 py-2">
+    <div
+      className={
+        embedded
+          ? 'flex min-h-0 flex-1 flex-col'
+          : 'flex w-60 shrink-0 flex-col border-r border-hoi-border bg-hoi-panel'
+      }
+    >
+      <div
+        className={`flex items-center justify-between border-b border-hoi-border px-3 py-2 ${embedded ? 'hidden' : ''}`}
+      >
         <span className="text-sm font-semibold text-hoi-accent">Paleta</span>
         <button title="Plegar la paleta" onClick={() => setCollapsed(true)}>
           <ChevronLeft size={16} />
