@@ -96,6 +96,29 @@ describe('interfaz tipo NX (partes 1 a 4)', () => {
     await page.close()
   }, 120_000)
 
+  it('Focos sin países avisa; Navegador y cinta cambian de vista', async ({ skip }) => {
+    if (!browser) skip()
+    const page = await fresh()
+    await newProject(page, 'Solo focos', 'Lienzo en blanco')
+    await page.click('button:text-is("Focos")')
+    await page.click('button:has-text("Añadir foco")')
+    await page.waitForSelector('text=Primero crea un país')
+    // La cinta cambia la vista principal: Países muestra su pestaña
+    await page.click('button:text-is("Países")')
+    await page.waitForSelector('button:has-text("Crear país")')
+    // Propiedades del proyecto: la plantilla se ve ahí y no hay botón para cambiarla en el mapa
+    await page.click('button:text-is("Archivo")')
+    await page.click('text=Propiedades del proyecto…')
+    await page.waitForSelector('dt:text-is("Plantilla") + dd:has-text("Lienzo en blanco")')
+    await page.click('button:text-is("Cerrar")')
+    await page.click('button:text-is("Mapa")')
+    expect(await page.locator('button:has-text("Base:")').count()).toBe(0)
+    expect(await page.locator('button:has-text("Nuevo proyecto con otra plantilla")').count()).toBe(
+      1
+    )
+    await page.close()
+  }, 120_000)
+
   it('dos pestañas: pintar en una no cambia la otra y Ctrl+Tab cambia', async ({ skip }) => {
     if (!browser) skip()
     const page = await fresh()

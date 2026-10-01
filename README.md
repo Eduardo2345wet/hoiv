@@ -25,6 +25,61 @@ No hace falta tener el juego instalado. No se necesitan compiladores: todo (incl
 | `npm run typecheck` | Revisa los tipos de TypeScript |
 | `npm run build:win` | Crea el instalador `.exe` en la carpeta `dist/` |
 
+## La ventana (como Siemens NX)
+
+- **Cinta de opciones** arriba: menú **Archivo** (Nuevo proyecto Ctrl+N, Abrir Ctrl+O, Abrir
+  reciente, Guardar Ctrl+S, Guardar como, Exportar mod, Propiedades del proyecto, Cerrar pestaña
+  Ctrl+W, Ajustes, Salir) y las pestañas **Inicio · Mapa · Focos · Países · Espíritus · Íconos ·
+  Exportar**, con sus herramientas en grupos (con el título abajo). Elegir una pestaña de la cinta
+  también cambia la vista principal.
+- **Sin proyecto abierto**: la cinta se ve completa pero en gris (menos Archivo) y el área de
+  trabajo muestra solo la **página de inicio**: "Nuevo proyecto", "Abrir proyecto" y la lista de
+  **Recientes** (nombre, plantilla, fecha y ruta). Ya no se pide nombre del mod ni tag al abrir.
+- **Con proyecto**: a la izquierda el **Navegador del proyecto** (Países con su bandera, Árboles de
+  focos, Espíritus, Íconos y, en la vista Mapa, la **Paleta**), a la derecha las propiedades (del
+  estado o del foco) y abajo la **barra de estado** con la instrucción de la herramienta activa
+  ("Haz clic en los estados para pintarlos con México"), la plantilla, el mapa (p. ej. "Mapa:
+  HOI4 real"), el zoom y el motor.
+
+### Proyectos en pestañas
+Cada proyecto abierto es una **pestaña de documento** (nombre, ● si hay cambios sin guardar y una
+X). **Ctrl+Tab / Ctrl+Shift+Tab** cambian de pestaña. Cada pestaña tiene su PROPIO estado
+(proyecto, estados pintados, deshacer/rehacer, vista y zoom del mapa, selección y herramienta):
+nada se comparte entre pestañas. Lo pesado sí se comparte: el mapa del juego (y sus fronteras
+vectoriales), el catálogo y las banderas se cargan una sola vez. Al cerrar una pestaña con cambios
+pregunta si guardar; al cerrar la app, una sola pregunta con la lista de pendientes. La app
+recuerda las pestañas abiertas y las vuelve a abrir al iniciar.
+
+### Nuevo proyecto y plantillas
+**Archivo → Nuevo proyecto** abre las plantillas por categoría (con miniatura, descripción y vista
+previa; abajo el nombre y la carpeta, por defecto `Documentos/HOI4 Mod Studio/Proyectos`):
+
+| Categoría | Plantilla | Qué hace |
+|---|---|---|
+| Mapa | Lienzo en blanco | Los no pintados conservan su dueño al exportar |
+| Mapa | Lienzo en blanco + Sin nación | Lo no pintado queda pendiente (país técnico) |
+| Mapa | Mapa del juego | Todos los países con sus colores reales |
+| Mapa | Mapa de un mod | Usa el mapa de otro mod instalado (dependencia) |
+| Contenido | Mod sin mapa | Solo focos, países y espíritus |
+
+Las miniaturas se dibujan con el mismo motor del mapa a partir de los datos reales (y se guardan
+en caché). No se pide tag: los países se crean después ("País rápido" o el asistente) y al crear
+el primer árbol de focos se pregunta a qué país pertenece. Se crea la carpeta con su
+`proyecto.json` y se abre en una pestaña nueva.
+
+### La plantilla es parte del proyecto
+La plantilla se elige al crear el proyecto y queda fija (se ve en la barra de estado y en
+Archivo → Propiedades del proyecto). Para otra plantilla: pestaña Mapa → **Nuevo proyecto con otra
+plantilla…** (abre una pestaña NUEVA y nunca copia los estados pintados). La opción avanzada
+**Reiniciar el mapa con otra plantilla** (Propiedades del proyecto) confirma ("Se borrarán N
+estados pintados"), borra lo pintado y se puede deshacer.
+
+> **Por qué antes se quedaba lo pintado:** el antiguo botón "Base del mapa" solo cambiaba
+> `mapSettings` (base y mod) y dejaba `stateEdits` intacto; el propio diálogo decía "tus estados
+> pintados se conservan". Así los estados pintados sobre un lienzo en blanco pasaban al mapa del
+> juego y hasta se exportaban sin querer. Ahora la plantilla no se puede cambiar por esa vía.
+> Los proyectos viejos toman como plantilla la base que tenían guardada y conservan todo lo pintado.
+
 ## Qué puedes hacer
 
 - **Árbol de focos**: cuadrícula con zoom, arrastrar, prerrequisitos (línea normal) y excluyentes (línea roja).
@@ -100,23 +155,24 @@ src/renderer/src/
   map/               Mapa: colores, renderizadores WebGL2/Canvas 2D, etiquetas, exportar PNG,
                      zoom e inercia, herramientas y validación
   countries/         Países: color, popularidades, tags, historia, validación y datos "por verificar"
-  types.ts           Formato de proyecto.json (versión 5)
-  migrate.ts         Abre proyectos viejos (versiones 1 a 4) sin error
-tests/               Pruebas automáticas (tests/gpu.test.ts usa Chromium o Edge para probar WebGL2)
+  types.ts           Formato de proyecto.json (versión 6)
+  templates.ts       Plantillas de Nuevo proyecto (la plantilla es parte del proyecto)
+  migrate.ts         Abre proyectos viejos (versiones 1 a 5) sin error
+tests/               Pruebas automáticas (gpu.test.ts y ui.test.ts usan Chromium o Edge)
 scripts/             Mediciones de rendimiento (bench-map.ts, bench-render.mjs)
 ```
 
 ## Probar un país nuevo paso a paso
 
-1. `npm run dev` → **Nuevo mod** (por ejemplo, tag `MEX`).
-2. Pestaña **Países** → **Crear país**.
+1. `npm run dev` → **Nuevo proyecto** → plantilla **Mapa del juego** y un nombre.
+2. Pestaña **Países** de la cinta → **Crear país**.
    - *Identidad*: nombre "Nueva Granada" (el tag se propone solo, p. ej. `NVG`), adjetivo, color.
    - *Política*: elige la ideología, mueve los sliders y pulsa **Balancear** hasta ver "Suma: 100 %".
    - *Capital*: escribe un número de estado (ej. `64`). Lee el aviso sobre países sin estados.
    - *Bandera*: sube una imagen o deja la de relleno; mira los 3 tamaños.
    - *Líder*: nombre y subideología; sube una foto o deja el retrato de relleno.
    - *Resumen*: elige "Crear un árbol vacío" y pulsa **Crear país**.
-3. Pestaña **Árbol de focos** → en "País:" elige Nueva Granada y crea algunos focos.
+3. Pestaña **Focos** → "Añadir foco": te pregunta a qué país pertenece el árbol (elige Nueva Granada).
 4. Prueba **Ctrl+Z**: se deshace la creación; **Ctrl+Y** la rehace.
 5. **Exportar mod**: si hay errores, el botón **Ir** te lleva al paso que hay que corregir.
 6. Revisa en la carpeta del mod los archivos de la lista de arriba.
@@ -126,19 +182,11 @@ la pestaña **Mapa** (ver abajo).
 
 ## Editor de mapa (tipo Paint)
 
-### Primera vez: elegir la base
-Al abrir la pestaña **Mapa** se pregunta UNA vez el punto de partida (se cambia luego con
-**🗺 Base**; lo que ya pintaste se conserva):
-- **⬜ Lienzo en blanco**: tierra blanca, mar azul y el número de cada estado. Solo ves en color
-  lo que pintas. Elige qué pasa con lo que no pintes:
-  - *Conservan su dueño del juego* (por defecto): al exportar solo cambian los estados pintados.
-  - *Quedan como Sin nación (pendientes)*: un país técnico gris se queda con todo lo demás.
-- **🌍 Mapa del juego**: todos los países con sus colores reales.
-- **🧩 Mapa de un mod**: lista los mods de `Documentos/Paradox Interactive/Hearts of Iron IV/mod`
-  y del Workshop; usa sus archivos encima de los del juego. Tu mod dependerá de él.
-
-Sin carpeta del juego se usa el **mapa de demostración** (40 estados, países DMA–DMD): sirve
-para practicar, pero sus cambios no se exportan.
+### La base del mapa
+Viene de la **plantilla** del proyecto (ver arriba); ya no se pregunta al abrir el mapa ni se
+cambia desde aquí. Con **Mod sin mapa** y **Mapa del juego** ves los países con sus colores; con
+**Lienzo en blanco** solo ves en color lo que pintas. Sin carpeta del juego se usa el **mapa de
+demostración** (40 estados, países DMA–DMD): sirve para practicar, pero sus cambios no se exportan.
 
 ### Pintar
 1. En la **Paleta** (izquierda) haz clic en un color, o usa las teclas **1–9** (Mis países).
@@ -151,7 +199,7 @@ para practicar, pero sus cambios no se exportan.
 7. Países del juego: se pintan directamente (no se agregan a Países). Su menú **⋯ → Editar este
    país…** los agrega como "existente" para cambiar bandera o líder.
 8. Arriba a la derecha: modo de vista, **etiquetas** (Ninguna / ID / Nombre / ID + nombre),
-   fronteras de provincia y **Colores como en el juego**.
+   fronteras de provincia y **Colores como en el juego** (ahora en los grupos de la cinta).
 9. Rueda = zoom, botón central o espacio + arrastre = mover, **F** = ajustar.
 
 ### Modo Sin nación
@@ -164,6 +212,26 @@ para practicar, pero sus cambios no se exportan.
 ### Al exportar
 Solo con el mapa real: se generan los archivos de `history/states/` necesarios, con el mismo
 nombre que en el juego (o en el mod base) y solo las líneas `owner` / `add_core_of` cambiadas.
+
+## Banderas reales de los países del juego
+
+Con HOI4 detectado, la Paleta, la tarjeta del país, el Navegador y el asistente muestran la
+**bandera real** de cada país: la variante de la ideología gobernante (`set_politics` de
+`history/countries`) y, si no existe, `<TAG>.tga`. Si el proyecto usa un mod como base, las
+banderas del mod tienen prioridad. Se leen con un lector TGA propio (tipos 2 y 10, de 24 y 32
+bits, respetando el bit de origen), se decodifican una vez y se guardan como miniaturas PNG en la
+caché de la app (carpeta de datos del usuario, nunca en el repositorio). Si un archivo no se puede
+leer se usa la bandera de relleno y se anota en la consola. Los países del MOD siguen usando su
+bandera subida o la de relleno.
+
+**Editar una bandera del juego:** "Editar este país…" (o el paso Bandera del asistente) abre con
+las banderas reales (la principal y las 4 de ideología, con sus 3 tamaños). Cada variante dice si
+es "del juego" o "personalizada"; puedes reemplazarla (editor de recorte 82:52), volver a la del
+juego o **Descargar PNG** para editarla fuera de la app.
+
+**Al exportar:** un país del MOD lleva sus 15 banderas TGA; un país del JUEGO, solo las variantes
+que personalizaste, en sus 3 tamaños (`gfx/flags/`, `medium/` y `small/`) y con los mismos
+nombres que el juego para sustituir a las originales. Una auto-revisión confirma los 3 tamaños.
 
 ## Aspecto del mapa (generado, de alta calidad)
 
@@ -229,9 +297,13 @@ unos segundos más la primera vez (después sale de la caché).
 
 ## Pruebas automáticas
 
-`npm test` incluye pruebas del motor WebGL2 real (tests/gpu.test.ts): colores exactos del estilo,
-PNG de 5632×2048, ancho de línea con DPR 1, 2 y 3. Usan Chromium (variable `HOI4_TEST_CHROMIUM`, o
+`npm test` incluye pruebas del motor WebGL2 real (tests/gpu.test.ts: colores exactos del estilo,
+PNG de 5632×2048, ancho de línea con DPR 1, 2 y 3) y de la interfaz en un navegador real
+(tests/ui.test.ts: cinta en gris sin proyecto, plantillas, dos pestañas sin mezclarse). Todas usan Chromium (variable `HOI4_TEST_CHROMIUM`, o
 `/opt/pw-browsers`) o Edge/Chrome instalados; si no hay ninguno, esas pruebas se saltan.
+
+`npm run test:build` compila la app y prueba el bundle de `out/` (no el código fuente): jomini con su
+`.wasm` y una carga completa del mapa con una carpeta de juego falsa.
 
 ## Probar el mod en el juego
 

@@ -14,6 +14,8 @@ import {
 import { resetMapProject, paintedCount } from '../src/renderer/src/map/resetMap'
 import { effectiveOwner } from '../src/renderer/src/map/mapOps'
 import { migrateProject } from '../src/renderer/src/migrate'
+import { openContent } from '../src/renderer/src/ui/fileOps'
+import { resetMapWithTemplate } from '../src/renderer/src/map/resetMap'
 import { createProjectFolder } from '../src/main/projectFiles'
 import { handleStroke } from '../src/renderer/src/map/tools'
 import { addCountry, newCountry } from '../src/renderer/src/countries/countryOps'
@@ -300,5 +302,56 @@ describe('migración a la versión 6 (partes 2 y 4)', () => {
     expect(migrateProject(old({ template: 'blank', mapSettings: ms('game') })).template).toBe(
       'blank'
     )
+  })
+})
+
+describe('abrir proyectos y reiniciar con confirmación (partes 2 y 4)', () => {
+  beforeEach(reset)
+
+  it('un proyecto viejo (v5) abre en una pestaña con su plantilla y sin perder lo pintado', () => {
+    const edits = { 3: { owner: 'MEX' }, 4: { owner: 'MEX' } }
+    const v5 = {
+      ...(emptyProject() as unknown as Record<string, unknown>),
+      version: 5,
+      stateEdits: edits,
+      mapSettings: {
+        base: 'blank',
+        mod: null,
+        unpainted: 'keep',
+        noNation: { tag: '', name: 'Sin nación', keepGameCores: false }
+      }
+    }
+    delete (v5 as Record<string, unknown>).template
+    expect(openContent('/viejo/proyecto.json', JSON.stringify(v5))).toBe(true)
+    expect(store.get().tabs.length).toBe(1)
+    expect(store.get().project!.template).toBe('blank')
+    expect(store.get().project!.stateEdits).toEqual(edits)
+    expect(store.get().filePath).toBe('/viejo/proyecto.json')
+    expect(store.get().dirty).toBe(false)
+    // Un archivo que no es un proyecto no abre nada
+    expect(openContent('/x.json', '{"hola":1}')).toBe(false)
+    expect(store.get().tabs.length).toBe(1)
+  })
+
+  it('Reiniciar el mapa pide confirmación; cancelar no cambia nada y aceptar se puede deshacer', async () => {
+    store.openInNewTab(withCountry(emptyProjectFor('Mundo', 'blank')), null, 'mapa')
+    store.set({ activeTag: 'NVG' })
+    paint(5)
+    paint(6)
+    const asked = resetMapWithTemplate('game', null)
+    expect(store.get().ask?.message).toMatch(/Se borrarán 2 estados pintados en este proyecto/)
+    store.answerAsk('cancel')
+    expect(await asked).toBe(false)
+    expect(paintedCount(store.get().project!)).toBe(2)
+    expect(store.get().project!.template).toBe('blank')
+
+    const again = resetMapWithTemplate('game', null)
+    store.answerAsk('ok')
+    expect(await again).toBe(true)
+    expect(store.get().project!.stateEdits).toEqual({})
+    expect(store.get().project!.template).toBe('game')
+    store.undo()
+    expect(paintedCount(store.get().project!)).toBe(2)
+    expect(store.get().project!.template).toBe('blank')
   })
 })

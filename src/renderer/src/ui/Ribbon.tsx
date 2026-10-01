@@ -319,7 +319,6 @@ export default function Ribbon(): JSX.Element {
             onClick={() => runCommand('mapReload')}
           />
         </Group>
-        {history}
       </>
     ),
     focos: (
@@ -358,7 +357,6 @@ export default function Ribbon(): JSX.Element {
             title="Conectar focos mutuamente excluyentes (línea roja)"
           />
         </Group>
-        {history}
       </>
     ),
     paises: (
@@ -378,7 +376,6 @@ export default function Ribbon(): JSX.Element {
             title="Solo nombre y color"
           />
         </Group>
-        {history}
       </>
     ),
     ideas: (
@@ -391,7 +388,6 @@ export default function Ribbon(): JSX.Element {
             onClick={() => runCommand('ideaNew')}
           />
         </Group>
-        {history}
       </>
     ),
     iconos: (
@@ -404,7 +400,6 @@ export default function Ribbon(): JSX.Element {
             onClick={() => store.setUi({ ribbon: 'iconos' })}
           />
         </Group>
-        {history}
       </>
     ),
     exportar: (
@@ -428,7 +423,6 @@ export default function Ribbon(): JSX.Element {
             }}
           />
         </Group>
-        {history}
       </>
     )
   }
@@ -456,6 +450,22 @@ export default function Ribbon(): JSX.Element {
           </button>
         ))}
         <div className="flex-1" />
+        <button
+          title="Deshacer (Ctrl+Z)"
+          disabled={off || !canUndo}
+          className="rounded p-1.5 hover:bg-hoi-card disabled:opacity-35"
+          onClick={() => store.undo()}
+        >
+          <Undo2 size={16} />
+        </button>
+        <button
+          title="Rehacer (Ctrl+Y)"
+          disabled={off || !canRedo}
+          className="rounded p-1.5 hover:bg-hoi-card disabled:opacity-35"
+          onClick={() => store.redo()}
+        >
+          <Redo2 size={16} />
+        </button>
         <span className="px-3 text-xs font-semibold text-hoi-accent">HOI4 Mod Studio</span>
       </div>
       <div className="flex min-h-[84px] items-stretch overflow-x-auto px-1 py-1">

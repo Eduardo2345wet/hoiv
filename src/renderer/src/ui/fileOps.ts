@@ -15,7 +15,7 @@ export interface RecentEntry {
 
 /** Anota un proyecto en "Recientes" (más reciente primero, sin repetidos) */
 export async function rememberRecent(project: Project, path: string): Promise<void> {
-  const api = window.electronAPI
+  const api = typeof window === 'undefined' ? undefined : window.electronAPI
   if (!api) return
   const s = await api.getSettings()
   const entry: RecentEntry = {
