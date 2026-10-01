@@ -168,29 +168,38 @@ export default forwardRef<MapViewHandle, Props>(function MapView(props, ref) {
     const id = requestAnimationFrame(() => {
       const c = canvasRef.current
       if (!c || !rendererRef.current) return
-      if (c.width !== size.w || c.height !== size.h) {
-        c.width = size.w
-        c.height = size.h
+      // Canvas con la resolución real de la pantalla (devicePixelRatio): los trazos siguen
+      // midiendo 1 px CSS aunque cada píxel CSS sean 2 o 3 del dispositivo
+      const dpr = window.devicePixelRatio || 1
+      const dw = Math.max(1, Math.round(size.w * dpr))
+      const dh = Math.max(1, Math.round(size.h * dpr))
+      if (c.width !== dw || c.height !== dh) {
+        c.width = dw
+        c.height = dh
       }
-      rendererRef.current.render(view, size.w, size.h, {
+      rendererRef.current.render(view, dw, dh, {
         hoverStateId: hover?.stateId ?? 0,
-        provinceBorders: props.provinceBorders
+        provinceBorders: props.provinceBorders,
+        activeContour: !!activeTag,
+        dpr
       })
       drawOverlay()
     })
     props.onViewChange?.(view)
     return () => cancelAnimationFrame(id)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [view, size, palette, hover?.stateId, props.provinceBorders, props.labels])
+  }, [view, size, palette, hover?.stateId, props.provinceBorders, props.labels, activeTag])
 
   // ---- Estrellas en las capitales de los países del mod ----
   const drawOverlay = (): void => {
     const o = overlayRef.current
     if (!o) return
-    o.width = size.w
-    o.height = size.h
+    const dpr = window.devicePixelRatio || 1
+    o.width = Math.max(1, Math.round(size.w * dpr))
+    o.height = Math.max(1, Math.round(size.h * dpr))
     const ctx = o.getContext('2d')!
-    ctx.clearRect(0, 0, o.width, o.height)
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
+    ctx.clearRect(0, 0, size.w, size.h)
     drawLabels(ctx)
     for (const c of project.countries) {
       if (!c.capital) continue
@@ -379,7 +388,7 @@ export default forwardRef<MapViewHandle, Props>(function MapView(props, ref) {
           }}
         />
       )}
-      <canvas ref={overlayRef} className="pointer-events-none absolute inset-0" />
+      <canvas ref={overlayRef} className="pointer-events-none absolute inset-0 h-full w-full" />
 
       {hover && tipState && !drag.current && (
         <div

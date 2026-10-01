@@ -26,12 +26,23 @@ export function rng(seed: number): () => number {
   }
 }
 
-export function generateDemoMap(seed = 1936, width = 1200, height = 600): MapData {
+/** Para medir rendimiento: un mapa sintético del tamaño del real (más provincias y estados) */
+export interface DemoScale {
+  states: number
+  cell: [number, number]
+}
+
+export function generateDemoMap(
+  seed = 1936,
+  width = 1200,
+  height = 600,
+  scale?: DemoScale
+): MapData {
   const rand = rng(seed)
 
   // --- Semillas de provincias en una rejilla con variación (búsqueda rápida del más cercano) ---
-  const cellW = 60
-  const cellH = 40
+  const cellW = scale?.cell[0] ?? 60
+  const cellH = scale?.cell[1] ?? 40
   const cols = Math.ceil(width / cellW)
   const rows = Math.ceil(height / cellH)
   const seeds: [number, number][] = []
@@ -99,7 +110,7 @@ export function generateDemoMap(seed = 1936, width = 1200, height = 600): MapDat
   // --- Estados: ~40 grupos de provincias de tierra (la semilla de tierra más cercana) ---
   const landProvs: number[] = []
   for (let p = 1; p <= provCount; p++) if (provinceType[p] === PROVINCE_TYPE.land) landProvs.push(p)
-  const stateCount = Math.min(40, landProvs.length)
+  const stateCount = Math.min(scale?.states ?? 40, landProvs.length)
   const stateSeeds: number[] = []
   const step = landProvs.length / stateCount
   for (let i = 0; i < stateCount; i++)

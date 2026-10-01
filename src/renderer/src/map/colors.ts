@@ -61,7 +61,7 @@ export function countryDrawColor(
 export interface Palette {
   /** RGBA por posición de estado */
   rgba: Uint8Array
-  /** Índice numérico del dueño por posición de estado (para las fronteras de país) */
+  /** Índice del dueño por posición de estado (0 = sin pintar), para las fronteras de país */
   owners: Uint16Array
 }
 
@@ -97,10 +97,12 @@ export function buildPalette(
     const painted = isPainted(s.id, project)
     const blank = opts.blankUnpainted && !painted
     const owner = project ? effectiveOwner(s, project) : s.owner
-    // Los estados en blanco cuentan como un solo "dueño" (sin frontera de país entre ellos)
-    const ownerKey = blank ? '\u0000blanco' : owner
-    if (!ownerIds.has(ownerKey)) ownerIds.set(ownerKey, ownerIds.size + 1)
-    owners[i] = ownerIds.get(ownerKey)!
+    // Índice del dueño: 0 = sin pintar (nunca lleva frontera de país); 1, 2… = un país
+    if (blank) owners[i] = 0
+    else {
+      if (!ownerIds.has(owner)) ownerIds.set(owner, ownerIds.size + 1)
+      owners[i] = ownerIds.get(owner)!
+    }
     let c: RGB
     let flags = 0
     if (mode === 'estados') c = hsvToRgb([(s.id * 137.508) % 360, 0.45, 0.85])

@@ -1,6 +1,8 @@
 // Estructura del mapa en memoria. La generan igual el mapa REAL (carpeta del juego)
 // y el mapa de DEMOSTRACIÓN, para que todo el editor funcione igual con los dos.
 
+import type { BorderSet, BorderStats } from './vector'
+
 export const PROVINCE_TYPE = { none: 0, land: 1, sea: 2, lake: 3 } as const
 export type ProvinceType = (typeof PROVINCE_TYPE)[keyof typeof PROVINCE_TYPE]
 
@@ -55,6 +57,10 @@ export interface MapData {
    * La etiqueta va aquí y solo se dibuja si cabe en un círculo de ese radio.
    */
   stateLabels: Record<number, [number, number, number]>
+  /** Fronteras vectoriales (por par de estados y por costa), calculadas una vez y en la caché */
+  borders: BorderSet
+  /** Cuánto costó calcularlas (para el overlay F3) */
+  borderStats: BorderStats
 }
 
 /** Posición de un estado en `states` por id */

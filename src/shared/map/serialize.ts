@@ -2,32 +2,54 @@
 // Formato: 4 bytes (largo del JSON) + JSON con los metadatos + los arreglos uno detrás de otro.
 import type { MapData } from './types'
 
-const ARRAYS = [
-  ['provinceIndex', Uint16Array],
-  ['provinceType', Uint8Array],
-  ['provinceCoastal', Uint8Array],
-  ['provinceColor', Uint32Array],
-  ['provinceToState', Uint16Array],
-  ['statePixelIndex', Uint32Array],
-  ['statePixelOffsets', Uint32Array]
-] as const
+/** Arreglos grandes: se guardan en binario; el resto de MapData va en el JSON de metadatos */
+interface Slot {
+  name: string
+  Type: typeof Uint8Array | typeof Uint16Array | typeof Uint32Array | typeof Float32Array
+  get(
+    m: MapData
+  ): ArrayLike<number> & { buffer: ArrayBuffer; byteOffset: number; byteLength: number }
+  set(m: Record<string, unknown>, arr: unknown): void
+}
+const top = (name: keyof MapData, Type: Slot['Type']): Slot => ({
+  name,
+  Type,
+  get: (m) => m[name] as never,
+  set: (m, arr) => (m[name] = arr)
+})
+const border = (name: 'points' | 'starts' | 'a' | 'b', Type: Slot['Type']): Slot => ({
+  name: 'borders.' + name,
+  Type,
+  get: (m) => m.borders[name] as never,
+  set: (m, arr) => ((m.borders as Record<string, unknown>)[name] = arr)
+})
+const ARRAYS: Slot[] = [
+  top('provinceIndex', Uint16Array),
+  top('provinceType', Uint8Array),
+  top('provinceCoastal', Uint8Array),
+  top('provinceColor', Uint32Array),
+  top('provinceToState', Uint16Array),
+  top('statePixelIndex', Uint32Array),
+  top('statePixelOffsets', Uint32Array),
+  border('points', Float32Array),
+  border('starts', Uint32Array),
+  border('a', Uint16Array),
+  border('b', Uint16Array)
+]
+const BIG_KEYS = new Set<string>(ARRAYS.map((s) => s.name.split('.')[0]))
 // 2: añade stateLabels (centro visual de cada estado)
-export const MAP_CACHE_VERSION = 2
+// 3: añade las fronteras vectoriales (borders)
+export const MAP_CACHE_VERSION = 3
 
 export function serializeMap(map: MapData): Uint8Array {
   const meta: Record<string, unknown> = { v: MAP_CACHE_VERSION }
   const parts: Uint8Array[] = []
   let offset = 0
   const lens: Record<string, number> = {}
-  for (const [name] of ARRAYS) {
-    const arr = map[name] as unknown as {
-      buffer: ArrayBuffer
-      byteOffset: number
-      byteLength: number
-      length: number
-    }
+  for (const slot of ARRAYS) {
+    const arr = slot.get(map)
     parts.push(new Uint8Array(arr.buffer, arr.byteOffset, arr.byteLength))
-    lens[name] = arr.length
+    lens[slot.name] = arr.length
     offset += arr.byteLength
     // alinear a 4 bytes
     const pad = (4 - (offset % 4)) % 4
@@ -36,8 +58,7 @@ export function serializeMap(map: MapData): Uint8Array {
       offset += pad
     }
   }
-  for (const k of Object.keys(map) as (keyof MapData)[])
-    if (!ARRAYS.some(([n]) => n === k)) meta[k] = map[k]
+  for (const k of Object.keys(map) as (keyof MapData)[]) if (!BIG_KEYS.has(k)) meta[k] = map[k]
   meta.lens = lens
   const json = new TextEncoder().encode(JSON.stringify(meta))
   const headerLen = Math.ceil((4 + json.length) / 4) * 4
@@ -61,11 +82,11 @@ export function deserializeMap(data: Uint8Array): MapData | null {
     // Copia alineada para poder crear arreglos tipados
     const buf = data.slice().buffer
     const base = data.byteOffset === 0 ? 0 : 0
-    const out: Record<string, unknown> = { ...meta }
-    for (const [name, Type] of ARRAYS) {
-      const n = meta.lens[name] as number
-      out[name] = new Type(buf, base + pos, n)
-      pos += n * Type.BYTES_PER_ELEMENT
+    const out: Record<string, unknown> = { ...meta, borders: {} }
+    for (const slot of ARRAYS) {
+      const n = meta.lens[slot.name] as number
+      slot.set(out, new slot.Type(buf, base + pos, n))
+      pos += n * slot.Type.BYTES_PER_ELEMENT
       pos = Math.ceil(pos / 4) * 4
     }
     delete out.v

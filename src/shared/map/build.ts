@@ -3,6 +3,7 @@
 import type { MapData, MapState } from './types'
 import { PROVINCE_TYPE } from './types'
 import { computeStateLabels } from './labels'
+import { vectorizeBorders } from './vector'
 
 export interface RawMap {
   source: MapData['source']
@@ -79,6 +80,8 @@ export function buildMapData(raw: RawMap): MapData {
       stateCenters[s.id] = [Math.round(sumX[i] / counts[i]), Math.round(sumY[i] / counts[i])]
   })
 
+  const vector = vectorizeBorders({ width, height, provinceIndex, provinceToState })
+
   return {
     source: raw.source,
     width,
@@ -94,7 +97,9 @@ export function buildMapData(raw: RawMap): MapData {
     statePixelOffsets: offsets,
     unknownColorPixels: raw.unknownColorPixels,
     stateCenters,
-    stateLabels: computeStateLabels(width, height, provinceIndex, provinceToState)
+    stateLabels: computeStateLabels(width, height, provinceIndex, provinceToState),
+    borders: vector.borders,
+    borderStats: vector.stats
   }
 }
 

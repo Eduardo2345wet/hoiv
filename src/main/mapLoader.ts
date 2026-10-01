@@ -145,7 +145,7 @@ export async function loadRealMap(
   }
   states.sort((a, b) => a.id - b.id)
 
-  progress(88, 'Calculando fronteras y vecinos…')
+  progress(88, 'Calculando vecinos y fronteras vectoriales…')
   await pause()
   const map = buildMapData({
     source: 'real',
