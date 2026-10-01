@@ -113,3 +113,78 @@ describe('país del juego ligero (parte 3)', () => {
     expect({ ...c, light: false }.light).toBe(false)
   })
 })
+
+import { generateFocusTree } from '../src/renderer/src/generator/focusTree'
+import { parseFocusFile } from '../src/shared/gameFocus'
+import { validateProject } from '../src/renderer/src/export/validator'
+import {
+  renameFocusAuto,
+  togglePrerequisite,
+  toggleExclusive
+} from '../src/renderer/src/ui/projectOps'
+
+describe('árbol de un país del juego (parte 4)', () => {
+  it('el árbol de SOV usa add = 20 y tag = SOV; el de un país nuevo, add = 10', () => {
+    const r = assignTreeToTag(noCountries(), 'SOV', 'Russia')
+    const p = createFocus(r.project, 0, 0, 'Industria', r.treeId).project
+    const txt = generateFocusTree(p, r.treeId)
+    expect(txt).toContain('add = 20')
+    expect(txt).toContain('tag = SOV')
+    let n = addCountry(noCountries(), {
+      ...newCountry({ mode: 'nuevo', tag: 'NVG', name: 'N' }),
+      focusTreeId: 'arbol_1'
+    })
+    n = { ...n, focusTrees: [{ id: 'arbol_1', name: 'A' }] }
+    expect(generateFocusTree(n, 'arbol_1')).toContain('add = 10')
+  })
+  it('lee ids de focos y árboles propios de common/national_focus', () => {
+    const f = parseFocusFile(`focus_tree = {
+      id = soviet_focus
+      country = { factor = 0 modifier = { add = 10 tag = SOV } }
+      focus = { id = SOV_first x = 1 prerequisite = { focus = SOV_x } }
+      # focus = { id = comentado }
+      focus = { id = SOV_second }
+    }`)
+    expect(f.focusIds).toEqual(['SOV_first', 'SOV_second'])
+    expect(f.treeTags).toEqual({ SOV: 10 })
+  })
+  it('un id que existe en el juego es ERROR y "Renombrar automáticamente" lo arregla con sus referencias', () => {
+    let p = noCountries()
+    p = { ...p, modName: 'Mi Mod' }
+    const r = assignTreeToTag(p, 'SOV', 'Russia')
+    p = r.project
+    p = createFocus(p, 0, 0, 'Primero', r.treeId).project
+    p = createFocus(p, 0, 1, 'Segundo', r.treeId).project
+    const [a, b] = p.focuses
+    p = { ...p, focuses: p.focuses.map((f) => (f.uid === a.uid ? { ...f, id: 'SOV_primero' } : f)) }
+    p = togglePrerequisite(p, a.uid, b.uid)
+    p = toggleExclusive(p, a.uid, b.uid)
+    p = {
+      ...p,
+      focuses: p.focuses.map((f) =>
+        f.uid === b.uid
+          ? { ...f, scripts: { ...f.scripts, available: '\thas_completed_focus = SOV_primero\n' } }
+          : f
+      )
+    }
+    const g = { countries: [], ideas: [], focusIds: ['SOV_primero'] }
+    const err = validateProject(p, g).filter((i) => i.fix === 'rename-focus')
+    expect(err.length).toBe(1)
+    expect(err[0].severity).toBe('error')
+    const fixed = renameFocusAuto(p, a.uid, new Set(g.focusIds))
+    const nf = fixed.focuses.find((f) => f.uid === a.uid)!
+    expect(nf.id).toBe('mi_mod_SOV_primero')
+    // referencias: prerrequisitos y excluyentes van por uid; el script se actualiza
+    expect(fixed.focuses.find((f) => f.uid === b.uid)!.prerequisites).toEqual([a.uid])
+    expect(fixed.focuses.find((f) => f.uid === b.uid)!.mutuallyExclusive).toEqual([a.uid])
+    expect(fixed.focuses.find((f) => f.uid === b.uid)!.scripts.available).toContain(
+      'has_completed_focus = mi_mod_SOV_primero'
+    )
+    expect(validateProject(fixed, g).filter((i) => i.fix)).toEqual([])
+  })
+  it('los focos nuevos llevan el prefijo del mod: <mod>_<TAG>_<nombre>', () => {
+    const r = assignTreeToTag({ ...noCountries(), modName: 'Mi Mod' }, 'SOV', 'Russia')
+    const p = createFocus(r.project, 0, 0, 'Gran Industria', r.treeId).project
+    expect(p.focuses[0].id).toBe('mi_mod_SOV_gran_industria')
+  })
+})

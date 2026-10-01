@@ -24,6 +24,9 @@ export interface Issue {
   /** País afectado y paso del asistente donde se arregla (botón "Ir") */
   countryUid?: string
   step?: number
+  /** Arreglo automático ofrecido por el botón "Renombrar automáticamente" */
+  fix?: 'rename-focus' | 'rename-idea'
+  ideaUid?: string
 }
 
 export const TAG_REGEX = /^[A-Z][A-Z0-9]{2}$/
@@ -292,6 +295,30 @@ export function validateProject(
       severity: 'error',
       message: `Llaves desbalanceadas en las ideas: ${ideaBraces}`
     })
+
+  // ---- IDs que ya existen en el juego (carpeta del juego) ----
+  if (game?.focusIds?.length) {
+    const gameFocus = new Set(game.focusIds)
+    for (const f of project.focuses)
+      if (gameFocus.has(f.id))
+        issues.push({
+          severity: 'error',
+          message: `El id del foco "${f.id}" ya existe en el juego: tu foco lo sustituiría o chocaría con él.`,
+          focusUid: f.uid,
+          fix: 'rename-focus'
+        })
+  }
+  if (game?.ideas?.length) {
+    const gameIdeas = new Set(game.ideas.map(([id]) => id))
+    for (const i of project.ideas)
+      if (gameIdeas.has(i.id))
+        issues.push({
+          severity: 'error',
+          message: `El id del espíritu "${i.id}" ya existe en el juego.`,
+          ideaUid: i.uid,
+          fix: 'rename-idea'
+        })
+  }
 
   // ---- Países ----
   // El país técnico "Sin nación" se valida aparte (en el mapa)

@@ -28,6 +28,8 @@ import {
   createFocusBelow,
   createIdea,
   deleteFocus,
+  renameFocusAuto,
+  renameIdeaAuto,
   toggleExclusive,
   togglePrerequisite,
   updateFocus
@@ -273,6 +275,14 @@ export default function Editor(): JSX.Element {
         <div className={tab === 'focos' ? 'flex min-h-0 flex-1 flex-col' : 'hidden'}>
           <div className="flex shrink-0 items-center gap-2 border-b border-hoi-border bg-hoi-panel px-3 py-1">
             <TreeSelector project={project} activeTreeId={activeTree} />
+            {(() => {
+              const c = project.countries.find((x) => x.focusTreeId === activeTree)
+              return c?.mode === 'existente' && game?.focusTreeTags?.[c.tag] !== undefined ? (
+                <span className="text-xs text-sky-300">
+                  ℹ Este árbol reemplazará el árbol original de {c.names.name || c.tag}.
+                </span>
+              ) : null
+            })()}
           </div>
           {/* Parte de arriba: árbol + panel del foco */}
           <div className="flex min-h-0 flex-[55]">
@@ -345,6 +355,16 @@ export default function Editor(): JSX.Element {
           issues={issues}
           onClose={() => setIssues(null)}
           onExportAnyway={() => void doExport()}
+          onFix={(i) => {
+            const gameFocus = new Set(game?.focusIds ?? [])
+            const gameIdeas = new Set((game?.ideas ?? []).map(([id]) => id))
+            if (i.fix === 'rename-focus' && i.focusUid)
+              change((p) => renameFocusAuto(p, i.focusUid!, gameFocus))
+            if (i.fix === 'rename-idea' && i.ideaUid)
+              change((p) => renameIdeaAuto(p, i.ideaUid!, gameIdeas))
+            setIssues((cur) => (cur ? cur.filter((x) => x !== i) : cur))
+            store.toast('ID renombrado (con sus referencias).')
+          }}
           onGoPending={() => {
             setTab('mapa')
             store.set({ pendingView: true })

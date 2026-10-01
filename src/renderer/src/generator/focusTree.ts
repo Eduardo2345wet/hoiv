@@ -44,6 +44,14 @@ function focusToScript(focus: Focus, byUid: Map<string, Focus>, icon: string): s
   return `focus = {\n${indent(body.trimEnd(), 1)}\n}`
 }
 
+/**
+ * Prioridad (add) del árbol en el selector de árboles del juego. Los árboles únicos del juego usan
+ * add = 10; para países del JUEGO el nuestro usa más para no empatar.
+ * por verificar en el juego: que 20 gane al 10 del árbol original
+ */
+export const TREE_ADD_NEW = 10
+export const TREE_ADD_GAME = 20
+
 /** Tag del país dueño de un árbol (o el tag del mod si el árbol no tiene país) */
 export function treeTag(project: Project, treeId: string): string {
   return project.countries?.find((c) => c.focusTreeId === treeId)?.tag ?? project.tag
@@ -53,6 +61,11 @@ export function treeTag(project: Project, treeId: string): string {
  * Genera el contenido de common/national_focus/TAG_focus.txt para un árbol.
  * Sin treeId se usa el primer árbol. Los prerrequisitos pueden apuntar a focos de otro árbol.
  */
+function treeAdd(project: Project, treeId: string | undefined): number {
+  const c = project.countries?.find((x) => x.focusTreeId === treeId)
+  return c?.mode === 'existente' ? TREE_ADD_GAME : TREE_ADD_NEW
+}
+
 export function generateFocusTree(project: Project, treeId?: string): string {
   const tree = treeId ?? project.focusTrees?.[0]?.id
   const tag = tree ? treeTag(project, tree) : project.tag
@@ -63,7 +76,7 @@ export function generateFocusTree(project: Project, treeId?: string): string {
     'country = {',
     '\tfactor = 0',
     '\tmodifier = {',
-    '\t\tadd = 10',
+    `\t\tadd = ${treeAdd(project, tree)}`,
     `\t\ttag = ${tag}`,
     '\t}',
     '}',

@@ -14,6 +14,8 @@ interface Props {
   onGoState: (stateId: number) => void
   /** Abre el mapa con "Ver pendientes" */
   onGoPending: () => void
+  /** "Renombrar automáticamente" */
+  onFix?: (issue: Issue) => void
 }
 
 export default function ValidationDialog({
@@ -23,7 +25,8 @@ export default function ValidationDialog({
   onSelectFocus,
   onGoCountry,
   onGoState,
-  onGoPending
+  onGoPending,
+  onFix
 }: Props): JSX.Element {
   const errors = issues.filter((i) => i.severity === 'error')
   const go = (i: Issue): void => {
@@ -55,6 +58,14 @@ export default function ValidationDialog({
                 </span>
                 {i.message}
               </span>
+              {i.fix && onFix && (
+                <button
+                  className="btn-primary shrink-0 px-2 py-0.5 text-xs"
+                  onClick={() => onFix(i)}
+                >
+                  Renombrar automáticamente
+                </button>
+              )}
               {(i.focusUid || i.countryUid || i.stateId || i.goPending) && (
                 <button
                   className="btn shrink-0 px-2 py-0.5 text-xs"

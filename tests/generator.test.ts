@@ -132,15 +132,15 @@ describe('árbol de focos', () => {
     expect(txt).toContain('focus_tree = {\n\tid = MEX_focus_tree')
     expect(txt).toContain('\t\t\ttag = MEX')
     expect(txt).toContain('\tdefault = no')
-    expect(txt).toContain('\t\tprerequisite = { focus = MEX_foco_1 }')
+    expect(txt).toContain('\t\tprerequisite = { focus = mi_mod_mexico_MEX_foco_1 }')
     expect(txt).toContain('\t\tavailable = {\n\t\t\tNOT = {\n\t\t\t\thas_war = yes\n\t\t\t}')
     expect((txt.match(/{/g) ?? []).length).toBe((txt.match(/}/g) ?? []).length)
   })
 
   it('genera localización', () => {
     const loc = generateLocalisation(sampleProject())
-    expect(loc.startsWith('l_english:\n MEX_foco_1:0 "Industria \\"moderna\\""')).toBe(true)
-    expect(loc).toContain(' MEX_foco_1_desc:0 ""')
+    expect(loc.startsWith('l_english:\n mi_mod_mexico_MEX_foco_1:0 "Industria \\"moderna\\""')).toBe(true)
+    expect(loc).toContain(' mi_mod_mexico_MEX_foco_1_desc:0 ""')
   })
 })
 

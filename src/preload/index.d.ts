@@ -64,6 +64,8 @@ export interface GameCatalogData {
   countryColors?: Record<string, [number, number, number]>
   countryCapitals?: Record<string, number>
   countryRuling?: Record<string, string>
+  focusIds?: string[]
+  focusTreeTags?: Record<string, number>
   goalsShineShape?: string
 }
 

@@ -111,6 +111,27 @@ export function resetIdeaIcon(p: Project, uid: string): Project {
 
 // ======================= Focos =======================
 
+/** "<slugdelmod>_<TAG>_" (o "<slugdelmod>_" sin tag) */
+export function focusIdPrefix(p: Project, tag: string): string {
+  return `${slug(p.modName || 'mod')}_${tag ? tag + '_' : ''}`
+}
+
+/** Id automático de un foco: <mod>_<TAG>_<nombre>, distinto de los del proyecto y del juego */
+export function autoFocusId(p: Project, uid: string, gameIds: Set<string>): string {
+  const f = p.focuses.find((x) => x.uid === uid)!
+  const tag = p.countries?.find((c) => c.focusTreeId === f.treeId)?.tag ?? p.tag
+  const base = `${focusIdPrefix(p, tag)}${slug(f.name || 'foco')}`
+  const taken = new Set([...p.focuses.filter((x) => x.uid !== uid).map((x) => x.id), ...gameIds])
+  let id = base
+  for (let n = 2; taken.has(id); n++) id = `${base}_${n}`
+  return id
+}
+
+/** "Renombrar automáticamente": cambia el id y actualiza sus referencias (bloques y scripts) */
+export function renameFocusAuto(p: Project, uid: string, gameIds: Set<string>): Project {
+  return renameFocusId(p, uid, autoFocusId(p, uid, gameIds))
+}
+
 /** Crea un foco con ícono automático en la casilla x,y */
 export function createFocus(
   p: Project,
@@ -126,15 +147,16 @@ export function createFocus(
     tree = 'arbol_1'
     base = { ...p, focusTrees: [...(p.focusTrees ?? []), { id: tree, name: 'Árbol de focos' }] }
   }
-  // Prefijo del id: el tag del país dueño del árbol
+  // Prefijo del id: <mod>_<TAG>_ (así no choca con los focos del juego, que empiezan con el tag)
   const tag = base.countries?.find((c) => c.focusTreeId === tree)?.tag ?? p.tag
+  const prefix = focusIdPrefix(base, tag)
   let n = base.focuses.length + 1
-  while (base.focuses.some((f) => f.id === `${tag}_foco_${n}`)) n++
+  while (base.focuses.some((f) => f.id === `${prefix}foco_${n}`)) n++
   const uid = newUid()
   const focus: Focus = {
     uid,
     treeId: tree,
-    id: name ? uniqueId(base, `${tag}_${slug(name)}`) : `${tag}_foco_${n}`,
+    id: name ? uniqueId(base, `${prefix}${slug(name)}`) : `${prefix}foco_${n}`,
     name: name ?? `Foco ${n}`,
     description: '',
     cost: 10,
@@ -323,6 +345,20 @@ function uniqueId(p: Project, base: string, ignoreUid?: string): string {
 
 export function ideaIdFor(p: Project, name: string, ignoreUid?: string): string {
   return uniqueId(p, `${p.countries?.[0]?.tag ?? p.tag}_${slug(name)}`, ignoreUid)
+}
+
+/** Id automático de un espíritu: <mod>_<nombre>, distinto de los del proyecto y del juego */
+export function renameIdeaAuto(p: Project, uid: string, gameIds: Set<string>): Project {
+  const i = p.ideas.find((x) => x.uid === uid)!
+  const base = `${slug(p.modName || 'mod')}_${slug(i.name || 'idea')}`
+  const taken = new Set([
+    ...p.ideas.filter((x) => x.uid !== uid).map((x) => x.id),
+    ...p.focuses.map((f) => f.id),
+    ...gameIds
+  ])
+  let id = base
+  for (let n = 2; taken.has(id); n++) id = `${base}_${n}`
+  return renameIdeaId(p, uid, id)
 }
 
 export function createIdea(p: Project, name = 'Nuevo espíritu'): { project: Project; idea: Idea } {

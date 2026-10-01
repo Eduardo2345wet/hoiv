@@ -213,6 +213,28 @@ demostración** (40 estados, países DMA–DMD): sirve para practicar, pero sus 
 Solo con el mapa real: se generan los archivos de `history/states/` necesarios, con el mismo
 nombre que en el juego (o en el mod base) y solo las líneas `owner` / `add_core_of` cambiadas.
 
+## Elegir países (selector universal)
+
+Todos los lugares que piden un país (el "País:" del árbol de focos, el primer árbol, "Modificar
+uno existente" del asistente, el nombre de la tarjeta del mapa y los campos de país de los
+bloques) usan el mismo orden: **Mis países → En el mapa** (dueños actuales según la plantilla y lo
+pintado, por número de estados) **→ Todos los países del juego** (plegable; incluye los que no
+tienen estados). Buscador por nombre o tag, flechas y Enter; al final "+ Crear país nuevo…"
+(rápido o con el asistente). Cada fila muestra la bandera real, el nombre, el tag y los estados.
+
+**País del juego "ligero":** al elegir, por ejemplo, SOV para un árbol, NO se abre nada: se
+registra solo el tag como país "existente" (sección **Países del juego usados** del Navegador).
+No exporta historia, banderas, personajes ni localización; solo lo que cambies después con
+"Editar este país…". Si borras su árbol y no tiene nada más, desaparece solo. Los árboles viejos
+"sin país" se pueden asignar a un país del juego con el mismo selector.
+
+**Árbol de un país del juego en el juego:** se exporta con `add = 20` (los árboles únicos del
+juego usan 10, para no empatar) y, con la carpeta del juego, el árbol avisa "Este árbol
+reemplazará el árbol original de <país>". Los focos nuevos se llaman
+`<mod>_<TAG>_<nombre>` para no chocar con los del juego; el validador marca como ERROR un id que
+ya exista en `common/national_focus` (o un espíritu en `common/ideas`) con el botón **Renombrar
+automáticamente** (actualiza bloques, prerrequisitos y excluyentes).
+
 ## Banderas reales de los países del juego
 
 Con HOI4 detectado, la Paleta, la tarjeta del país, el Navegador y el asistente muestran la

@@ -3,6 +3,7 @@
 import fs from 'fs'
 import path from 'path'
 import { shineShape } from '../shared/shine'
+import { parseFocusFile } from '../shared/gameFocus'
 
 export interface Settings {
   gamePath: string | null
@@ -163,6 +164,10 @@ export interface GameCatalogResult {
   countryColors: Record<string, [number, number, number]>
   /** tag → estado de la capital (capital = N en history/countries) */
   countryCapitals: Record<string, number>
+  /** id de todos los focos de common/national_focus del juego */
+  focusIds: string[]
+  /** tag → prioridad (add) de su árbol propio en el juego */
+  focusTreeTags: Record<string, number>
   /** tag → ideología gobernante (ruling_party de set_politics en history/countries) */
   countryRuling: Record<string, string>
   /** Forma (claves en orden) de una entrada real de interface/goals_shine.gfx */
@@ -265,7 +270,18 @@ export function readGameCatalog(gamePath: string): GameCatalogResult | null {
     // sin archivo: no se compara
   }
 
+  // Focos del juego: ids (para no repetirlos) y tags que ya tienen un árbol propio
+  const focusIds = new Set<string>()
+  const focusTreeTags: Record<string, number> = {}
+  for (const t of readDir(path.join(gamePath, 'common', 'national_focus'))) {
+    const f = parseFocusFile(t)
+    for (const id of f.focusIds) focusIds.add(id)
+    Object.assign(focusTreeTags, f.treeTags)
+  }
+
   const result: GameCatalogResult = {
+    focusIds: [...focusIds],
+    focusTreeTags,
     goalsShineShape,
     countryColors,
     countryCapitals,

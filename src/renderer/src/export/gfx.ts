@@ -24,6 +24,10 @@ export interface IconExportPlan {
   shineSprites: { name: string; owner: string }[]
 }
 
+/** Antepone el mod al nombre salvo que ya empiece con él (los ids nuevos ya llevan el prefijo) */
+const withMod = (mod: string, slug: string): string =>
+  slug.startsWith(`${mod}_`) ? slug : `${mod}_${slug}`
+
 export function planIconExport(project: Project): IconExportPlan {
   const mod = safeFolderName(project.modName)
   const assets = new Map(project.icons.map((a) => [a.id, a]))
@@ -38,7 +42,7 @@ export function planIconExport(project: Project): IconExportPlan {
     const key = `${folder}|${assetId}`
     if (ddsByKey.has(key)) return ddsByKey.get(key)!
     const a = assets.get(assetId)!
-    const base = `${mod}_${asciiSlug(a.name) || 'icono'}`
+    const base = withMod(mod, asciiSlug(a.name) || 'icono')
     let file = `gfx/interface/${folder}/${base}.dds`
     let n = 2
     while (usedFiles.has(file)) file = `gfx/interface/${folder}/${base}_${n++}.dds`
@@ -60,7 +64,7 @@ export function planIconExport(project: Project): IconExportPlan {
   for (const f of project.focuses) {
     if (f.icon.kind === 'game') focusIcon.set(f.uid, f.icon.gfx)
     else if (assets.has(f.icon.assetId)) {
-      const name = `GFX_${mod}_${asciiSlug(f.id)}`
+      const name = `GFX_${withMod(mod, asciiSlug(f.id))}`
       const file = ddsFor('goals', f.icon.assetId)
       sprite(name, file, `foco "${f.name || f.id}"`)
       focusIcon.set(f.uid, name)
