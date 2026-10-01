@@ -4,6 +4,14 @@ import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import fs from 'fs'
 import path from 'path'
 import { handleExportMod } from './export'
+import { loadRealMap } from './mapLoader'
+import {
+  loadSettings,
+  readCountryHistory,
+  readGameCatalog,
+  saveSettings,
+  type Settings
+} from './game'
 
 function createWindow(): void {
   const mainWindow = new BrowserWindow({
@@ -42,9 +50,14 @@ app.whenReady().then(() => {
 
   // IPC Handlers
   ipcMain.handle('select-folder', async () => {
-    const defaultModDir = path.join(app.getPath('documents'), 'Paradox Interactive', 'Hearts of Iron IV', 'mod')
+    const defaultModDir = path.join(
+      app.getPath('documents'),
+      'Paradox Interactive',
+      'Hearts of Iron IV',
+      'mod'
+    )
     const defaultPath = fs.existsSync(defaultModDir) ? defaultModDir : app.getPath('documents')
-    
+
     const result = await dialog.showOpenDialog({
       properties: ['openDirectory', 'createDirectory'],
       defaultPath
@@ -56,21 +69,35 @@ app.whenReady().then(() => {
   })
 
   ipcMain.handle('get-default-mod-path', async () => {
-    const defaultModDir = path.join(app.getPath('documents'), 'Paradox Interactive', 'Hearts of Iron IV', 'mod')
+    const defaultModDir = path.join(
+      app.getPath('documents'),
+      'Paradox Interactive',
+      'Hearts of Iron IV',
+      'mod'
+    )
     return defaultModDir
   })
 
-  ipcMain.handle('save-project-dialog', async (_, content: string, defaultName = 'proyecto.json') => {
-    const result = await dialog.showSaveDialog({
-      title: 'Guardar Proyecto',
-      defaultPath: defaultName,
-      filters: [{ name: 'HOI4 Mod Studio Project', extensions: ['json'] }]
-    })
-    if (!result.canceled && result.filePath) {
-      fs.writeFileSync(result.filePath, content, 'utf-8')
-      return true
+  ipcMain.handle(
+    'save-project-dialog',
+    async (_, content: string, defaultName = 'proyecto.json') => {
+      const result = await dialog.showSaveDialog({
+        title: 'Guardar proyecto',
+        defaultPath: defaultName,
+        filters: [{ name: 'HOI4 Mod Studio Project', extensions: ['json'] }]
+      })
+      if (!result.canceled && result.filePath) {
+        fs.writeFileSync(result.filePath, content, 'utf-8')
+        return result.filePath
+      }
+      return null
     }
-    return false
+  )
+
+  ipcMain.handle('save-project-to-path', async (_, filePath: string, content: string) => {
+    if (!filePath.toLowerCase().endsWith('.json')) return false
+    fs.writeFileSync(filePath, content, 'utf-8')
+    return true
   })
 
   ipcMain.handle('open-project-dialog', async () => {
@@ -85,6 +112,55 @@ app.whenReady().then(() => {
       return { path: filePath, content }
     }
     return null
+  })
+
+  // ---- Ajustes y juego base (opcional) ----
+  const settingsFile = path.join(app.getPath('userData'), 'settings.json')
+  ipcMain.handle('get-settings', async () => loadSettings(settingsFile))
+  ipcMain.handle('set-settings', async (_, s: Settings) => saveSettings(settingsFile, s))
+  ipcMain.handle('select-game-folder', async () => {
+    const result = await dialog.showOpenDialog({
+      title: 'Carpeta de instalación de Hearts of Iron IV',
+      properties: ['openDirectory']
+    })
+    return result.canceled ? null : result.filePaths[0]
+  })
+  ipcMain.handle('read-game-catalog', async (_, gamePath: string) => readGameCatalog(gamePath))
+
+  ipcMain.handle('read-country-history', async (_, gamePath: string, fileName: string) =>
+    readCountryHistory(gamePath, fileName)
+  )
+
+  ipcMain.handle('read-state-file', async (_, gamePath: string, fileName: string) => {
+    if (fileName.includes('/') || fileName.includes('\\') || fileName.includes('..')) return null
+    const statesDir = path.join(gamePath, 'history', 'states')
+    try {
+      const exactPath = path.join(statesDir, fileName)
+      if (fs.existsSync(exactPath)) {
+        return fs.readFileSync(exactPath, 'utf-8')
+      }
+      const stateIdMatch = fileName.match(/^(\d+)/)
+      if (stateIdMatch) {
+        const sid = stateIdMatch[1]
+        const files = fs.readdirSync(statesDir)
+        const matchedFile = files.find(
+          (f) => f.startsWith(`${sid}-`) || f.startsWith(`${sid} -`) || f === `${sid}.txt`
+        )
+        if (matchedFile) {
+          return fs.readFileSync(path.join(statesDir, matchedFile), 'utf-8')
+        }
+      }
+    } catch {
+      // no existe
+    }
+    return null
+  })
+
+  ipcMain.handle('load-real-map', async (event, gamePath: string) => {
+    const cacheDir = path.join(app.getPath('userData'), 'map_cache')
+    return loadRealMap(gamePath, cacheDir, (progress, message) => {
+      event.sender.send('map-load-progress', { progress, message })
+    })
   })
 
   ipcMain.handle('export-mod', async (_, payload) => {
