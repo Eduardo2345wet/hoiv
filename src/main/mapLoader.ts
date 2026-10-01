@@ -3,11 +3,11 @@
 import fs from 'fs'
 import path from 'path'
 import crypto from 'crypto'
-import { Jomini } from 'jomini'
+import { getJomini } from './jominiInit'
 import { parseBmp24 } from '../shared/map/bmp'
 import { colorKey, parseDefinitionCsv } from '../shared/map/definition'
 import { decodeGameText } from '../shared/map/text'
-import { parseStateFile, type JominiParser } from '../shared/map/stateFile'
+import { parseStateFile } from '../shared/map/stateFile'
 import { buildMapData } from '../shared/map/build'
 import { deserializeMap, serializeMap } from '../shared/map/serialize'
 import type { MapData, MapState } from '../shared/map/types'
@@ -16,12 +16,7 @@ import { listGameDir, resolveGameFile, type ModLayer } from './mods'
 
 export type Progress = (pct: number, message: string) => void
 
-// jomini se inicializa UNA sola vez
-let jominiPromise: Promise<JominiParser> | null = null
-export function getJomini(): Promise<JominiParser> {
-  jominiPromise ??= Jomini.initialize() as Promise<JominiParser>
-  return jominiPromise
-}
+export { getJomini }
 
 const pause = (): Promise<void> => new Promise((r) => setImmediate(r))
 

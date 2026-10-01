@@ -13,6 +13,7 @@
     "postinstall": "electron-builder install-app-deps",
     "build:win": "npm run build && electron-builder --win",
     "test": "vitest run",
+    "test:build": "electron-vite build && node scripts/test-build.cjs",
     "bench:map": "vite-node scripts/bench-map.ts",
     "bench:render": "node scripts/bench-render.mjs",
     "typecheck": "tsc --noEmit -p tsconfig.node.json --composite false && tsc --noEmit -p tsconfig.web.json --composite false"

@@ -5,7 +5,7 @@ import fs from 'fs'
 import path from 'path'
 import { handleExportMod } from './export'
 import { saveImage } from './saveImage'
-import { loadRealMap } from './mapLoader'
+import { getJomini, loadRealMap } from './mapLoader'
 import { listInstalledMods, type ModLayer } from './mods'
 import { findHoi4, isHoi4Install, systemEnv } from './steamDetect'
 import { planStatePatches, type StatePatchRequest } from './statesExport'
@@ -211,3 +211,7 @@ app.on('window-all-closed', () => {
     app.quit()
   }
 })
+
+// Solo para `npm run test:build`: deja jomini y la carga del mapa a mano para probar el bundle
+if (process.env.HOI4_BUNDLE_TEST)
+  (globalThis as Record<string, unknown>).__hoi4Core = { getJomini, loadRealMap }
