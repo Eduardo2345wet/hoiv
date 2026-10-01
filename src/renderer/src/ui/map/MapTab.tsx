@@ -29,8 +29,8 @@ import { handleStroke, type ToolId } from '../../map/tools'
 import CountryCard from './CountryCard'
 import PalettePanel from './PalettePanel'
 import NoNationSettings from './NoNationSettings'
-import { noNationActive, pendingStates } from '../../map/noNation'
-import { NO_NATION, setBrush } from '../../map/brush'
+import { nextPendingIndex, noNationActive, pendingStates } from '../../map/noNation'
+import { brushForKey, NO_NATION, setBrush } from '../../map/brush'
 import { countryDrawColor } from '../../map/colors'
 import { toHex } from '../../countries/color'
 import MapBaseDialog from './MapBaseDialog'
@@ -144,7 +144,7 @@ export default function MapTab({
   )
   const goPending = (dir: number): void => {
     if (!pending.length) return
-    const i = (pendingIdx + dir + pending.length) % pending.length
+    const i = nextPendingIndex(pending.length, pendingIdx, dir)
     setPendingIdx(i)
     store.focusState(pending[i])
   }
@@ -184,8 +184,8 @@ export default function MapTab({
       const found = TOOLS.find((x) => x.key === k)
       // Teclas 1–9: las primeras 9 muestras de "Mis países"
       if (/^[1-9]$/.test(e.key)) {
-        const c = project.countries.filter((x) => !x.technical)[Number(e.key) - 1]
-        if (c) setBrush(c.tag)
+        const tag = brushForKey(project, e.key)
+        if (tag) setBrush(tag)
         return
       }
       if (found) setTool(found.id)

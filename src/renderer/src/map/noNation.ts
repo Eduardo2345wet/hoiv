@@ -11,6 +11,7 @@ import { effectiveCores, effectiveOwner } from './mapOps'
 
 export const NO_NATION_COLOR: [number, number, number] = [200, 200, 200]
 /** Líneas que se quitan de los bloques con fecha de los estados pendientes */
+// por verificar: estas son todas las claves con las que un bloque con fecha devuelve el estado a otro país
 export const DATED_KEYS_TO_STRIP = ['owner', 'controller', 'add_core_of', 'transfer_state']
 
 /** ¿Está activo el modo Sin nación? (solo con el lienzo en blanco) */
@@ -108,6 +109,12 @@ export function withTechnicalCapital(p: Project, map: MapData | null): Project {
   if (!tech || !map) return p
   const first = pendingStates(p, map)[0] ?? null
   return { ...p, countries: p.countries.map((c) => (c.technical ? { ...c, capital: first } : c)) }
+}
+
+/** Siguiente / Anterior en la lista de pendientes (da la vuelta) */
+export function nextPendingIndex(count: number, index: number, dir: number): number {
+  if (!count) return 0
+  return (((index + dir) % count) + count) % count
 }
 
 export { effectiveOwner }

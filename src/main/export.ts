@@ -63,6 +63,7 @@ export async function handleExportMod(payload: ExportModPayload): Promise<Export
 
     const tags = `tags={\n\t"Alternative History"\n\t"National Focuses"\n}`
     // Base de mapa de otro mod: el nuestro depende de él (debe cargarse antes)
+    // por verificar: el launcher de HOI4 respeta dependencies = { "Nombre" } para el orden de carga
     const deps = (payload.dependencies ?? []).filter(Boolean)
     const dependencies = deps.length
       ? `dependencies={\n${deps.map((d) => `\t"${escapeQuotes(d)}"`).join('\n')}\n}\n`

@@ -72,6 +72,8 @@ Por cada país NUEVO:
 
 Por cada estado que cambies en el mapa REAL (mismo nombre que en el juego, cambios mínimos):
 <mod>/history/states/<archivo original>.txt
+(con Sin nación: casi todos los estados, más el país técnico como país nuevo)
+(con base de un mod: dependencies = { "Nombre del mod" } en descriptor.mod)
 
 Por cada país EXISTENTE solo lo que cambies (banderas subidas, líderes nuevos,
 historia con el nombre exacto del juego si hay carpeta, nombre en localisation/english/replace/).
@@ -93,8 +95,8 @@ src/renderer/src/
   ui/                Pantallas y componentes
   map/               Mapa: colores, renderizadores WebGL2/Canvas 2D, herramientas y validación
   countries/         Países: color, popularidades, tags, historia, validación y datos "por verificar"
-  types.ts           Formato de proyecto.json (versión 4)
-  migrate.ts         Abre proyectos viejos (versiones 1 a 3) sin error
+  types.ts           Formato de proyecto.json (versión 5)
+  migrate.ts         Abre proyectos viejos (versiones 1 a 4) sin error
 tests/               Pruebas automáticas
 ```
 
@@ -116,36 +118,46 @@ tests/               Pruebas automáticas
 Para que el país aparezca en la partida debe ser dueño de al menos un estado: píntaselos en
 la pestaña **Mapa** (ver abajo).
 
-## Probar el editor de mapa (sin tener HOI4)
+## Editor de mapa (tipo Paint)
 
-1. Pestaña **Mapa**: sin carpeta del juego se abre el **Mapa de demostración** (etiqueta azul):
-   40 estados y 4 países ficticios (DMA, DMB, DMC, DMD).
-2. En la tarjeta de arriba a la izquierda: **Elegir país** (por ejemplo tu país del mod) o **+ Crear país**.
-3. Herramientas (con su tecla):
-   - **Pincel (B)**: arrastra sobre el mapa; cada estado bajo el cursor pasa a tu país.
-     Opciones: "Dar core al pintar" y "Quitar cores del dueño anterior".
-   - **Cubeta (G)**: clic en un estado → pinta todos los conectados con el mismo dueño.
-   - **Fijar capital (C)**: clic en un estado de tu país (si no es suyo, te explica por qué).
-   - **Core (K)**: clic agrega un core; **Shift+clic** lo quita.
-   - **Borrador (E)**: el estado vuelve a su dueño y cores originales.
-   - **Cuentagotas (I)**: el dueño del estado pasa a ser el país activo.
-   - **Seleccionar (V)**: ver la información del estado en el panel derecho.
-4. **Ctrl+Z / Ctrl+Y**: cada pincelada completa es un solo paso.
-5. Rueda = zoom, botón central o espacio + arrastre = mover, doble clic = acercar, **F** = ajustar.
-   Abajo a la derecha está el minimapa (clic para moverte). Arriba a la derecha, el modo de vista
-   (Político, Estados, Cores del país activo, Cambios).
-6. **🖼 Referencia**: sube un PNG para calcar encima del mapa (solo visual).
-7. En el asistente de país (paso Capital) y en los bloques que piden un estado, usa
-   **🗺 Elegir en el mapa…**.
-8. **Exportar mod**: el validador avisa que los cambios del mapa de demostración NO se exportan.
+### Primera vez: elegir la base
+Al abrir la pestaña **Mapa** se pregunta UNA vez el punto de partida (se cambia luego con
+**🗺 Base**; lo que ya pintaste se conserva):
+- **⬜ Lienzo en blanco**: tierra blanca, mar azul y el número de cada estado. Solo ves en color
+  lo que pintas. Elige qué pasa con lo que no pintes:
+  - *Conservan su dueño del juego* (por defecto): al exportar solo cambian los estados pintados.
+  - *Quedan como Sin nación (pendientes)*: un país técnico gris se queda con todo lo demás.
+- **🌍 Mapa del juego**: todos los países con sus colores reales.
+- **🧩 Mapa de un mod**: lista los mods de `Documentos/Paradox Interactive/Hearts of Iron IV/mod`
+  y del Workshop; usa sus archivos encima de los del juego. Tu mod dependerá de él.
 
-## Con la carpeta del juego
+Sin carpeta del juego se usa el **mapa de demostración** (40 estados, países DMA–DMD): sirve
+para practicar, pero sus cambios no se exportan.
 
-1. **⚙ Ajustes** → elige la carpeta de instalación de HOI4.
-2. Pestaña **Mapa** → **Recargar mapa**: verás la barra de progreso ("Leyendo provincias… 40 %").
-   La segunda vez abre desde la caché en segundos.
-3. Pinta, y al exportar se generan SOLO los archivos de `history/states/` que cambiaste, con el
-   mismo nombre que en el juego y solo las líneas `owner` / `add_core_of` modificadas.
+### Pintar
+1. En la **Paleta** (izquierda) haz clic en un color, o usa las teclas **1–9** (Mis países).
+   **+ País rápido** crea un país con solo nombre y color; después "Completar país…" abre el asistente.
+2. **Clic izquierdo** pinta; **arrastra** para pintar varios (una pincelada = un Ctrl+Z).
+3. **Clic derecho** borra (vuelve a la base o a pendiente).
+4. **Cubeta (G)**: rellena la región conectada del mismo color, sin preguntar (aviso con "Deshacer").
+5. **Cuentagotas (I)**: toma el país de un estado como pincel.
+6. **Capital (C)** y **Core (K / Shift = quitar)**: los errores salen como avisos, nunca ventanas.
+7. Países del juego: se pintan directamente (no se agregan a Países). Su menú **⋯ → Editar este
+   país…** los agrega como "existente" para cambiar bandera o líder.
+8. Arriba a la derecha: modo de vista, **etiquetas** (Ninguna / ID / Nombre / ID + nombre),
+   fronteras de provincia y **Colores como en el juego**.
+9. Rueda = zoom, botón central o espacio + arrastre = mover, **F** = ajustar.
+
+### Modo Sin nación
+- La barra inferior muestra **Pendientes: N de M estados**; **Ver pendientes** los resalta y
+  **Siguiente / Anterior** los recorre.
+- **⚙ Sin nación** cambia el nombre y el tag del país técnico y si se conservan los cores del juego.
+- Al exportar, todos los estados no pintados pasan al país técnico (sin cores del juego y sin
+  cambios con fecha). El modo está pensado para empezar en 1936.
+
+### Al exportar
+Solo con el mapa real: se generan los archivos de `history/states/` necesarios, con el mismo
+nombre que en el juego (o en el mod base) y solo las líneas `owner` / `add_core_of` cambiadas.
 
 ## Probar el mod en el juego
 

@@ -35,3 +35,9 @@ export function setBrush(tag: string | null): void {
         : recent
   })
 }
+
+/** Teclas 1–9: el país de "Mis países" en esa posición (o null) */
+export function brushForKey(project: Project, key: string): string | null {
+  if (!/^[1-9]$/.test(key)) return null
+  return project.countries.filter((c) => !c.technical)[Number(key) - 1]?.tag ?? null
+}

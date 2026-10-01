@@ -7,7 +7,7 @@ import type { Project } from '../../types'
 import { store, useApp } from '../../store/appStore'
 import { countryDrawColor } from '../../map/colors'
 import { countryLabel, NO_NATION, setBrush } from '../../map/brush'
-import { quickCountry } from '../../map/quickCountry'
+import { createQuickCountry } from '../../map/quickCountry'
 import { addCountry, colorForTag, newCountry } from '../../countries/countryOps'
 import { suggestTag } from '../../countries/tags'
 import { fromHex, toHex } from '../../countries/color'
@@ -152,9 +152,7 @@ export default function PalettePanel({ project, gameColors, onOpenWizard }: Prop
     : null
   const createQuick = (): void => {
     if (!quick || quickError) return
-    const c = quickCountry(quick.name.trim(), quick.tag, fromHex(quick.color))
-    store.updateProject((p) => addCountry(p, c))
-    setBrush(c.tag)
+    const c = createQuickCountry(quick.name.trim(), quick.tag, fromHex(quick.color))
     setLastQuickUid(c.uid)
     setQuick(null)
     store.toast(`País creado: ${c.names.name} (${c.tag}) · ya puedes pintar`, { undo: true })
