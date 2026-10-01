@@ -35,6 +35,7 @@ import { saveImage } from '../src/main/saveImage'
 import fs from 'fs'
 import os from 'os'
 import path from 'path'
+import { FrameMeter, IDLE_MS } from '../src/renderer/src/map/perfStats'
 import { buildSegmentBuffer } from '../src/renderer/src/map/borderGeometry'
 import { segmentStyle } from '../src/renderer/src/map/borderStyle'
 import { buildPalette } from '../src/renderer/src/map/colors'
@@ -709,5 +710,26 @@ describe('exportar imagen: geometría y guardado (parte 5)', () => {
     fs.mkdirSync(game, { recursive: true })
     expect('error' in saveImage(path.join(game, 'c.png'), png)).toBe(true)
     expect(fs.existsSync(path.join(game, 'c.png'))).toBe(false)
+  })
+})
+
+describe('medidor de FPS del overlay F3 (parte 6)', () => {
+  it('calcula los cuadros por segundo de una racha continua', () => {
+    const m = new FrameMeter()
+    for (let i = 0; i < 60; i++) m.frame(1000 + i * (1000 / 60), 0.5)
+    expect(m.fps(1000 + 59 * (1000 / 60))).toBeCloseTo(60, 0)
+    expect(m.renderMs()).toBeCloseTo(0.5, 6)
+    expect(m.worstGap()).toBeCloseTo(1000 / 60, 3)
+  })
+  it('con el mapa quieto no hay FPS; un hueco largo corta la racha', () => {
+    const m = new FrameMeter()
+    expect(m.fps(0)).toBeNull()
+    m.frame(0, 1)
+    m.frame(16, 1)
+    expect(m.fps(30)).not.toBeNull()
+    expect(m.fps(16 + IDLE_MS + 1)).toBeNull() // quieto
+    m.frame(5000, 1)
+    m.frame(5033, 1)
+    expect(m.fps(5040)).toBeCloseTo(1000 / 33, 0) // solo cuenta la racha nueva
   })
 })

@@ -32,6 +32,7 @@ import {
   type PlacedLabel
 } from '../../map/labelLayout'
 import { isPainted } from '../../map/colors'
+import { FrameMeter } from '../../map/perfStats'
 import { drawMinimap, minimapSize } from '../../map/minimap'
 import { exportMapImage, type ExportOptions, type ExportResult } from '../../map/exportImage'
 import { countryLabel } from '../../map/brush'
@@ -125,6 +126,25 @@ export default forwardRef<MapViewHandle, Props>(function MapView(props, ref) {
   // ---- Vista: límites, zoom animado e inercia ----
   const sizeRef = useRef(size)
   sizeRef.current = size
+  // Overlay F3: FPS reales y tiempos
+  const meter = useRef(new FrameMeter())
+  const perf = useRef({ layoutMs: 0, paletteMs: 0 })
+  const [showStats, setShowStats] = useState(false)
+  const [, setStatsTick] = useState(0)
+  useEffect(() => {
+    const key = (e: KeyboardEvent): void => {
+      if (e.key !== 'F3') return
+      e.preventDefault()
+      setShowStats((v) => !v)
+    }
+    window.addEventListener('keydown', key)
+    return () => window.removeEventListener('keydown', key)
+  }, [])
+  useEffect(() => {
+    if (!showStats) return
+    const t = setInterval(() => setStatsTick((n) => n + 1), 250)
+    return () => clearInterval(t)
+  }, [showStats])
   const zoomAnim = useRef<ZoomAnim | null>(null)
   const inertia = useRef<{ vx: number; vy: number; last: number } | null>(null)
   const rafId = useRef(0)
@@ -254,7 +274,9 @@ export default forwardRef<MapViewHandle, Props>(function MapView(props, ref) {
 
   // ---- Paleta → renderizador; dibujar en el siguiente cuadro ----
   useEffect(() => {
+    const t0 = performance.now()
     rendererRef.current?.setPalette(palette)
+    perf.current.paletteMs = performance.now() - t0
   }, [palette, map])
 
   useEffect(() => {
@@ -270,6 +292,7 @@ export default forwardRef<MapViewHandle, Props>(function MapView(props, ref) {
         c.width = dw
         c.height = dh
       }
+      const t0 = performance.now()
       rendererRef.current.render(view, dw, dh, {
         hoverStateId: hover?.stateId ?? 0,
         provinceBorders: props.provinceBorders,
@@ -277,6 +300,7 @@ export default forwardRef<MapViewHandle, Props>(function MapView(props, ref) {
         dpr
       })
       redrawOverlay()
+      meter.current.frame(performance.now(), performance.now() - t0)
     })
     props.onViewChange?.(view)
     return () => cancelAnimationFrame(id)
@@ -332,7 +356,9 @@ export default forwardRef<MapViewHandle, Props>(function MapView(props, ref) {
     }
   }
   const relayout = (v: View = viewRef.current): void => {
+    const t0 = performance.now()
     labelsRef.current = layoutLabels({ ...labelBase(), view: v, width: size.w, height: size.h })
+    perf.current.layoutMs = performance.now() - t0
     redrawOverlay()
   }
   // Cambios que obligan a recolocar YA
@@ -497,6 +523,48 @@ export default forwardRef<MapViewHandle, Props>(function MapView(props, ref) {
         />
       )}
       <canvas ref={overlayRef} className="pointer-events-none absolute inset-0 h-full w-full" />
+
+      {showStats && (
+        <div className="pointer-events-none absolute bottom-3 left-3 z-30 rounded bg-black/80 px-2 py-1.5 font-mono text-[11px] leading-snug text-green-300 shadow">
+          {(() => {
+            const now = performance.now()
+            const fps = meter.current.fps(now)
+            const r = rendererRef.current
+            const b = map.borderStats
+            const bytes =
+              map.borders.points.byteLength +
+              map.borders.starts.byteLength +
+              map.borders.a.byteLength +
+              map.borders.b.byteLength
+            return (
+              <>
+                <div>
+                  {r?.kind ?? '—'} · {fps === null ? 'quieto' : `${fps.toFixed(1)} FPS`} · dibujar{' '}
+                  {meter.current.renderMs().toFixed(2)} ms · peor hueco{' '}
+                  {meter.current.worstGap().toFixed(0)} ms
+                </div>
+                <div>
+                  Fronteras: {r?.stats.segmentsDrawn.toLocaleString('es')} /{' '}
+                  {r?.stats.segmentsTotal.toLocaleString('es')} segmentos ·{' '}
+                  {(bytes / 1024).toFixed(0)} KB en la caché
+                </div>
+                <div>
+                  Vectorizar: {b.ms.toFixed(0)} ms · rectángulos de etiquetas:{' '}
+                  {map.labelBoxesMs.toFixed(0)} ms (al cargar el mapa)
+                </div>
+                <div>
+                  Etiquetas: {labelsRef.current.length} · colocar {perf.current.layoutMs.toFixed(1)}{' '}
+                  ms · pintar (paleta) {perf.current.paletteMs.toFixed(1)} ms
+                </div>
+                <div>
+                  Mapa {map.width}×{map.height} · {map.states.length} estados · zoom{' '}
+                  {view.scale.toFixed(2)} · DPR {(window.devicePixelRatio || 1).toFixed(2)}
+                </div>
+              </>
+            )
+          })()}
+        </div>
+      )}
 
       {hover && tipState && !drag.current && (
         <div

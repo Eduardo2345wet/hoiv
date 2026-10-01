@@ -32,6 +32,7 @@ const FILL_FS = `${COMMON}
 uniform usampler2D uProv;      // ID de provincia por píxel
 uniform usampler2D uProvSlot;  // provincia → posición de estado + 1 (0 = mar / lago)
 uniform sampler2D uPal;        // estado → color (rgb) + banderas (a)
+uniform sampler2D uMask;       // 1 = tierra, 0 = mar / lago (filtro lineal: costa suave)
 uniform vec2 uMapSize;
 uniform vec2 uCanvas;          // píxeles del dispositivo
 uniform vec3 uView;            // escala, x, y (píxeles del dispositivo)
@@ -71,37 +72,40 @@ void main() {
     return;
   }
 
-  // Costa suave: máscara tierra/mar de los 4 píxeles vecinos (bilineal) y su contorno en 0.5,
-  // con un borde de ~1 píxel de pantalla (antialias a cualquier zoom).
-  vec2 q = m - 0.5;
-  ivec2 i0 = ivec2(floor(q));
-  vec2 f = q - floor(q);
-  uint s00 = slotAt(i0);
-  uint s10 = slotAt(i0 + ivec2(1, 0));
-  uint s01 = slotAt(i0 + ivec2(0, 1));
-  uint s11 = slotAt(i0 + ivec2(1, 1));
-  float w00 = (1.0 - f.x) * (1.0 - f.y);
-  float w10 = f.x * (1.0 - f.y);
-  float w01 = (1.0 - f.x) * f.y;
-  float w11 = f.x * f.y;
-  float land = (s00 != 0u ? w00 : 0.0) + (s10 != 0u ? w10 : 0.0)
-             + (s01 != 0u ? w01 : 0.0) + (s11 != 0u ? w11 : 0.0);
+  // Costa suave: máscara tierra/mar de los 4 píxeles vecinos (el filtro lineal de la GPU hace
+  // la mezcla bilineal en UNA lectura) y su contorno en 0.5, con un borde de ~1 píxel de
+  // pantalla (antialias a cualquier zoom). El mar abierto cuesta una sola lectura.
+  float land = texture(uMask, m / uMapSize).r;
   if (land <= 0.0) {
     outColor = vec4(SEA, 1.0);
     return;
   }
-  // El píxel de tierra más cercano da el color (los colores NO se mezclan entre estados)
-  uint slot = 0u;
-  float best = -1.0;
-  if (s00 != 0u && w00 > best) { best = w00; slot = s00; }
-  if (s10 != 0u && w10 > best) { best = w10; slot = s10; }
-  if (s01 != 0u && w01 > best) { best = w01; slot = s01; }
-  if (s11 != 0u && w11 > best) { best = w11; slot = s11; }
   float aa = max(fwidth(land) * 0.75, 1e-4);
   float cover = smoothstep(0.5 - aa, 0.5 + aa, land);
   if (cover <= 0.0) {
     outColor = vec4(SEA, 1.0);
     return;
+  }
+  // El píxel de tierra más cercano da el color (los colores NO se mezclan entre estados)
+  uint slot = slotAt(ivec2(floor(m)));
+  if (slot == 0u) {
+    // Píxel de mar junto a la costa: el vecino de tierra con más peso
+    vec2 q = m - 0.5;
+    ivec2 i0 = ivec2(floor(q));
+    vec2 f = q - floor(q);
+    uint s00 = slotAt(i0);
+    uint s10 = slotAt(i0 + ivec2(1, 0));
+    uint s01 = slotAt(i0 + ivec2(0, 1));
+    uint s11 = slotAt(i0 + ivec2(1, 1));
+    float best = -1.0;
+    if (s00 != 0u && (1.0 - f.x) * (1.0 - f.y) > best) { best = (1.0 - f.x) * (1.0 - f.y); slot = s00; }
+    if (s10 != 0u && f.x * (1.0 - f.y) > best) { best = f.x * (1.0 - f.y); slot = s10; }
+    if (s01 != 0u && (1.0 - f.x) * f.y > best) { best = (1.0 - f.x) * f.y; slot = s01; }
+    if (s11 != 0u && f.x * f.y > best) { best = f.x * f.y; slot = s11; }
+    if (slot == 0u) {
+      outColor = vec4(SEA, 1.0);
+      return;
+    }
   }
 
   vec4 pal = texelFetch(uPal, row(slot - 1u), 0);
@@ -301,7 +305,17 @@ export function createWebGLRenderer(
   map.provinceToState.forEach((st, prov) => (provSlot[prov] = st ? (slotOfState.get(st) ?? 0) : 0))
   gl.activeTexture(gl.TEXTURE1)
   uintTexture(gl, provSlot)
-  // (la unidad 2 queda libre)
+  // Máscara tierra/mar (R8, filtro lineal): la costa suave sale de UNA lectura filtrada
+  gl.activeTexture(gl.TEXTURE2)
+  const maskTex = gl.createTexture()!
+  gl.bindTexture(gl.TEXTURE_2D, maskTex)
+  const mask = new Uint8Array(map.width * map.height)
+  for (let i = 0; i < mask.length; i++) mask[i] = provSlot[map.provinceIndex[i]] ? 255 : 0
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.R8, map.width, map.height, 0, gl.RED, gl.UNSIGNED_BYTE, mask)
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR)
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR)
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE)
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE)
 
   const palRows = Math.max(1, Math.ceil(map.states.length / ROW))
   gl.activeTexture(gl.TEXTURE3)
@@ -347,6 +361,7 @@ export function createWebGLRenderer(
   gl.useProgram(fillProg)
   gl.uniform1i(uni(fillProg, 'uProv'), 0)
   gl.uniform1i(uni(fillProg, 'uProvSlot'), 1)
+  gl.uniform1i(uni(fillProg, 'uMask'), 2)
   gl.uniform1i(uni(fillProg, 'uPal'), 3)
   gl.uniform2f(uni(fillProg, 'uMapSize'), map.width, map.height)
   const f = {
@@ -367,8 +382,10 @@ export function createWebGLRenderer(
     hover: uni(lineProg, 'uHover')
   }
 
+  const stats = { segmentsDrawn: 0, segmentsTotal: seg.count }
   return {
     kind: 'webgl2',
+    stats,
     setPalette(p: Palette) {
       const padded = new Uint8Array(palRows * ROW * 4)
       padded.set(p.rgba)
@@ -416,6 +433,7 @@ export function createWebGLRenderer(
         (height - vy) / scale,
         margin
       )
+      stats.segmentsDrawn = tiles.reduce((n, t) => n + t.count, 0)
       const passes = [0]
       if (opts.activeContour) passes.push(1)
       if (hover) passes.push(2)

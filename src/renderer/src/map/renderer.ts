@@ -26,8 +26,16 @@ export interface RendererOptions {
   preserveDrawingBuffer?: boolean
 }
 
+/** Datos del último cuadro (overlay F3) */
+export interface RenderStats {
+  /** Segmentos de frontera enviados a dibujar (solo las baldosas visibles) y el total */
+  segmentsDrawn: number
+  segmentsTotal: number
+}
+
 export interface MapRenderer {
   readonly kind: 'webgl2' | 'canvas2d'
+  readonly stats: RenderStats
   setPalette(p: Palette): void
   /** `width` y `height` en píxeles del DISPOSITIVO (tamaño real del canvas) */
   render(view: View, width: number, height: number, opts: RenderOptions): void

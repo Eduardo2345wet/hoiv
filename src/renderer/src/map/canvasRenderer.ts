@@ -32,8 +32,10 @@ export function createCanvasRenderer(
   let prev: Uint8Array | null = null
   let pal: Palette | null = null
 
+  const total = map.borders.points.length / 2 - map.borders.a.length
   return {
     kind: 'canvas2d',
+    stats: { segmentsDrawn: total, segmentsTotal: total },
     setPalette(p: Palette) {
       for (let slot = 0; slot < map.states.length; slot++) {
         const o = slot * 4
