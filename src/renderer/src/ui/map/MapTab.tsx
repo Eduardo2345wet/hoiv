@@ -1,6 +1,6 @@
 // Pestaña "Mapa": barra de herramientas, tarjeta del país activo, panel derecho,
 // mapa en el centro y barra inferior. Tipo Paint: se pinta por ESTADO.
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   Eraser,
   Maximize,
@@ -28,7 +28,9 @@ import { VIEW_MODES, type ViewMode } from '../../map/colors'
 import { handleStroke, type ToolId } from '../../map/tools'
 import CountryCard from './CountryCard'
 import PalettePanel from './PalettePanel'
-import { setBrush } from '../../map/brush'
+import { NO_NATION, setBrush } from '../../map/brush'
+import { countryDrawColor } from '../../map/colors'
+import { toHex } from '../../countries/color'
 import MapBaseDialog from './MapBaseDialog'
 import MapSidePanel from './MapSidePanel'
 
@@ -53,8 +55,8 @@ export const TOOLS: {
     icon: <MousePointer2 size={16} />,
     cursor: 'default'
   },
-  { id: 'brush', label: 'Pincel', key: 'B', icon: <Paintbrush size={16} />, cursor: 'crosshair' },
-  { id: 'bucket', label: 'Cubeta', key: 'G', icon: <PaintBucket size={16} />, cursor: 'cell' },
+  { id: 'brush', label: 'Pincel (clic derecho borra)', key: 'B', icon: <Paintbrush size={16} />, cursor: 'crosshair' },
+  { id: 'bucket', label: 'Cubeta (sin confirmación; clic derecho borra)', key: 'G', icon: <PaintBucket size={16} />, cursor: 'cell' },
   { id: 'capital', label: 'Fijar capital', key: 'C', icon: <Star size={16} />, cursor: 'pointer' },
   {
     id: 'core',
@@ -194,6 +196,18 @@ export default function MapTab({
   }
 
   const toolInfo = TOOLS.find((t) => t.id === tool)!
+  // Cursor: un circulito con el color del pincel activo (Pincel y Cubeta)
+  const brushCursor = useMemo(() => {
+    if (tool !== 'brush' && tool !== 'bucket' && tool !== 'eraser') return null
+    const erase = tool === 'eraser' || activeTag === NO_NATION
+    if (!erase && !activeTag) return null
+    const fill = erase ? '#ffffff' : toHex(countryDrawColor(activeTag!, project, game, gameColors))
+    const svg =
+      `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20">` +
+      `<circle cx="10" cy="10" r="7" fill="${fill}" stroke="#111" stroke-width="2"${erase ? ' stroke-dasharray="3 2"' : ''}/>` +
+      `<circle cx="10" cy="10" r="8.5" fill="none" stroke="#fff" stroke-width="1"/></svg>`
+    return `url("data:image/svg+xml,${encodeURIComponent(svg)}") 10 10, crosshair`
+  }, [tool, activeTag, project, game, gameColors])
   return (
     <div className="flex h-full min-h-0 flex-col">
       {/* 1. Barra de herramientas */}
@@ -346,7 +360,7 @@ export default function MapTab({
               }}
               labels={labels}
               provinceBorders={provinceBorders}
-              cursor={pick ? 'crosshair' : toolInfo.cursor}
+              cursor={pick ? 'crosshair' : (brushCursor ?? toolInfo.cursor)}
               reference={reference}
               onStroke={onStroke}
               onHover={setHover}
