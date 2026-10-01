@@ -1,5 +1,6 @@
 // Ventana modal reutilizable con el tema oscuro
-import type { ReactNode } from 'react'
+import { useEffect, useRef, type ReactNode } from 'react'
+import Overlay from './Overlay'
 
 interface Props {
   title: string
@@ -9,6 +10,8 @@ interface Props {
   onClose: () => void
 }
 
+const stack: symbol[] = []
+
 export default function Modal({
   title,
   children,
@@ -16,18 +19,25 @@ export default function Modal({
   width = 560,
   onClose
 }: Props): JSX.Element {
+  // Esc cierra solo la ventana de más arriba (aunque el foco no esté dentro)
+  const closeRef = useRef(onClose)
+  closeRef.current = onClose
+  useEffect(() => {
+    const id = Symbol('modal')
+    stack.push(id)
+    const key = (e: KeyboardEvent): void => {
+      if (e.key !== 'Escape' || stack[stack.length - 1] !== id) return
+      e.stopPropagation()
+      closeRef.current()
+    }
+    window.addEventListener('keydown', key)
+    return () => {
+      window.removeEventListener('keydown', key)
+      stack.splice(stack.indexOf(id), 1)
+    }
+  }, [])
   return (
-    <div
-      data-modal
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60"
-      onPointerDown={(e) => e.target === e.currentTarget && onClose()}
-      onKeyDown={(e) => {
-        // Esc cierra solo la ventana de más arriba
-        if (e.key !== 'Escape') return
-        e.stopPropagation()
-        onClose()
-      }}
-    >
+    <Overlay onBackdrop={onClose}>
       <div
         className="flex max-h-[92vh] flex-col overflow-hidden rounded-lg border border-hoi-border bg-hoi-panel shadow-2xl"
         style={{ width }}
@@ -40,6 +50,6 @@ export default function Modal({
           </div>
         )}
       </div>
-    </div>
+    </Overlay>
   )
 }

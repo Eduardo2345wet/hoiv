@@ -7,6 +7,7 @@ import { createSlots, SLOT_TYPES } from '../blocks/slots'
 import { generateSlots } from '../generator/pdx'
 import type { Focus, FocusScripts } from '../types'
 import { hoiDarkTheme } from './theme'
+import { Z } from './layers'
 
 interface Props {
   focus: Focus | null
@@ -97,7 +98,7 @@ export default function BlocklyEditor({ focus, onChange }: Props): JSX.Element {
   }, [focus])
 
   return (
-    <div className="relative h-full w-full">
+    <div className="relative h-full w-full" style={{ zIndex: Z.blockly }}>
       <div ref={divRef} className="absolute inset-0" />
       {!focus && (
         <div className="absolute inset-0 flex items-center justify-center bg-hoi-bg/90 text-hoi-muted">

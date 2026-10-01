@@ -1,5 +1,21 @@
 // Tema oscuro de Blockly con acentos naranjas
 import * as Blockly from 'blockly'
+import { Z } from './layers'
+
+// CSS de Blockly que va JUNTO con su tema (se registra antes de crear el espacio de trabajo y se
+// inyecta con el CSS propio de Blockly, así ningún CSS suelto de la app lo pisa):
+//  - letra de las categorías del toolbox de 14 px (la clase cambió entre versiones de Blockly)
+//  - capas de lo flotante (menús, widgets, tooltips) según la escala única de layers.ts
+export const TOOLBOX_FONT_PX = 14
+Blockly.Css.register(
+  [
+    `.injectionDiv .blocklyToolboxCategoryLabel,
+.injectionDiv .blocklyTreeLabel { font: ${TOOLBOX_FONT_PX}px 'Segoe UI', sans-serif !important; }`,
+    `.injectionDiv .blocklyToolboxCategory, .injectionDiv .blocklyTreeRow { height: 30px !important; line-height: 30px !important; }`,
+    `.blocklyWidgetDiv, .blocklyDropDownDiv { z-index: ${Z.blocklyFloating} !important; }`,
+    `.blocklyTooltipDiv { z-index: ${Z.blocklyFloating} !important; }`
+  ].join('\n')
+)
 
 export const hoiDarkTheme = Blockly.Theme.defineTheme('hoiDark', {
   name: 'hoiDark',

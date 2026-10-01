@@ -48,11 +48,3 @@ body {
   user-select: text;
 }
 
-/* Toolbox de Blockly: letra del mismo tamaño que el resto de la interfaz */
-.blocklyTreeLabel {
-  font-size: 14px !important;
-}
-.blocklyTreeRow {
-  height: 30px !important;
-  line-height: 30px !important;
-}

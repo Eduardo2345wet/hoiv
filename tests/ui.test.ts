@@ -104,7 +104,7 @@ describe('interfaz tipo NX (partes 1 a 4)', () => {
     await page.click('button:has-text("Añadir foco")')
     await page.waitForSelector('text=¿De qué país es este árbol de focos?')
     await page.waitForSelector('text=Todos los países del juego')
-    await page.click('button:has-text("Cerrar"), [data-modal]', { position: { x: 5, y: 5 } })
+    await page.keyboard.press('Escape')
     // La cinta cambia la vista principal: Países muestra su pestaña
     await page.click('button:text-is("Países")')
     await page.waitForSelector('button:has-text("Crear país")')
@@ -152,4 +152,150 @@ describe('interfaz tipo NX (partes 1 a 4)', () => {
     expect(await page.locator('button[title="Deshacer (Ctrl+Z)"]').isDisabled()).toBe(true)
     await page.close()
   }, 120_000)
+})
+
+// ---------- Capas: las ventanas siempre por encima de Blockly ----------
+type HoiWindow = {
+  __hoiStore: Record<string, (...a: unknown[]) => unknown> & { get(): { project: unknown } }
+}
+
+/** Abre un proyecto con país y foco para que el editor de focos con Blockly se vea */
+async function focusEditor(page: Page): Promise<void> {
+  await page.evaluate(() => {
+    const st = (window as unknown as HoiWindow).__hoiStore as never as {
+      openInNewTab(p: unknown, f: null, r: string): void
+    }
+    const country = {
+      uid: 'c1',
+      mode: 'nuevo',
+      tag: 'NVG',
+      names: { name: 'Nueva Granada', def: 'Nueva Granada', adj: 'Granadino' },
+      ideologyNames: {},
+      color: [10, 100, 200],
+      graphicalCulture: 'x',
+      graphicalCulture2d: 'x',
+      politics: {
+        ruling: 'neutrality',
+        popularities: { democratic: 0, communism: 0, fascism: 0, neutrality: 100 },
+        electionsAllowed: false,
+        electionFrequency: 48,
+        lastElection: '1936.1.1',
+        parties: {}
+      },
+      capital: null,
+      flags: { main: null, byIdeology: {} },
+      leaders: [],
+      focusTreeId: 'arbol_1',
+      existing: { renameInGame: false, historyFile: null, historyText: null, historyEdited: false }
+    }
+    st.openInNewTab(
+      {
+        version: 6,
+        template: 'game',
+        modName: 'Capas',
+        tag: '',
+        countries: [country],
+        focusTrees: [{ id: 'arbol_1', name: 'Árbol' }],
+        focuses: [
+          {
+            uid: 'f1',
+            treeId: 'arbol_1',
+            id: 'capas_NVG_uno',
+            name: 'Uno',
+            description: '',
+            cost: 10,
+            icon: { kind: 'game', gfx: 'GFX_goal_unknown' },
+            iconAuto: false,
+            x: 0,
+            y: 0,
+            prerequisites: [],
+            mutuallyExclusive: [],
+            blocks: null,
+            scripts: { available: '', bypass: '', reward: '' }
+          }
+        ],
+        ideas: [],
+        icons: [],
+        countryFlags: [],
+        stateEdits: {},
+        mapSettings: {
+          base: 'game',
+          mod: null,
+          unpainted: 'keep',
+          noNation: { tag: '', name: 'Sin nación', keepGameCores: false }
+        }
+      },
+      null,
+      'focos'
+    )
+  })
+  await page.waitForSelector('.blocklyToolboxCategory', { timeout: 20000 })
+}
+
+describe('capas de las ventanas (parte 1)', () => {
+  it('con la caja de Blockly abierta, la ventana del país queda por encima de todo', async ({
+    skip
+  }) => {
+    if (!browser) skip()
+    const page = await fresh()
+    await focusEditor(page)
+    await page.click('.blocklyToolboxCategory >> nth=0') // abre el flyout
+    await page.waitForTimeout(400)
+    await page.evaluate(() => {
+      void (window as unknown as HoiWindow).__hoiStore.pickCountry(
+        '¿De qué país es este árbol de focos?'
+      )
+    })
+    await page.waitForSelector('text=¿De qué país es este árbol de focos?')
+    await page.waitForTimeout(300)
+    const r = await page.evaluate(() => {
+      const win = document.querySelector('[data-window] > div') as HTMLElement
+      const b = win.getBoundingClientRect()
+      const pts: [number, number][] = []
+      for (const fx of [0.05, 0.3, 0.5, 0.7, 0.95])
+        for (const fy of [0.05, 0.3, 0.5, 0.8, 0.95])
+          pts.push([b.left + b.width * fx, b.top + b.height * fy])
+      const bad = pts.filter(([x, y]) => {
+        const el = document.elementFromPoint(x, y)
+        return (
+          !el ||
+          !el.closest('[data-window]') ||
+          !!el.closest('.injectionDiv, .blocklyToolboxDiv, .blocklyFlyout')
+        )
+      })
+      const flyout = document.querySelector('.blocklyFlyout') as HTMLElement | null
+      const root = document.getElementById('root')!
+      return {
+        bad: bad.length,
+        inert: root.hasAttribute('inert'),
+        flyoutHidden:
+          !flyout ||
+          getComputedStyle(flyout).display === 'none' ||
+          flyout.getBoundingClientRect().width === 0,
+        inBody: win.parentElement === document.body || !!win.closest('body > *')
+      }
+    })
+    expect(r.bad).toBe(0)
+    expect(r.inert).toBe(true)
+    expect(r.flyoutHidden).toBe(true)
+    // Cerrar: se quita el inert
+    await page.keyboard.press('Escape')
+    await page.waitForFunction(() => !document.getElementById('root')!.hasAttribute('inert'))
+    await page.close()
+  }, 120_000)
+
+  it('las categorías del toolbox miden ~14 px', async ({ skip }) => {
+    if (!browser) skip()
+    const page = await fresh()
+    await focusEditor(page)
+    const sizes = await page.evaluate(() =>
+      [...document.querySelectorAll('.blocklyToolboxCategoryLabel, .blocklyTreeLabel')].map((e) =>
+        parseFloat(getComputedStyle(e).fontSize)
+      )
+    )
+    expect(sizes.length).toBeGreaterThan(3)
+    for (const s of sizes)
+      (expect(s).toBeGreaterThanOrEqual(13.5), expect(s).toBeLessThanOrEqual(14.5))
+    await page.close()
+  }, 60_000)
 })

@@ -15,6 +15,8 @@ import MapTab from './map/MapTab'
 import CountryWizard from './wizard/CountryWizard'
 import LibraryTab from './LibraryTab'
 import Navigator from './Navigator'
+import Overlay from './Overlay'
+import { Z } from './layers'
 import { registerCommands } from './commands'
 import { validateProject, type Issue } from '../export/validator'
 import { exportMod } from '../export/exportMod'
@@ -239,7 +241,7 @@ export default function Editor(): JSX.Element {
   }, [wizardReq])
 
   return (
-    <div className="flex min-h-0 flex-1 bg-hoi-bg">
+    <div className="relative flex min-h-0 flex-1 bg-hoi-bg" style={{ zIndex: Z.panels }}>
       <Navigator project={project} />
       <div className="flex min-h-0 min-w-0 flex-1 flex-col">
         {mapMounted && (
@@ -333,7 +335,7 @@ export default function Editor(): JSX.Element {
         />
       )}
       {exportProgress && (
-        <div data-modal className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
+        <Overlay>
           <div className="w-96 rounded-lg border border-hoi-border bg-hoi-panel p-4 shadow-2xl">
             <div className="mb-2 text-sm">{exportProgress.message}</div>
             <div className="h-3 overflow-hidden rounded bg-hoi-card">
@@ -348,7 +350,7 @@ export default function Editor(): JSX.Element {
               {exportProgress.done} de {exportProgress.total} archivos
             </div>
           </div>
-        </div>
+        </Overlay>
       )}
       {issues && (
         <ValidationDialog

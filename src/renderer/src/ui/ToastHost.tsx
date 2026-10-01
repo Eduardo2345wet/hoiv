@@ -1,11 +1,16 @@
 // Avisos pequeños abajo al centro: se cierran solos y pueden tener "Deshacer"
+import { createPortal } from 'react-dom'
 import { X } from 'lucide-react'
+import { Z } from './layers'
 import { store, useApp } from '../store/appStore'
 
 export default function ToastHost(): JSX.Element {
   const toasts = useApp((s) => s.toasts)
-  return (
-    <div className="pointer-events-none fixed bottom-10 left-1/2 z-[60] flex -translate-x-1/2 flex-col items-center gap-2">
+  return createPortal(
+    <div
+      className="pointer-events-none fixed bottom-10 left-1/2 flex -translate-x-1/2 flex-col items-center gap-2"
+      style={{ zIndex: Z.toast }}
+    >
       {toasts.map((t) => (
         <div
           key={t.id}
@@ -37,6 +42,7 @@ export default function ToastHost(): JSX.Element {
           </button>
         </div>
       ))}
-    </div>
+    </div>,
+    document.body
   )
 }

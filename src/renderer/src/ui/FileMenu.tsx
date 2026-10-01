@@ -3,9 +3,17 @@ import { store, useApp } from '../store/appStore'
 import { openRecent, closeTabAsk } from './fileOps'
 import { runCommand } from './commands'
 import { useEffect, useState } from 'react'
+import { createPortal } from 'react-dom'
+import { Z } from './layers'
 import type { RecentEntry } from './fileOps'
 
-export default function FileMenu({ onClose }: { onClose: () => void }): JSX.Element {
+export default function FileMenu({
+  onClose,
+  anchor
+}: {
+  onClose: () => void
+  anchor: DOMRect | null
+}): JSX.Element {
   const hasProject = useApp((s) => !!s.project)
   const activeTab = useApp((s) => s.activeTabId)
   const [recent, setRecent] = useState<RecentEntry[]>([])
@@ -25,8 +33,12 @@ export default function FileMenu({ onClose }: { onClose: () => void }): JSX.Elem
       <span className="text-xs text-hoi-muted">{keys}</span>
     </button>
   )
-  return (
-    <div className="absolute left-0 top-full z-40 w-72 rounded-b border border-hoi-border bg-hoi-panel py-1 shadow-2xl">
+  return createPortal(
+    <div
+      data-menu
+      className="fixed w-72 rounded-b border border-hoi-border bg-hoi-panel py-1 shadow-2xl"
+      style={{ left: anchor?.left ?? 0, top: anchor?.bottom ?? 0, zIndex: Z.ribbonMenu }}
+    >
       {item('Nuevo proyecto…', 'Ctrl+N', () => store.set({ newProjectDialog: { name: '' } }))}
       {item('Abrir…', 'Ctrl+O', () => runCommand('fileOpen'))}
       <div className="px-3 pt-1 text-[11px] uppercase text-hoi-muted">Abrir reciente</div>
@@ -59,6 +71,7 @@ export default function FileMenu({ onClose }: { onClose: () => void }): JSX.Elem
       <div className="my-1 border-t border-hoi-border" />
       {item('Ajustes…', '', () => store.set({ settingsDialog: true }))}
       {item('Salir', '', () => window.close())}
-    </div>
+    </div>,
+    document.body
   )
 }

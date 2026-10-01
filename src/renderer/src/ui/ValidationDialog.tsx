@@ -1,5 +1,6 @@
 // Ventana con los problemas encontrados antes de exportar.
 // Cada problema tiene un botón "Ir" que lleva al foco o al paso del asistente del país.
+import Overlay from './Overlay'
 import type { Issue } from '../export/validator'
 import { STEPS } from '../countries/validateCountry'
 
@@ -37,7 +38,7 @@ export default function ValidationDialog({
     else if (i.focusUid) onSelectFocus(i.focusUid)
   }
   return (
-    <div data-modal className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
+    <Overlay>
       <div className="max-h-[80vh] w-[640px] overflow-hidden rounded-lg border border-hoi-border bg-hoi-panel shadow-2xl">
         <div className="border-b border-hoi-border p-4">
           <h2 className="text-lg font-semibold">
@@ -95,6 +96,6 @@ export default function ValidationDialog({
           )}
         </div>
       </div>
-    </div>
+    </Overlay>
   )
 }

@@ -616,3 +616,7 @@ export const store = {
 export function useApp<T>(selector: (s: AppState) => T): T {
   return useSyncExternalStore(store.subscribe, () => selector(state))
 }
+
+// Solo en desarrollo y en las pruebas de navegador: deja el store a mano (window.__hoiStore)
+if (typeof window !== 'undefined' && (import.meta as unknown as { env?: { DEV?: boolean } }).env?.DEV)
+  (window as unknown as { __hoiStore: typeof store }).__hoiStore = store

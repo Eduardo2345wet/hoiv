@@ -237,7 +237,7 @@ export default function MapTab({
     <div className="flex h-full min-h-0 flex-col">
       <div className="flex min-h-0 flex-1">
         {/* 4. Mapa en el centro */}
-        <div className="relative min-w-0 flex-1">
+        <div className="relative isolate min-w-0 flex-1">
           {map && (
             <MapView
               ref={viewRef}

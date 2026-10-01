@@ -29,6 +29,7 @@ import { TOOLS } from './map/MapTab'
 import { noNationActive } from '../map/noNation'
 import { runCommand } from './commands'
 import FileMenu from './FileMenu'
+import { Z } from './layers'
 
 export const RIBBON_TABS: [RibbonId, string][] = [
   ['inicio', 'Inicio'],
@@ -105,7 +106,8 @@ export default function Ribbon(): JSX.Element {
   useEffect(() => {
     if (!menu) return
     const close = (e: MouseEvent): void => {
-      if (!menuRef.current?.contains(e.target as Node)) setMenu(false)
+      const t = e.target as Element
+      if (!menuRef.current?.contains(t) && !t.closest?.('[data-menu]')) setMenu(false)
     }
     window.addEventListener('mousedown', close)
     return () => window.removeEventListener('mousedown', close)
@@ -429,7 +431,10 @@ export default function Ribbon(): JSX.Element {
   void activeTag
 
   return (
-    <div className="shrink-0 border-b border-hoi-border bg-hoi-panel">
+    <div
+      className="relative shrink-0 border-b border-hoi-border bg-hoi-panel"
+      style={{ zIndex: Z.ribbon }}
+    >
       <div className="flex items-center border-b border-hoi-border/60 px-1">
         <div className="relative" ref={menuRef}>
           <button
@@ -438,7 +443,12 @@ export default function Ribbon(): JSX.Element {
           >
             Archivo
           </button>
-          {menu && <FileMenu onClose={() => setMenu(false)} />}
+          {menu && (
+            <FileMenu
+              onClose={() => setMenu(false)}
+              anchor={menuRef.current?.getBoundingClientRect() ?? null}
+            />
+          )}
         </div>
         {RIBBON_TABS.map(([id, label]) => (
           <button

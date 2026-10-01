@@ -188,3 +188,23 @@ describe('árbol de un país del juego (parte 4)', () => {
     expect(p.focuses[0].id).toBe('mi_mod_SOV_gran_industria')
   })
 })
+
+import { Z } from '../src/renderer/src/ui/layers'
+describe('escala de capas (parte 1)', () => {
+  it('base < paneles < cinta < Blockly < menús de Blockly < menús de la cinta < fondo < ventana < avisos < tooltips', () => {
+    const order = [
+      Z.base,
+      Z.panels,
+      Z.ribbon,
+      Z.blockly,
+      Z.blocklyFloating,
+      Z.ribbonMenu,
+      Z.backdrop,
+      Z.window,
+      Z.toast,
+      Z.tooltip
+    ]
+    expect(order).toEqual([...order].sort((a, b) => a - b))
+    expect(new Set(order).size).toBe(order.length)
+  })
+})
