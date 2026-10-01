@@ -147,7 +147,7 @@ describe('interfaz tipo NX (partes 1 a 4)', () => {
     await page.waitForSelector('text=Estados del país (0)')
     await page.keyboard.press('Control+Tab')
     await page.waitForSelector('text=Estados modificados')
-    expect(await page.locator('text=Deshacer').first().isDisabled()).toBe(true)
+    expect(await page.locator('button[title="Deshacer (Ctrl+Z)"]').isDisabled()).toBe(true)
     await page.close()
   }, 120_000)
 })

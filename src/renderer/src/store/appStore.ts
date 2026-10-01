@@ -511,7 +511,7 @@ export const store = {
   async loadFlags(): Promise<void> {
     const api = typeof window === 'undefined' ? undefined : window.electronAPI
     const gamePath = state.gamePath
-    if (!api || !gamePath) return store.set({ gameFlags: null })
+    if (!api?.readGameFlags || !gamePath) return store.set({ gameFlags: null })
     const mod = state.project?.mapSettings.mod ?? null
     const key = `${gamePath}|${mod?.path ?? ''}`
     const hit = flagCache.get(key)
