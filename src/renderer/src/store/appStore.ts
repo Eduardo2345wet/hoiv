@@ -52,6 +52,8 @@ export interface Toast {
   /** Mostrar el botón "Deshacer" */
   undo: boolean
   kind: 'info' | 'error'
+  /** Botón extra del aviso (p. ej. "Abrir carpeta") */
+  action?: { label: string; run: () => void }
 }
 
 /** Tiempo que se ve un aviso */
@@ -550,11 +552,20 @@ export const store = {
   },
 
   /** Aviso pequeño que se cierra solo (con "Deshacer" opcional) */
-  toast(message: string, opts: { undo?: boolean; kind?: Toast['kind'] } = {}): void {
-    const t: Toast = { id: ++toastId, message, undo: !!opts.undo, kind: opts.kind ?? 'info' }
+  toast(
+    message: string,
+    opts: { undo?: boolean; kind?: Toast['kind']; action?: Toast['action'] } = {}
+  ): void {
+    const t: Toast = {
+      id: ++toastId,
+      message,
+      undo: !!opts.undo,
+      kind: opts.kind ?? 'info',
+      action: opts.action
+    }
     // Como mucho 3 a la vez: el más viejo se va
     store.set({ toasts: [...state.toasts.slice(-2), t] })
-    setTimeout(() => store.dismissToast(t.id), TOAST_MS)
+    setTimeout(() => store.dismissToast(t.id), opts.action ? TOAST_MS * 2.5 : TOAST_MS)
   },
   dismissToast(id: number): void {
     if (state.toasts.some((t) => t.id === id))

@@ -35,6 +35,7 @@ export default function StatusBar(): JSX.Element {
   const game = useApp(() => store.catalogGame())
   const hasGame = useApp((s) => !!s.gamePath)
   const pick = useApp((s) => s.pick)
+  const filePath = useApp((s) => s.filePath)
 
   let hint = project ? 'Listo.' : 'Crea o abre un proyecto para empezar.'
   if (project && pick) hint = 'Haz clic en el elemento que necesitas · Esc para cancelar.'
@@ -62,6 +63,11 @@ export default function StatusBar(): JSX.Element {
     <div className="flex shrink-0 items-center gap-4 border-t border-hoi-border bg-hoi-panel px-3 py-1 text-xs text-hoi-muted">
       <span className="truncate text-hoi-text">{hint}</span>
       <span className="flex-1 truncate">{project && ui.ribbon === 'mapa' ? status.hover : ''}</span>
+      {project && (
+        <span className="max-w-[320px] truncate" title={filePath ?? 'Sin guardar todavía'}>
+          {filePath ?? 'Sin guardar'}
+        </span>
+      )}
       {project && (
         <span title="La plantilla se elige al crear el proyecto">
           Plantilla: {templateInfo(templateOf(project)).name}

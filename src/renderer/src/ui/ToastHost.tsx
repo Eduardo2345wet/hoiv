@@ -21,7 +21,18 @@ export default function ToastHost(): JSX.Element {
               : 'border-hoi-border bg-hoi-panel/95'
           }`}
         >
-          <span>{t.message}</span>
+          <span className="max-w-[520px] break-words">{t.message}</span>
+          {t.action && (
+            <button
+              className="font-semibold text-hoi-accent hover:underline"
+              onClick={() => {
+                t.action!.run()
+                store.dismissToast(t.id)
+              }}
+            >
+              {t.action.label}
+            </button>
+          )}
           {t.undo && (
             <button
               className="font-semibold text-hoi-accent hover:underline"

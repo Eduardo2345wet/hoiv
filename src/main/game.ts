@@ -15,6 +15,8 @@ export interface Settings {
   openTabs?: string[]
   /** Volver a abrir las pestañas al iniciar (por defecto sí) */
   restoreTabs?: boolean
+  /** Preguntar siempre dónde guardar (por defecto sí) */
+  askWhereToSave?: boolean
 }
 
 export interface RecentProject {

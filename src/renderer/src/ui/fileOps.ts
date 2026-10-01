@@ -4,6 +4,7 @@ import type { Project } from '../types'
 import { store } from '../store/appStore'
 import { migrateProject } from '../migrate'
 import { templateOf } from '../templates'
+import { safeFolderName } from '../../../shared/names'
 
 const RECENT_MAX = 12
 export interface RecentEntry {
@@ -28,7 +29,14 @@ export async function rememberRecent(project: Project, path: string): Promise<vo
   await api.setSettings({ recent })
 }
 
-/** Guarda la pestaña activa (si no tiene archivo, pregunta dónde). Devuelve si se guardó. */
+/** Carpeta de un archivo (con "/" o "\\") */
+export const dirOf = (file: string): string => file.replace(/[\\/][^\\/]*$/, '')
+
+/**
+ * Guarda la pestaña activa. Pregunta dónde guardar: la primera vez, siempre con "Guardar como" y
+ * con Ctrl+S si "Preguntar siempre dónde guardar" está activo (por defecto sí); el diálogo ya
+ * trae la ubicación actual (con Enter se queda igual). Devuelve si se guardó.
+ */
 export async function saveActive(saveAs = false): Promise<boolean> {
   const api = window.electronAPI
   const s = store.get()
@@ -38,17 +46,24 @@ export async function saveActive(saveAs = false): Promise<boolean> {
     return false
   }
   const json = JSON.stringify(s.project, null, 2)
-  if (s.filePath && !saveAs) {
-    await api.saveProjectToPath(s.filePath, json)
-  } else {
-    const path = await api.saveProjectDialog(json, 'proyecto.json')
-    if (!path) return false
-    store.set({ filePath: path })
-  }
+  const settings = await api.getSettings()
+  const ask = saveAs || !s.filePath || settings.askWhereToSave !== false
+  let target = s.filePath
+  if (ask) {
+    const base =
+      s.filePath ??
+      `${await api.getProjectsDir()}/${safeFolderName(s.project.modName)}/proyecto.json`
+    const res = await api.saveProjectDialog(json, base)
+    if (!res) return false
+    target = res
+    store.set({ filePath: res })
+  } else await api.saveProjectToPath(target!, json)
   store.set({ dirty: false })
-  const fp = store.get().filePath
-  if (fp) void rememberRecent(s.project, fp)
-  store.toast('✔ Proyecto guardado')
+  const fp = store.get().filePath!
+  void rememberRecent(s.project, fp)
+  store.toast(`Proyecto guardado en ${fp}`, {
+    action: { label: 'Abrir carpeta', run: () => void api.openFolder(dirOf(fp)) }
+  })
   return true
 }
 

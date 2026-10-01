@@ -1,5 +1,5 @@
 // Ajustes: carpeta del juego (OPCIONAL). Sin ella se usa una lista integrada corta.
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { store, useApp } from '../store/appStore'
 import Modal from './Modal'
 
@@ -26,6 +26,10 @@ export default function SettingsDialog({ onClose }: { onClose: () => void }): JS
   const gamePath = useApp((s) => s.gamePath)
   const detect = useApp((s) => s.gameDetect)
   const [msg, setMsg] = useState('')
+  const [askSave, setAskSave] = useState(true)
+  useEffect(() => {
+    void window.electronAPI?.getSettings().then((s) => setAskSave(s.askWhereToSave !== false))
+  }, [])
 
   const choose = async (): Promise<void> => {
     const api = window.electronAPI
@@ -62,6 +66,18 @@ export default function SettingsDialog({ onClose }: { onClose: () => void }): JS
         </button>
       }
     >
+      <h3 className="mb-2 font-semibold">General</h3>
+      <label className="mb-4 flex items-center gap-2 text-sm">
+        <input
+          type="checkbox"
+          checked={askSave}
+          onChange={(e) => {
+            setAskSave(e.target.checked)
+            void window.electronAPI?.setSettings({ askWhereToSave: e.target.checked })
+          }}
+        />
+        Preguntar siempre dónde guardar (Ctrl+S abre el diálogo con la ubicación actual)
+      </label>
       <h3 className="mb-2 font-semibold">Hearts of Iron IV</h3>
       {detect.searching ? (
         <p className="text-sm text-hoi-muted">Buscando HOI4…</p>

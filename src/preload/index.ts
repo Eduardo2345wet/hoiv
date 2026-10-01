@@ -15,6 +15,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   },
   ackCloseRequest: () => ipcRenderer.invoke('app-close-ack'),
   confirmClose: () => ipcRenderer.invoke('app-close-confirmed'),
+  openFolder: (p: string) => ipcRenderer.invoke('open-folder', p),
   getProjectsDir: () => ipcRenderer.invoke('get-projects-dir'),
   createProject: (parent: string, name: string, json: string) =>
     ipcRenderer.invoke('create-project', parent, name, json),

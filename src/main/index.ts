@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, dialog } from 'electron'
+import { app, BrowserWindow, ipcMain, dialog, shell } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import fs from 'fs'
@@ -115,6 +115,7 @@ app.whenReady().then(() => {
     async (_, content: string, defaultName = 'proyecto.json') => {
       const result = await dialog.showSaveDialog({
         title: 'Guardar proyecto',
+        // defaultName puede ser una ruta completa: el diálogo abre ya en esa carpeta y nombre
         defaultPath: defaultName,
         filters: [{ name: 'HOI4 Mod Studio Project', extensions: ['json'] }]
       })
@@ -146,6 +147,17 @@ app.whenReady().then(() => {
     createProjectFolder(parent, name, json)
   )
   ipcMain.handle('open-project-path', async (_, file: string) => readProjectFile(file))
+
+  // Abre una carpeta (o muestra un archivo seleccionado) en el explorador del sistema
+  ipcMain.handle('open-folder', async (_, p: string) => {
+    try {
+      if (fs.existsSync(p) && fs.statSync(p).isFile()) shell.showItemInFolder(p)
+      else await shell.openPath(p)
+      return true
+    } catch {
+      return false
+    }
+  })
 
   ipcMain.handle('save-project-to-path', async (_, filePath: string, content: string) => {
     if (!filePath.toLowerCase().endsWith('.json')) return false

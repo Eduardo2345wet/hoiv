@@ -40,6 +40,7 @@ export interface Settings {
   recent?: RecentProject[]
   openTabs?: string[]
   restoreTabs?: boolean
+  askWhereToSave?: boolean
   /** Carpeta de instalación de HOI4 (opcional) */
   gamePath: string | null
   /** La encontró la app sola */
@@ -81,6 +82,8 @@ export interface ElectronAPI {
   onCloseRequest: (cb: () => void) => () => void
   ackCloseRequest: () => Promise<void>
   confirmClose: () => Promise<void>
+  /** Abre una carpeta (o muestra un archivo) en el explorador */
+  openFolder: (p: string) => Promise<boolean>
   /** Documentos/HOI4 Mod Studio/Proyectos */
   /** Banderas del juego: tag → variante → PNG (data URL) */
   readGameFlags: (

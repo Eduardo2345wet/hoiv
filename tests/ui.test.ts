@@ -521,3 +521,160 @@ describe('barras de desplazamiento de Blockly', () => {
     await page.close()
   }, 120_000)
 })
+
+// ---------- Guardar: elegir dónde y ver la ruta ----------
+/** App con una API de Electron de mentira que anota las llamadas */
+async function withFakeApi(settings: Record<string, unknown> = {}): Promise<Page> {
+  const page = await browser!.newPage({ viewport: { width: 1366, height: 768 } })
+  await page.addInitScript((st) => {
+    const calls: unknown[][] = []
+    const w = window as unknown as Record<string, unknown>
+    w.__calls = calls
+    const rec =
+      (name: string, ret?: unknown) =>
+      async (...a: unknown[]) => {
+        calls.push([name, ...a])
+        return ret
+      }
+    w.electronAPI = {
+      getSettings: async () => ({ gamePath: null, ...st }),
+      setSettings: rec('setSettings'),
+      detectGame: async () => ({ gamePath: null, auto: false, via: null }),
+      getProjectsDir: async () => '/docs/HOI4 Mod Studio/Proyectos',
+      saveProjectDialog: async (_j: string, def: string) => {
+        calls.push(['dialog', def])
+        return def
+      },
+      saveProjectToPath: rec('saveToPath'),
+      openFolder: rec('openFolder', true),
+      onCloseRequest: () => () => {},
+      onMapProgress: () => () => {}
+    }
+  }, settings)
+  await page.goto(url)
+  await page.waitForSelector('text=Nuevo proyecto')
+  return page
+}
+const calls = (page: Page): Promise<unknown[][]> =>
+  page.evaluate(() => (window as unknown as { __calls: unknown[][] }).__calls)
+
+describe('guardar: elegir dónde y ver la ruta (parte 2)', () => {
+  it('la primera vez pregunta (con la carpeta por defecto), muestra la ruta y "Abrir carpeta"', async ({
+    skip
+  }) => {
+    if (!browser) skip()
+    const page = await withFakeApi({ askWhereToSave: false })
+    await page.evaluate(() => {
+      const st = (window as unknown as HoiWindow).__hoiStore as never as {
+        openInNewTab(p: unknown, f: null, r: string): void
+      }
+      st.openInNewTab(
+        {
+          version: 6,
+          template: 'game',
+          modName: 'Mi Mod México',
+          tag: '',
+          countries: [],
+          focusTrees: [],
+          focuses: [],
+          ideas: [],
+          icons: [],
+          countryFlags: [],
+          stateEdits: {},
+          mapSettings: {
+            base: 'game',
+            mod: null,
+            unpainted: 'keep',
+            noNation: { tag: '', name: 'x', keepGameCores: false }
+          }
+        },
+        null,
+        'mapa'
+      )
+    })
+    await page.keyboard.press('Control+s')
+    await page.waitForSelector('text=Proyecto guardado en')
+    const c = await calls(page)
+    expect(c.find((x) => x[0] === 'dialog')![1]).toBe(
+      '/docs/HOI4 Mod Studio/Proyectos/mi_mod_mexico/proyecto.json'
+    )
+    expect(
+      await page
+        .locator('footer, div')
+        .filter({ hasText: '/docs/HOI4 Mod Studio/Proyectos/mi_mod_mexico/proyecto.json' })
+        .count()
+    ).toBeGreaterThan(0)
+    // ruta en la barra de estado y en el tooltip de la pestaña
+    expect(
+      await page
+        .locator('[title="/docs/HOI4 Mod Studio/Proyectos/mi_mod_mexico/proyecto.json"]')
+        .count()
+    ).toBeGreaterThanOrEqual(2)
+    await page.click('button:text-is("Abrir carpeta")')
+    expect((await calls(page)).find((x) => x[0] === 'openFolder')![1]).toBe(
+      '/docs/HOI4 Mod Studio/Proyectos/mi_mod_mexico'
+    )
+    // Ya tiene archivo y "Preguntar siempre" está apagado: Ctrl+S guarda directo
+    await page.keyboard.press('Control+s')
+    await page.waitForTimeout(300)
+    const c2 = await calls(page)
+    expect(c2.filter((x) => x[0] === 'dialog').length).toBe(1)
+    expect(c2.some((x) => x[0] === 'saveToPath')).toBe(true)
+    // Guardar como: SIEMPRE pregunta
+    await page.keyboard.press('Control+Shift+s')
+    await page.waitForTimeout(300)
+    expect((await calls(page)).filter((x) => x[0] === 'dialog').length).toBe(2)
+    await page.close()
+  }, 60_000)
+
+  it('con "Preguntar siempre" (activado por defecto) Ctrl+S abre el diálogo con la ubicación actual', async ({
+    skip
+  }) => {
+    if (!browser) skip()
+    const page = await withFakeApi({})
+    await page.evaluate(() => {
+      const st = (window as unknown as HoiWindow).__hoiStore as never as {
+        openInNewTab(p: unknown, f: string, r: string): void
+      }
+      st.openInNewTab(
+        {
+          version: 6,
+          template: 'game',
+          modName: 'X',
+          tag: '',
+          countries: [],
+          focusTrees: [],
+          focuses: [],
+          ideas: [],
+          icons: [],
+          countryFlags: [],
+          stateEdits: {},
+          mapSettings: {
+            base: 'game',
+            mod: null,
+            unpainted: 'keep',
+            noNation: { tag: '', name: 'x', keepGameCores: false }
+          }
+        },
+        'D:/mis/proyectos/x/proyecto.json',
+        'mapa'
+      )
+    })
+    await page.keyboard.press('Control+s')
+    await page.waitForSelector('text=Proyecto guardado en D:/mis/proyectos/x/proyecto.json')
+    const c = await calls(page)
+    expect(c.find((x) => x[0] === 'dialog')![1]).toBe('D:/mis/proyectos/x/proyecto.json')
+    expect(c.some((x) => x[0] === 'saveToPath')).toBe(false)
+    // Se puede apagar en Ajustes → General
+    await page.click('button:text-is("Archivo")')
+    await page.click('text=Ajustes…')
+    await page.click('label:has-text("Preguntar siempre dónde guardar") input')
+    expect(
+      (await calls(page)).some(
+        (x) =>
+          x[0] === 'setSettings' && (x[1] as { askWhereToSave: boolean }).askWhereToSave === false
+      )
+    ).toBe(true)
+    await page.close()
+  }, 60_000)
+})
