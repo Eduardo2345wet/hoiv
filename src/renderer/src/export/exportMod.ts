@@ -16,6 +16,7 @@ import {
 import type { GameCatalog } from '../catalog/catalog'
 import { store } from '../store/appStore'
 import { baseMod } from './statesExport'
+import { withTechnicalCapital } from '../map/noNation'
 
 export interface ModFile {
   /** Ruta dentro de la carpeta del mod, con "/" */
@@ -91,6 +92,8 @@ export async function exportMod(
   project: Project,
   extraFiles: ModFile[] = []
 ): Promise<{ ok: boolean; message: string }> {
+  // País técnico "Sin nación": su capital es el primer estado pendiente
+  project = withTechnicalCapital(project, store.get().map)
   const api = window.electronAPI
   if (!api)
     return {

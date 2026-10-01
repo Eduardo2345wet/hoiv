@@ -3,6 +3,8 @@
 import type { Issue, MapContext } from '../export/validator'
 import type { Project } from '../types'
 import { effectiveOwner, lookup } from './mapOps'
+import { exportOwner, noNationActive, pendingStates, technicalCountry } from './noNation'
+import { validateTag } from '../export/validator'
 
 export function validateMap(project: Project, ctx: MapContext): Issue[] {
   const issues: Issue[] = []
@@ -11,12 +13,16 @@ export function validateMap(project: Project, ctx: MapContext): Issue[] {
 
   // ---- ERRORES ----
   // Cambios en el mapa sin carpeta del juego o hechos en el mapa de demostración
-  if (edits.length && (!map || map.source !== 'real' || !ctx.gamePath))
+  // (el modo Sin nación cambia todos los estados, aunque no haya pintado nada)
+  const nnActive = noNationActive(project)
+  if ((edits.length || nnActive) && (!map || map.source !== 'real' || !ctx.gamePath))
     issues.push({
       severity: 'error',
       message:
         map?.source === 'demo'
-          ? `Hay ${edits.length} estado(s) modificados en el MAPA DE DEMOSTRACIÓN: esos cambios no se pueden exportar. Configura la carpeta de HOI4 en Ajustes y rehaz los cambios en el mapa real (o bórralos con el borrador).`
+          ? nnActive && !edits.length
+            ? 'El modo Sin nación está activo en el MAPA DE DEMOSTRACIÓN: no se puede exportar. Configura la carpeta de HOI4 en Ajustes.'
+            : `Hay ${edits.length} estado(s) modificados en el MAPA DE DEMOSTRACIÓN: esos cambios no se pueden exportar. Configura la carpeta de HOI4 en Ajustes y rehaz los cambios en el mapa real (o bórralos con el borrador).`
           : `Hay ${edits.length} estado(s) modificados pero no hay carpeta del juego configurada: sin los archivos originales no se pueden exportar. Configúrala en Ajustes.`
     })
 
@@ -66,10 +72,10 @@ export function validateMap(project: Project, ctx: MapContext): Issue[] {
 
   // Capital de un país del mod en un estado que no es suyo (solo si la capital la ponemos nosotros)
   for (const c of project.countries) {
-    if (!c.capital) continue
+    if (!c.capital || c.technical) continue
     const s = byId.get(c.capital)
     if (!s) continue
-    const owner = effectiveOwner(s, project)
+    const owner = exportOwner(s, project)
     const ours = c.mode === 'nuevo' || c.existing.historyEdited
     if (owner !== c.tag && ours)
       issues.push({
@@ -95,25 +101,83 @@ export function validateMap(project: Project, ctx: MapContext): Issue[] {
 
   // ---- AVISOS ----
   // Países que se quedan sin estados (del mod o del juego afectados por mis cambios)
+  const noNation = noNationActive(project)
   const now = new Map<string, number>()
   const before = new Map<string, number>()
   for (const s of map.states) {
     before.set(s.owner, (before.get(s.owner) ?? 0) + 1)
-    const o = effectiveOwner(s, project)
+    const o = exportOwner(s, project)
     now.set(o, (now.get(o) ?? 0) + 1)
   }
   for (const c of project.countries)
-    if (!now.get(c.tag) && c.mode === 'nuevo')
+    if (!c.technical && !now.get(c.tag) && (c.mode === 'nuevo' || noNation))
       issues.push({
         severity: 'aviso',
-        message: `${c.names.name || c.tag} no tiene estados: un país nuevo sin estados no aparecerá en la partida. Píntale estados en el mapa.`
+        message:
+          c.mode === 'nuevo'
+            ? `${c.names.name || c.tag} no tiene estados: un país nuevo sin estados no aparecerá en la partida. Píntale estados en el mapa.`
+            : `${c.names.name || c.tag} no tiene estados: desaparecerá al inicio de la partida.`
       })
-  for (const [tag, n] of before)
-    if (n && tag && !now.get(tag))
+  const gone = [...before.entries()]
+    .filter(
+      ([tag, n]) => n && tag && !now.get(tag) && !project.countries.some((c) => c.tag === tag)
+    )
+    .map(([tag]) => tag)
+  if (noNation && gone.length)
+    // En Sin nación es lo normal: un solo aviso con el total
+    issues.push({
+      severity: 'aviso',
+      message: `${gone.length} países del juego no existirán al inicio porque no tienen estados (${gone.slice(0, 10).join(', ')}${gone.length > 10 ? '…' : ''}).`
+    })
+  else
+    for (const tag of gone)
       issues.push({
         severity: 'aviso',
         message: `${tag} se queda sin estados: desaparecerá al inicio de la partida.`
       })
+
+  // Mis focos mencionan países que no existirán al inicio
+  const exists = (tag: string): boolean => !!now.get(tag)
+  const mentioned = new Set<string>()
+  for (const f of project.focuses)
+    for (const m of (f.scripts.available + f.scripts.bypass + f.scripts.reward).matchAll(
+      /\b(?:tag|target|add_to_faction|puppet|declare_war_on|exists|country_exists) = ([A-Z][A-Z0-9]{2})\b/g
+    ))
+      if (!exists(m[1]) && (before.has(m[1]) || project.countries.some((c) => c.tag === m[1])))
+        mentioned.add(m[1])
+  if (mentioned.size)
+    issues.push({
+      severity: 'aviso',
+      message: `Tus focos mencionan países que no existirán al inicio (sin estados): ${[...mentioned].join(', ')}.`
+    })
+
+  // ---- Modo Sin nación ----
+  if (noNation) {
+    const tech = technicalCountry(project)
+    const tag = tech?.tag ?? project.mapSettings.noNation.tag
+    const tagErr = validateTag(tag)
+    const clash =
+      before.has(tag) ||
+      project.countries.some((c) => !c.technical && c.tag === tag) ||
+      (ctx.gameTags ?? []).includes(tag)
+    if (tagErr || clash)
+      issues.push({
+        severity: 'error',
+        message: `El tag de "${tech?.names.name ?? 'Sin nación'}" (${tag || 'vacío'}) ${tagErr ? 'no es válido' : 'choca con otro país'}. Cámbialo en Ajustes del mapa.`
+      })
+    const pending = pendingStates(project, map)
+    if (pending.length)
+      issues.push({
+        severity: 'aviso',
+        message: `Quedan ${pending.length} estado(s) Sin nación (pendientes de pintar). Es una lista de tareas, no un error.`,
+        goPending: true
+      })
+    issues.push({
+      severity: 'aviso',
+      message:
+        'El modo Sin nación está pensado para el inicio de 1936: en los estados pendientes se quitan los cambios con fecha (owner, controller, add_core_of, transfer_state).'
+    })
+  }
 
   // Estados modificados con cambios con fecha que pueden pisar mi cambio
   for (const id of edits) {

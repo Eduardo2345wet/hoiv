@@ -28,6 +28,8 @@ import { VIEW_MODES, type ViewMode } from '../../map/colors'
 import { handleStroke, type ToolId } from '../../map/tools'
 import CountryCard from './CountryCard'
 import PalettePanel from './PalettePanel'
+import NoNationSettings from './NoNationSettings'
+import { noNationActive, pendingStates } from '../../map/noNation'
 import { NO_NATION, setBrush } from '../../map/brush'
 import { countryDrawColor } from '../../map/colors'
 import { toHex } from '../../countries/color'
@@ -55,8 +57,20 @@ export const TOOLS: {
     icon: <MousePointer2 size={16} />,
     cursor: 'default'
   },
-  { id: 'brush', label: 'Pincel (clic derecho borra)', key: 'B', icon: <Paintbrush size={16} />, cursor: 'crosshair' },
-  { id: 'bucket', label: 'Cubeta (sin confirmación; clic derecho borra)', key: 'G', icon: <PaintBucket size={16} />, cursor: 'cell' },
+  {
+    id: 'brush',
+    label: 'Pincel (clic derecho borra)',
+    key: 'B',
+    icon: <Paintbrush size={16} />,
+    cursor: 'crosshair'
+  },
+  {
+    id: 'bucket',
+    label: 'Cubeta (sin confirmación; clic derecho borra)',
+    key: 'G',
+    icon: <PaintBucket size={16} />,
+    cursor: 'cell'
+  },
   { id: 'capital', label: 'Fijar capital', key: 'C', icon: <Star size={16} />, cursor: 'pointer' },
   {
     id: 'core',
@@ -119,6 +133,21 @@ export default function MapTab({
 
   // Base del mapa: se pregunta UNA vez; el mapa cargado sigue a la base elegida
   const ms = project.mapSettings
+  // Modo Sin nación: pendientes y recorrido uno por uno
+  const noNation = noNationActive(project)
+  const pendingView = useApp((s) => s.pendingView)
+  const [nnDialog, setNnDialog] = useState(false)
+  const [pendingIdx, setPendingIdx] = useState(0)
+  const pending = useMemo(
+    () => (map && noNation ? pendingStates(project, map) : []),
+    [map, project, noNation]
+  )
+  const goPending = (dir: number): void => {
+    if (!pending.length) return
+    const i = (pendingIdx + dir + pending.length) % pending.length
+    setPendingIdx(i)
+    store.focusState(pending[i])
+  }
   const [baseDialog, setBaseDialog] = useState(ms.base === null)
   useEffect(() => {
     void store.ensureMap()
@@ -294,7 +323,17 @@ export default function MapTab({
             : ms.base === 'mod'
               ? `mod "${ms.mod?.name}"`
               : 'mapa del juego'}
+          {noNation && ' · Sin nación'}
         </button>
+        {noNation && (
+          <button
+            className="btn px-2 text-xs"
+            title="Nombre, tag y cores del país técnico"
+            onClick={() => setNnDialog(true)}
+          >
+            ⚙ Sin nación
+          </button>
+        )}
         {/* Imagen de referencia (solo visual) */}
         <label
           className="btn cursor-pointer px-2 text-xs"
@@ -356,7 +395,7 @@ export default function MapTab({
                 selectedId,
                 gameColors,
                 blankUnpainted: ms.base === 'blank',
-                highlightPending: false
+                highlightPending: noNation && pendingView
               }}
               labels={labels}
               provinceBorders={provinceBorders}
@@ -479,6 +518,51 @@ export default function MapTab({
             : '—'}
         </span>
         <span>Zoom {Math.round(zoom * 100)} %</span>
+        {noNation && map && (
+          <span className="flex items-center gap-2 text-hoi-text">
+            <span title="Estados que todavía son Sin nación">
+              Pendientes: <b>{pending.length}</b> de {map.states.length} estados
+            </span>
+            <span
+              className="h-2 w-24 overflow-hidden rounded bg-hoi-card"
+              title="Progreso del mapa"
+            >
+              <span
+                className="block h-full bg-emerald-500"
+                style={{
+                  width: `${((map.states.length - pending.length) / Math.max(1, map.states.length)) * 100}%`
+                }}
+              />
+            </span>
+            <button
+              className={`rounded px-2 py-0.5 ${pendingView ? 'bg-amber-500 text-black' : 'bg-hoi-card hover:bg-hoi-border'}`}
+              onClick={() => store.set({ pendingView: !pendingView })}
+            >
+              Ver pendientes
+            </button>
+            {pendingView && pending.length > 0 && (
+              <>
+                <button
+                  className="rounded bg-hoi-card px-2 py-0.5 hover:bg-hoi-border"
+                  title="Pendiente anterior"
+                  onClick={() => goPending(-1)}
+                >
+                  ◀ Anterior
+                </button>
+                <span className="font-mono">
+                  {pendingIdx + 1}/{pending.length}
+                </span>
+                <button
+                  className="rounded bg-hoi-card px-2 py-0.5 hover:bg-hoi-border"
+                  title="Pendiente siguiente"
+                  onClick={() => goPending(1)}
+                >
+                  Siguiente ▶
+                </button>
+              </>
+            )}
+          </span>
+        )}
         {rendererKind && (
           <span title="Motor de dibujo">{rendererKind === 'webgl2' ? 'WebGL2' : 'Canvas 2D'}</span>
         )}
@@ -487,6 +571,7 @@ export default function MapTab({
         </span>
       </div>
       {baseDialog && <MapBaseDialog project={project} onClose={() => setBaseDialog(false)} />}
+      {nnDialog && <NoNationSettings project={project} onClose={() => setNnDialog(false)} />}
     </div>
   )
 }

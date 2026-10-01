@@ -1,5 +1,5 @@
 // Pestaña "Países": tarjetas con bandera, nombre, tag e ideología
-import { Copy, Pencil, Plus, Trash2 } from 'lucide-react'
+import { Copy, Lock, Pencil, Plus, Trash2 } from 'lucide-react'
 import { IDEOLOGY_LABELS, type Project } from '../types'
 import { store, useApp } from '../store/appStore'
 import { countryReferences, deleteCountry, duplicateCountry } from '../countries/countryOps'
@@ -42,59 +42,85 @@ export default function CountriesTab({ project, onOpenWizard }: Props): JSX.Elem
           <Plus size={16} /> Crear país
         </button>
         <span className="text-sm text-hoi-muted">
-          {project.countries.length} país(es) en el mod
+          {project.countries.filter((c) => !c.technical).length} país(es) en el mod
         </span>
       </div>
-      <div className="grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-3">
-        {project.countries.map((c) => {
-          const tree = project.focusTrees.find((t) => t.id === c.focusTreeId)
-          return (
-            <div
-              key={c.uid}
-              className="flex flex-col gap-2 rounded border border-hoi-border bg-hoi-panel p-3"
-            >
-              <div className="flex items-center gap-3">
-                <FlagThumb country={c} height={40} />
-                <div className="min-w-0">
-                  <div className="truncate font-semibold">
-                    {c.names.name || <span className="text-red-400">sin nombre</span>}
-                  </div>
-                  <div className="text-xs text-hoi-muted">
-                    <span className="font-mono">{c.tag}</span> ·{' '}
-                    {IDEOLOGY_LABELS[c.politics.ruling]} ·{' '}
-                    {c.mode === 'nuevo' ? 'país nuevo' : 'existente'}
-                  </div>
-                </div>
+      {/* País técnico "Sin nación": aparte, con candado (lo mantiene la app) */}
+      {project.countries
+        .filter((c) => c.technical)
+        .map((c) => (
+          <div
+            key={c.uid}
+            className="mb-4 flex items-center gap-3 rounded border border-dashed border-hoi-border bg-hoi-bg p-3"
+          >
+            <FlagThumb country={c} height={32} />
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2 font-semibold">
+                <Lock size={14} /> {c.names.name}
+                <span className="rounded bg-hoi-card px-1.5 py-0.5 text-[10px] uppercase text-hoi-muted">
+                  Técnico
+                </span>
               </div>
-              <div className="text-[11px] text-hoi-muted">
-                Árbol:{' '}
-                {tree ? tree.name : <span className="text-yellow-400">sin árbol de focos</span>}
-              </div>
-              <div className="mt-auto flex gap-1">
-                <button
-                  className="btn flex-1 justify-center px-2 py-1 text-xs"
-                  onClick={() => onOpenWizard(c.uid)}
-                >
-                  <Pencil size={12} /> Editar
-                </button>
-                <button
-                  className="btn px-2 py-1 text-xs"
-                  title="Duplicar"
-                  onClick={() => duplicate(c.uid)}
-                >
-                  <Copy size={12} />
-                </button>
-                <button
-                  className="btn px-2 py-1 text-xs text-red-400"
-                  title="Borrar"
-                  onClick={() => remove(c.uid)}
-                >
-                  <Trash2 size={12} />
-                </button>
+              <div className="text-xs text-hoi-muted">
+                <span className="font-mono">{c.tag}</span> · dueño de los estados pendientes (modo
+                Sin nación). No se puede editar ni borrar aquí: cambia su nombre o tag en Mapa → ⚙
+                Sin nación.
               </div>
             </div>
-          )
-        })}
+          </div>
+        ))}
+      <div className="grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-3">
+        {project.countries
+          .filter((c) => !c.technical)
+          .map((c) => {
+            const tree = project.focusTrees.find((t) => t.id === c.focusTreeId)
+            return (
+              <div
+                key={c.uid}
+                className="flex flex-col gap-2 rounded border border-hoi-border bg-hoi-panel p-3"
+              >
+                <div className="flex items-center gap-3">
+                  <FlagThumb country={c} height={40} />
+                  <div className="min-w-0">
+                    <div className="truncate font-semibold">
+                      {c.names.name || <span className="text-red-400">sin nombre</span>}
+                    </div>
+                    <div className="text-xs text-hoi-muted">
+                      <span className="font-mono">{c.tag}</span> ·{' '}
+                      {IDEOLOGY_LABELS[c.politics.ruling]} ·{' '}
+                      {c.mode === 'nuevo' ? 'país nuevo' : 'existente'}
+                    </div>
+                  </div>
+                </div>
+                <div className="text-[11px] text-hoi-muted">
+                  Árbol:{' '}
+                  {tree ? tree.name : <span className="text-yellow-400">sin árbol de focos</span>}
+                </div>
+                <div className="mt-auto flex gap-1">
+                  <button
+                    className="btn flex-1 justify-center px-2 py-1 text-xs"
+                    onClick={() => onOpenWizard(c.uid)}
+                  >
+                    <Pencil size={12} /> Editar
+                  </button>
+                  <button
+                    className="btn px-2 py-1 text-xs"
+                    title="Duplicar"
+                    onClick={() => duplicate(c.uid)}
+                  >
+                    <Copy size={12} />
+                  </button>
+                  <button
+                    className="btn px-2 py-1 text-xs text-red-400"
+                    title="Borrar"
+                    onClick={() => remove(c.uid)}
+                  >
+                    <Trash2 size={12} />
+                  </button>
+                </div>
+              </div>
+            )
+          })}
       </div>
     </div>
   )

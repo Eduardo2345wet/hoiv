@@ -12,6 +12,8 @@ interface Props {
   onGoCountry: (countryUid: string, step: number) => void
   /** Abre el mapa centrado en un estado */
   onGoState: (stateId: number) => void
+  /** Abre el mapa con "Ver pendientes" */
+  onGoPending: () => void
 }
 
 export default function ValidationDialog({
@@ -20,12 +22,14 @@ export default function ValidationDialog({
   onExportAnyway,
   onSelectFocus,
   onGoCountry,
-  onGoState
+  onGoState,
+  onGoPending
 }: Props): JSX.Element {
   const errors = issues.filter((i) => i.severity === 'error')
   const go = (i: Issue): void => {
     onClose()
-    if (i.stateId) onGoState(i.stateId)
+    if (i.goPending) onGoPending()
+    else if (i.stateId) onGoState(i.stateId)
     else if (i.countryUid) onGoCountry(i.countryUid, i.step ?? 0)
     else if (i.focusUid) onSelectFocus(i.focusUid)
   }
@@ -51,7 +55,7 @@ export default function ValidationDialog({
                 </span>
                 {i.message}
               </span>
-              {(i.focusUid || i.countryUid || i.stateId) && (
+              {(i.focusUid || i.countryUid || i.stateId || i.goPending) && (
                 <button
                   className="btn shrink-0 px-2 py-0.5 text-xs"
                   title={

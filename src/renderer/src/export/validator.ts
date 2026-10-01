@@ -17,6 +17,8 @@ export interface Issue {
   message: string
   /** uid del foco afectado (para seleccionarlo al hacer clic) */
   focusUid?: string
+  /** "Ir" abre "Ver pendientes" del mapa */
+  goPending?: boolean
   /** Estado del mapa afectado (botón "Ir" centra el mapa en él) */
   stateId?: number
   /** País afectado y paso del asistente donde se arregla (botón "Ir") */
@@ -60,6 +62,8 @@ export function checkBraces(text: string): string | null {
 export interface MapContext {
   map: MapData | null
   gamePath: string | null
+  /** Tags del juego (para comprobar choques del tag de Sin nación) */
+  gameTags?: string[]
   /** Errores del parche de archivos de estado (proceso principal) */
   patchErrors?: { file: string; id?: number; message: string }[]
 }
@@ -289,7 +293,9 @@ export function validateProject(
     })
 
   // ---- Países ----
-  for (const c of project.countries ?? []) issues.push(...validateCountry(c, project, game))
+  // El país técnico "Sin nación" se valida aparte (en el mapa)
+  for (const c of project.countries ?? [])
+    if (!c.technical) issues.push(...validateCountry(c, project, game))
   for (const t of project.focusTrees ?? [])
     if (!treeCountry(project, t.id) && project.focuses.some((f) => f.treeId === t.id))
       issues.push({

@@ -4,6 +4,7 @@
 import { useEffect, useState } from 'react'
 import type { MapBaseKind, MapModRef, MapSettings, Project } from '../../types'
 import { store, useApp } from '../../store/appStore'
+import { syncNoNation } from '../../map/noNation'
 import Modal from '../Modal'
 
 interface InstalledMod extends MapModRef {
@@ -17,8 +18,12 @@ interface Props {
   onClose: () => void
 }
 
+/** Cambia los ajustes del mapa y crea/actualiza/quita el país técnico "Sin nación" */
 export function setMapSettings(patch: Partial<MapSettings>): void {
-  store.updateProject((p) => ({ ...p, mapSettings: { ...p.mapSettings, ...patch } }))
+  const { map } = store.get()
+  store.updateProject((p) =>
+    syncNoNation({ ...p, mapSettings: { ...p.mapSettings, ...patch } }, store.catalogGame(), map)
+  )
 }
 
 export default function MapBaseDialog({ project, onClose }: Props): JSX.Element {
@@ -26,6 +31,7 @@ export default function MapBaseDialog({ project, onClose }: Props): JSX.Element 
   const ms = project.mapSettings
   const [base, setBase] = useState<MapBaseKind>(ms.base ?? 'blank')
   const [mod, setMod] = useState<MapModRef | null>(ms.mod)
+  const [unpainted, setUnpainted] = useState<MapSettings['unpainted']>(ms.unpainted)
   const [mods, setMods] = useState<InstalledMod[] | null>(null)
   const [query, setQuery] = useState('')
 
@@ -35,7 +41,11 @@ export default function MapBaseDialog({ project, onClose }: Props): JSX.Element 
   }, [gamePath])
 
   const apply = (): void => {
-    setMapSettings({ base, mod: base === 'mod' ? mod : null })
+    setMapSettings({
+      base,
+      mod: base === 'mod' ? mod : null,
+      unpainted: base === 'blank' ? unpainted : 'keep'
+    })
     if (base === 'mod' && mod)
       store.toast(`Tu mod necesitará "${mod.name}" activado y cargado antes`)
     onClose()
@@ -91,7 +101,39 @@ export default function MapBaseDialog({ project, onClose }: Props): JSX.Element 
         {card(
           'blank',
           '⬜ Lienzo en blanco',
-          'Los estados sin pintar se ven en blanco y solo ves en color lo que pintes. Ideal para empezar un mundo desde cero.'
+          'Los estados sin pintar se ven en blanco y solo ves en color lo que pintes. Ideal para empezar un mundo desde cero.',
+          base === 'blank' ? (
+            <div className="mt-1 flex flex-col gap-2 text-xs" onClick={(e) => e.stopPropagation()}>
+              <div className="font-medium">Los estados que no pinte…</div>
+              <label className="flex gap-2">
+                <input
+                  type="radio"
+                  checked={unpainted === 'keep'}
+                  onChange={() => setUnpainted('keep')}
+                />
+                <span>
+                  <b>Conservan su dueño del juego</b>
+                  <span className="block text-hoi-muted">
+                    Al exportar solo cambian los estados que pintes.
+                  </span>
+                </span>
+              </label>
+              <label className="flex gap-2">
+                <input
+                  type="radio"
+                  checked={unpainted === 'noNation'}
+                  onChange={() => setUnpainted('noNation')}
+                />
+                <span>
+                  <b>Quedan como Sin nación (pendientes)</b>
+                  <span className="block text-hoi-muted">
+                    Un país técnico gris se queda con todo lo que no pintes: en el juego solo
+                    existen tus países.
+                  </span>
+                </span>
+              </label>
+            </div>
+          ) : undefined
         )}
         {card(
           'game',

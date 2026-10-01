@@ -80,6 +80,8 @@ export interface AppState {
   activeTag: string | null
   /** Últimos países usados como pincel */
   recentTags: string[]
+  /** "Ver pendientes": resaltar los estados sin pintar (modo Sin nación) */
+  pendingView: boolean
   selectedStateId: number | null
   /** Avisos pequeños que se cierran solos (nunca ventanas durante el pintado) */
   toasts: Toast[]
@@ -105,6 +107,7 @@ let state: AppState = {
   mapError: null,
   activeTag: null,
   recentTags: [],
+  pendingView: false,
   selectedStateId: null,
   focusStateRequest: null,
   toasts: []

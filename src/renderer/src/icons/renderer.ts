@@ -19,6 +19,8 @@ export interface PlaceholderRenderers {
   flag: (tag: string, color: [number, number, number]) => string
   /** Retrato 156×210: silueta + iniciales */
   portrait: (name: string) => string
+  /** Bandera lisa de un solo color (país técnico "Sin nación") */
+  plain?: (color: [number, number, number]) => string
 }
 
 let placeholders: PlaceholderRenderers = { flag: () => '', portrait: () => '' }
@@ -28,4 +30,6 @@ export function setPlaceholderRenderers(r: PlaceholderRenderers): void {
 }
 export const renderFlagPlaceholder = (tag: string, color: [number, number, number]): string =>
   placeholders.flag(tag, color)
+export const renderPlainFlag = (color: [number, number, number]): string =>
+  placeholders.plain ? placeholders.plain(color) : placeholders.flag('', color)
 export const renderPortraitPlaceholder = (name: string): string => placeholders.portrait(name)

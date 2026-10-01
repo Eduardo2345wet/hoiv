@@ -75,3 +75,18 @@ export function drawPortraitPlaceholder(name: string): string {
   cache.set(key, url)
   return url
 }
+
+/** Bandera lisa de un color (país técnico "Sin nación") */
+export function drawPlainFlag(color: RGB): string {
+  const key = `l|${color.join(',')}`
+  if (cache.has(key)) return cache.get(key)!
+  const c = document.createElement('canvas')
+  c.width = FLAG_SIZE.w
+  c.height = FLAG_SIZE.h
+  const ctx = c.getContext('2d')!
+  ctx.fillStyle = toHex(color)
+  ctx.fillRect(0, 0, c.width, c.height)
+  const url = c.toDataURL('image/png')
+  cache.set(key, url)
+  return url
+}

@@ -52,20 +52,22 @@ export default function TreeSelector({
       </button>
       {open && (
         <div className="absolute left-0 top-full z-40 mt-1 max-h-80 w-72 overflow-y-auto rounded border border-hoi-border bg-hoi-panel p-1 shadow-xl">
-          {project.countries.map((c) => (
-            <button
-              key={c.uid}
-              onClick={() => chooseCountry(c.uid)}
-              className={`flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm hover:bg-hoi-card ${
-                c.focusTreeId === activeTreeId ? 'bg-hoi-accent/20' : ''
-              }`}
-            >
-              <FlagThumb country={c} height={16} />
-              <span className="flex-1 truncate">{c.names.name || c.tag}</span>
-              <span className="font-mono text-xs text-hoi-muted">{c.tag}</span>
-              {!c.focusTreeId && <span className="text-[10px] text-hoi-muted">sin árbol</span>}
-            </button>
-          ))}
+          {project.countries
+            .filter((c) => !c.technical)
+            .map((c) => (
+              <button
+                key={c.uid}
+                onClick={() => chooseCountry(c.uid)}
+                className={`flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm hover:bg-hoi-card ${
+                  c.focusTreeId === activeTreeId ? 'bg-hoi-accent/20' : ''
+                }`}
+              >
+                <FlagThumb country={c} height={16} />
+                <span className="flex-1 truncate">{c.names.name || c.tag}</span>
+                <span className="font-mono text-xs text-hoi-muted">{c.tag}</span>
+                {!c.focusTreeId && <span className="text-[10px] text-hoi-muted">sin árbol</span>}
+              </button>
+            ))}
           {orphanTrees.map((t) => (
             <button
               key={t.id}

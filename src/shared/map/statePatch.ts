@@ -10,7 +10,14 @@ export interface StateTarget {
   owner: string
   /** Cores finales deseados */
   cores: string[]
+  /**
+   * Claves que se quitan de los bloques con fecha (1939.1.1 = { … }) del history de nivel
+   * superior. Se usa en el modo Sin nación para que en 1939 no se devuelvan los estados.
+   */
+  stripDated?: string[]
 }
+
+const DATE_KEY = /^\d{1,4}\.\d{1,2}\.\d{1,2}$/
 
 interface Tok {
   t: 'w' | '{' | '}' | 'op'
@@ -202,12 +209,10 @@ export function patchStateText(text: string, targets: StateTarget[]): PatchResul
       edits.push({ s: vt.s, e: vt.e, text: target.owner })
     }
 
-    // Quitar cores que ya no quiero
-    const kept = cores.filter((c) => want.has(toks[c.valStart].v))
-    for (const c of cores) {
-      if (want.has(toks[c.valStart].v)) continue
+    /** Quita una sentencia: la línea entera si está sola, o solo la sentencia si comparte línea */
+    const removeStmt = (c: Stmt): void => {
       const s = toks[c.keyTok].s
-      const e = toks[c.valStart].e
+      const e = toks[c.valEnd].e
       const ls = lineStart(text, s)
       const le = lineEnd(text, e)
       const before = text.slice(ls, s)
@@ -219,6 +224,25 @@ export function patchStateText(text: string, targets: StateTarget[]): PatchResul
         // Comparte línea con otras cosas: solo la sentencia y los espacios que la siguen
         const m = /^[ \t]*/.exec(text.slice(e))![0]
         edits.push({ s, e: e + m.length, text: '' })
+      }
+    }
+
+    // Quitar cores que ya no quiero
+    const kept = cores.filter((c) => want.has(toks[c.valStart].v))
+    for (const c of cores) if (!want.has(toks[c.valStart].v)) removeStmt(c)
+
+    // Bloques con fecha: quitar las claves pedidas (solo sentencias directas del bloque)
+    if (target.stripDated?.length) {
+      for (const dated of items.filter((x) => x.block && DATE_KEY.test(x.key))) {
+        const inner = statements(toks, dated.valStart + 1, dated.valEnd)
+        if (!inner) {
+          errors.push({
+            id: target.id,
+            message: `No se pudo leer el bloque ${dated.key} del estado ${target.id}.`
+          })
+          continue
+        }
+        for (const st of inner) if (target.stripDated.includes(st.key)) removeStmt(st)
       }
     }
 

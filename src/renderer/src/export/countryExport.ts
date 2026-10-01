@@ -8,7 +8,11 @@ import { safeFolderName } from '../../../shared/names'
 import { characterId, namesFor, rulingLeader } from '../countries/countryOps'
 import { BASIC_DIVISION_TEMPLATE, BASIC_TECHNOLOGIES, LEADER_EXPIRE } from '../countries/gameData'
 import { PORTRAIT_SIZE } from '../countries/placeholders'
-import { renderFlagPlaceholder, renderPortraitPlaceholder } from '../icons/renderer'
+import {
+  renderFlagPlaceholder,
+  renderPlainFlag,
+  renderPortraitPlaceholder
+} from '../icons/renderer'
 import { locText } from '../generator/focusTree'
 import { patchHistory } from '../countries/history'
 import { writeDDS, writeTGA } from './images'
@@ -219,7 +223,10 @@ export function existingCountryTextFiles(c: Country): ModFile[] {
 
 /** Banderas a exportar de un país: [nombre sin extensión, PNG] */
 export function flagVariants(c: Country): [string, string][] {
-  const main = c.flags.main ?? renderFlagPlaceholder(c.tag, c.color)
+  // País técnico: bandera gris lisa generada
+  const main = c.technical
+    ? renderPlainFlag(c.color)
+    : (c.flags.main ?? renderFlagPlaceholder(c.tag, c.color))
   const all: [string, string][] = [
     [c.tag, main],
     ...IDEOLOGIES.map((i): [string, string] => [`${c.tag}_${i}`, c.flags.byIdeology[i] ?? main])

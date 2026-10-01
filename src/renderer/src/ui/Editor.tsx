@@ -145,6 +145,11 @@ export default function Editor(): JSX.Element {
   // ---- Exportar ----
   // Estados del mapa ya parchados (se preparan al validar y se usan al exportar)
   const statePlan = useRef<StateExportPlan>({ files: [], errors: [] })
+  const [exportProgress, setExportProgress] = useState<{
+    done: number
+    total: number
+    message: string
+  } | null>(null)
   const doExport = async (): Promise<void> => {
     setIssues(null)
     const res = await exportMod(project, statePlan.current.files)
@@ -154,11 +159,18 @@ export default function Editor(): JSX.Element {
   const startExport = async (): Promise<void> => {
     const { map, gamePath } = store.get()
     // Parche de los estados modificados (solo mapa real); sus errores van al validador
-    statePlan.current = await planStateExport(project, map, gamePath)
+    try {
+      statePlan.current = await planStateExport(project, map, gamePath, (p) =>
+        setExportProgress({ ...p, message: 'Preparando los archivos de estado…' })
+      )
+    } finally {
+      setExportProgress(null)
+    }
     const found = validateProject(project, game, {
       map,
       gamePath,
-      patchErrors: statePlan.current.errors
+      patchErrors: statePlan.current.errors,
+      gameTags: game?.countries.map(([t]) => t)
     })
     if (found.length) setIssues(found)
     else void doExport()
@@ -379,11 +391,33 @@ export default function Editor(): JSX.Element {
           onClose={() => setWizard(null)}
         />
       )}
+      {exportProgress && (
+        <div data-modal className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
+          <div className="w-96 rounded-lg border border-hoi-border bg-hoi-panel p-4 shadow-2xl">
+            <div className="mb-2 text-sm">{exportProgress.message}</div>
+            <div className="h-3 overflow-hidden rounded bg-hoi-card">
+              <div
+                className="h-full bg-hoi-accent transition-all"
+                style={{
+                  width: `${(exportProgress.done / Math.max(1, exportProgress.total)) * 100}%`
+                }}
+              />
+            </div>
+            <div className="mt-1 text-xs text-hoi-muted">
+              {exportProgress.done} de {exportProgress.total} archivos
+            </div>
+          </div>
+        </div>
+      )}
       {issues && (
         <ValidationDialog
           issues={issues}
           onClose={() => setIssues(null)}
           onExportAnyway={() => void doExport()}
+          onGoPending={() => {
+            setTab('mapa')
+            store.set({ pendingView: true })
+          }}
           onGoState={(id) => {
             setTab('mapa')
             store.focusState(id)

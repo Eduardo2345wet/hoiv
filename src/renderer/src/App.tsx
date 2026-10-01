@@ -7,13 +7,21 @@ import PromptDialog from './ui/PromptDialog'
 import ToastHost from './ui/ToastHost'
 import { loadGameSettings } from './ui/SettingsDialog'
 import { setIconRenderer, setPlaceholderRenderers } from './icons/renderer'
-import { drawFlagPlaceholder, drawPortraitPlaceholder } from './countries/placeholders'
+import {
+  drawFlagPlaceholder,
+  drawPlainFlag,
+  drawPortraitPlaceholder
+} from './countries/placeholders'
 import { renderEmojiToPng } from './icons/canvasRender'
 
 // Los íconos con emoji se dibujan con canvas (solo en la interfaz)
 setIconRenderer(renderEmojiToPng)
 // Bandera y retrato de relleno de los países
-setPlaceholderRenderers({ flag: drawFlagPlaceholder, portrait: drawPortraitPlaceholder })
+setPlaceholderRenderers({
+  flag: drawFlagPlaceholder,
+  portrait: drawPortraitPlaceholder,
+  plain: drawPlainFlag
+})
 
 export default function App(): JSX.Element {
   const hasProject = useApp((s) => !!s.project)
