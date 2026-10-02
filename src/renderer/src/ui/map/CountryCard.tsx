@@ -8,6 +8,8 @@ import { toHex } from '../../countries/color'
 import { countryDrawColor } from '../../map/colors'
 import { flagForTag } from '../FlagThumb'
 import { chooseCountryTag } from '../countryFlow'
+import { currentGameCapital, planCapitalMoves } from '../../map/capitals'
+import { exportOwner } from '../../map/noNation'
 
 interface Props {
   project: Project
@@ -59,7 +61,37 @@ export default function CountryCard({ project, gameColors, onOpenWizard }: Props
     )
 
   const flag = flagForTag(activeTag, country)
-  const capital = country?.capital ? map?.states.find((s) => s.id === country.capital) : undefined
+  // Capital: la de mi país o, para un país del juego, la de su archivo en history/countries
+  const capNum =
+    country?.mode === 'nuevo' ? country.capital : currentGameCapital(activeTag, project, game)
+  const capital = capNum ? map?.states.find((s) => s.id === capNum) : undefined
+  const capOwner = capital ? exportOwner(capital, project) : ''
+  const foreign = !!capital && capOwner !== activeTag
+  const move = foreign
+    ? planCapitalMoves(project, map, game).find((m) => m.tag === activeTag)
+    : undefined
+  const pickCapital = (): void => {
+    store.startPick({
+      kind: 'state',
+      exclude: [],
+      onPick: (id) => {
+        const st = map?.states.find((x) => x.id === Number(id))
+        if (!st || exportOwner(st, store.get().project!) !== activeTag) {
+          store.toast(`Ese estado no es de ${activeTag}: elige uno de sus estados.`, {
+            kind: 'error'
+          })
+          return
+        }
+        store.updateProject((p) => ({
+          ...p,
+          mapSettings: {
+            ...p.mapSettings,
+            capitalChoices: { ...p.mapSettings.capitalChoices, [activeTag]: st.id }
+          }
+        }))
+      }
+    })
+  }
   return (
     <div className="w-64 rounded-lg border border-amber-500/70 bg-hoi-panel/95 p-3 shadow-xl">
       <div className="flex gap-3">
@@ -95,16 +127,28 @@ export default function CountryCard({ project, gameColors, onOpenWizard }: Props
         <span>{stateCount} estado(s)</span>
         {capital ? (
           <button
-            className="text-hoi-accent underline"
+            className={foreign ? 'text-yellow-400 underline' : 'text-hoi-accent underline'}
             onClick={() => store.focusState(capital.id)}
             title="Centrar el mapa en la capital"
           >
-            ★ {capital.name}
+            {foreign ? '⚠ ' : '★ '}
+            {capital.name} (#{capital.id})
           </button>
-        ) : country ? (
+        ) : country || capNum === null ? (
           <span className="text-yellow-400">sin capital</span>
         ) : null}
       </div>
+      {foreign && (
+        <div className="mt-1 text-xs text-yellow-400">
+          capital en territorio ajeno (ahora es de {capOwner || 'nadie'})
+          {move?.to ? ` → se moverá al estado #${move.to}` : ''}
+          {getOwnerCounts(map!, project).get(activeTag) ? (
+            <button className="btn mt-1 w-full justify-center text-xs" onClick={pickCapital}>
+              Elegir otra capital…
+            </button>
+          ) : null}
+        </div>
+      )}
       {country && !country.technical && (
         <button
           className="btn mt-2 w-full justify-center text-xs"

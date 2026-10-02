@@ -47,6 +47,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   },
   planStatePatches: (gamePath: string, requests: unknown, mod?: unknown) =>
     ipcRenderer.invoke('plan-state-patches', gamePath, requests, mod ?? null),
+  planCapitalPatches: (gamePath: string, requests: unknown, mod?: unknown) =>
+    ipcRenderer.invoke('plan-capital-patches', gamePath, requests, mod ?? null),
   onStatesProgress: (cb: (p: { done: number; total: number }) => void) => {
     const listener = (_: unknown, p: { done: number; total: number }): void => cb(p)
     ipcRenderer.on('states-progress', listener)

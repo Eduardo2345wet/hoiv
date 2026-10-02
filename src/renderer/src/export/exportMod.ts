@@ -19,6 +19,7 @@ import type { GameCatalog } from '../catalog/catalog'
 import { store } from '../store/appStore'
 import { baseMod } from './statesExport'
 import { withTechnicalCapital } from '../map/noNation'
+import { withMovedCapitals } from '../map/capitals'
 
 export interface ModFile {
   /** Ruta dentro de la carpeta del mod, con "/" */
@@ -100,6 +101,8 @@ export async function buildModPayload(
 ): Promise<{ ok: true; payload: ExportModPayload } | { ok: false; message: string }> {
   // País técnico "Sin nación": su capital es el primer estado pendiente
   project = withTechnicalCapital(project, store.get().map)
+  // Capital perdida de un país del juego editado con el asistente: va en su mismo archivo
+  project = withMovedCapitals(project, store.get().map, store.catalogGame())
   const extra = await buildExtraFiles(project, pngToRGBA, pngToRGBAResized, store.catalogGame())
   // Auto-revisión: cada bandera exportada trae sus 3 tamaños
   const generated = new Set([...extra, ...extraFiles].map((f) => f.path))

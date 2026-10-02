@@ -210,13 +210,19 @@ export interface MapSettings {
     /** Conservar los cores del juego en los estados pendientes */
     keepGameCores: boolean
   }
+  /** Al exportar, mover la capital de un país del juego al que le quité el estado de su capital */
+  moveLostCapitals: boolean
+  /** Capital elegida a mano para un país del juego (tag → estado); gana sobre la automática */
+  capitalChoices: Record<string, number>
 }
 
 export const DEFAULT_MAP_SETTINGS: MapSettings = {
   base: null,
   mod: null,
   unpainted: 'keep',
-  noNation: { tag: '', name: 'Sin nación', keepGameCores: false }
+  noNation: { tag: '', name: 'Sin nación', keepGameCores: false },
+  moveLostCapitals: true,
+  capitalChoices: {}
 }
 
 /** Cambios a un estado del mapa (lo único que se guarda del mapa: nunca el mapa entero) */
@@ -234,7 +240,10 @@ export interface Project {
   /** Plantilla de creación. Los proyectos viejos la toman de la base del mapa que tenían. */
   template?: TemplateId
   /** Sincronizar el mod con la carpeta de mods del juego al guardar (por defecto sí si se detecta HOI4) */
-  modSync?: { enabled: boolean; /** carpeta de mods; null = la de HOI4 en Documentos */ dest: string | null }
+  modSync?: {
+    enabled: boolean
+    /** carpeta de mods; null = la de HOI4 en Documentos */ dest: string | null
+  }
   modName: string
   /** Tag con el que se creó el mod (compatibilidad); los países mandan */
   tag: string

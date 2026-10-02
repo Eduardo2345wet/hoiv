@@ -895,3 +895,67 @@ describe('bloque único Foco en el editor', () => {
     await page.close()
   }, 60_000)
 })
+
+// ---------- Tarjeta del país: capital de un país del juego ----------
+describe('capital de un país del juego en la tarjeta', () => {
+  it('muestra la capital del juego y avisa si ahora es de otro país', async ({ skip }) => {
+    if (!browser) skip()
+    const page = await fresh()
+    const demoUrl = '/@fs' + path.resolve('src/shared/map/demo.ts')
+    const r = await page.evaluate(async (url) => {
+      const { generateDemoMap } = await new Function('u', 'return import(u)')(url)
+      const map = generateDemoMap()
+      const s = map.states[0]
+      const other = map.states.find((x) => x.owner !== s.owner)!
+      const st = (window as unknown as HoiWindow).__hoiStore as never as {
+        openInNewTab(p: unknown, f: null, r: string): void
+        set(p: unknown): void
+      }
+      st.openInNewTab(
+        {
+          version: 7,
+          template: 'game',
+          modName: 'Cap',
+          tag: '',
+          countries: [],
+          focusTrees: [],
+          focuses: [],
+          ideas: [],
+          icons: [],
+          countryFlags: [],
+          stateEdits: {},
+          mapSettings: {
+            base: 'game',
+            mod: null,
+            unpainted: 'keep',
+            noNation: { tag: '', name: 'x', keepGameCores: false },
+            moveLostCapitals: true,
+            capitalChoices: {}
+          }
+        },
+        null,
+        'mapa'
+      )
+      st.set({
+        map,
+        game: { countries: [], countryCapitals: { [s.owner]: s.id } },
+        activeTag: s.owner
+      })
+      return { tag: s.owner, id: s.id, name: s.name, otherOwner: other.owner }
+    }, demoUrl)
+    await page.waitForSelector(`text=${r.name} (#${r.id})`, { timeout: 10000 })
+    expect(await page.locator('text=sin capital').count()).toBe(0)
+    // Ahora el estado de la capital se pinta de otro país
+    await page.evaluate(
+      ([id, owner]) => {
+        const st = (window as unknown as HoiWindow).__hoiStore as never as {
+          updateProject(f: (p: Record<string, unknown>) => unknown): void
+        }
+        st.updateProject((p) => ({ ...p, stateEdits: { [id as number]: { owner } } }))
+      },
+      [r.id, r.otherOwner]
+    )
+    await page.waitForSelector('text=capital en territorio ajeno', { timeout: 10000 })
+    await page.close()
+  }, 60_000)
+})

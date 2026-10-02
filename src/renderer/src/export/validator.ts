@@ -69,6 +69,10 @@ export interface MapContext {
   gameTags?: string[]
   /** Errores del parche de archivos de estado (proceso principal) */
   patchErrors?: { file: string; id?: number; message: string }[]
+  /** Errores del parche de capitales (history/countries) */
+  capitalErrors?: { file: string; message: string }[]
+  /** Contenido del juego (capitales originales); validateProject lo completa */
+  game?: GameCatalog | null
 }
 
 export function validateProject(
@@ -345,7 +349,7 @@ export function validateProject(
 
   // ---- Mapa ----
   if (mapCtx) {
-    issues.push(...validateMap(project, mapCtx))
+    issues.push(...validateMap(project, { ...mapCtx, game: mapCtx.game ?? game }))
     // Con el mapa cargado ya sabemos qué países tienen estados: el aviso genérico sobra
     const map = mapCtx.map
     if (map) {

@@ -1,5 +1,6 @@
 // Ajustes de la app y lectura OPCIONAL del contenido del juego base.
 // Si no hay carpeta de HOI4, la interfaz usa una lista integrada corta.
+import { readTopLevelCapital } from '../shared/countryHistory'
 import fs from 'fs'
 import path from 'path'
 import { shineShape } from '../shared/shine'
@@ -225,14 +226,14 @@ export function readGameCatalog(gamePath: string): GameCatalogResult | null {
   }
 
   // Capitales: "capital = N" al nivel superior de cada archivo de history/countries
-  // (por verificar: que siempre empiece en la columna 0, fuera de los bloques con fecha)
+  // (lector con llaves: tolera BOM, sangría y comentarios; ignora bloques con fecha e if/limit)
   const countryCapitals: Record<string, number> = {}
   const countryRuling: Record<string, string> = {}
   for (const [tag, file] of Object.entries(historyFiles))
     try {
       const txt = fs.readFileSync(path.join(gamePath, 'history', 'countries', file), 'latin1')
-      const m = stripComments(txt).match(/^capital\s*=\s*(\d+)/m)
-      if (m) countryCapitals[tag] = Number(m[1])
+      const cap = readTopLevelCapital(txt)
+      if (cap !== null) countryCapitals[tag] = cap
       // por verificar: ruling_party dentro de set_politics (nombres: democratic, communism…)
       const r = stripComments(txt).match(/set_politics\s*=\s*\{[^}]*?ruling_party\s*=\s*(\w+)/)
       if (r) countryRuling[tag] = r[1]

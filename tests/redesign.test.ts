@@ -466,7 +466,9 @@ describe('migración v4 → v5', () => {
       base: 'game',
       mod: null,
       unpainted: 'keep',
-      noNation: { tag: '', name: 'Sin nación', keepGameCores: false }
+      noNation: { tag: '', name: 'Sin nación', keepGameCores: false },
+      moveLostCapitals: true,
+      capitalChoices: {}
     })
     const fresh = { ...emptyProject(), version: 4, stateEdits: {} } as Record<string, unknown>
     delete fresh.mapSettings

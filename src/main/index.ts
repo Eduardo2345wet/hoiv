@@ -12,6 +12,7 @@ import { getJomini, loadRealMap } from './mapLoader'
 import { listInstalledMods, type ModLayer } from './mods'
 import { findHoi4, isHoi4Install, systemEnv } from './steamDetect'
 import { planStatePatches, type StatePatchRequest } from './statesExport'
+import { planCapitalPatches, type CapitalPatchRequest } from './capitalExport'
 import {
   loadSettings,
   readCountryHistory,
@@ -266,6 +267,12 @@ app.whenReady().then(() => {
       planStatePatches(gamePath, requests, undefined, mod, (done, total) =>
         event.sender.send('states-progress', { done, total })
       )
+  )
+
+  ipcMain.handle(
+    'plan-capital-patches',
+    async (_, gamePath: string, requests: CapitalPatchRequest[], mod: ModLayer | null) =>
+      planCapitalPatches(gamePath, requests, mod)
   )
 
   ipcMain.handle('export-mod', async (_, payload) => {

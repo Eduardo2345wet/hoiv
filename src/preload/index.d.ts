@@ -151,6 +151,15 @@ export interface ElectronAPI {
     files: { path: string; data: Uint8Array }[]
     errors: { file: string; id?: number; message: string }[]
   }>
+  /** Parchea (sin escribir) la capital de history/countries de los países del juego que la perdieron */
+  planCapitalPatches: (
+    gamePath: string,
+    requests: { file: string; capital: number }[],
+    mod?: ModLayer | null
+  ) => Promise<{
+    files: { path: string; data: Uint8Array }[]
+    errors: { file: string; message: string }[]
+  }>
   exportMod: (
     payload: ExportModPayload
   ) => Promise<{ success: boolean; error?: string; modFolder?: string }>

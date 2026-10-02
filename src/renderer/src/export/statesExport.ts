@@ -4,6 +4,8 @@ import type { Project } from '../types'
 import type { MapData } from '../../../shared/map/types'
 import { DATED_KEYS_TO_STRIP, exportCores, exportOwner, noNationActive } from '../map/noNation'
 import type { ModFile } from './exportMod'
+import type { GameCatalog } from '../catalog/catalog'
+import { planCapitalMoves, type CapitalMove } from '../map/capitals'
 
 export interface StatePatchRequest {
   file: string
@@ -39,6 +41,10 @@ export interface StateExportPlan {
   files: ModFile[]
   /** Errores por estado (parche imposible o verificación fallida) */
   errors: { file: string; id?: number; message: string }[]
+  /** Capitales de países del juego que se mueven (para el informe al exportar) */
+  moves?: CapitalMove[]
+  /** Errores del parche de capitales: ese archivo no se exporta */
+  capitalErrors?: { file: string; message: string }[]
 }
 
 /** Mod usado como base del mapa (o null) */
@@ -52,17 +58,46 @@ export async function planStateExport(
   map: MapData | null,
   gamePath: string | null,
   /** Progreso (el modo Sin nación toca casi todos los archivos de estado) */
-  onProgress?: (p: { done: number; total: number }) => void
+  onProgress?: (p: { done: number; total: number }) => void,
+  game: GameCatalog | null = null
 ): Promise<StateExportPlan> {
   if (!map || map.source !== 'real' || !gamePath || !window.electronAPI)
     return { files: [], errors: [] }
-  const requests = stateRequests(project, map)
-  if (!requests.length) return { files: [], errors: [] }
   // Con base de mod se parcha A PARTIR de los archivos del mod
   const mod = baseMod(project)
-  const off = onProgress ? window.electronAPI.onStatesProgress(onProgress) : null
-  const res = await window.electronAPI
-    .planStatePatches(gamePath, requests, mod)
-    .finally(() => off?.())
-  return { files: res.files.map((f) => ({ path: f.path, data: f.data })), errors: res.errors }
+  const files: ModFile[] = []
+  let errors: StateExportPlan['errors'] = []
+  const requests = stateRequests(project, map)
+  if (requests.length) {
+    const off = onProgress ? window.electronAPI.onStatesProgress(onProgress) : null
+    const res = await window.electronAPI
+      .planStatePatches(gamePath, requests, mod)
+      .finally(() => off?.())
+    files.push(...res.files.map((f) => ({ path: f.path, data: f.data })))
+    errors = res.errors
+  }
+
+  // Capitales perdidas de países del juego: parche mínimo de su history/countries original.
+  // (Los que editó el asistente llevan su capital en su propio archivo: ver withMovedCapitals.)
+  const moves = planCapitalMoves(project, map, game)
+  const capitalErrors: { file: string; message: string }[] = []
+  const reqs: { file: string; capital: number }[] = []
+  for (const m of moves) {
+    if (m.to === null) continue
+    const c = project.countries.find((x) => x.tag === m.tag)
+    if (c?.existing.historyEdited) continue
+    const file = game?.historyFiles?.[m.tag]
+    if (!file)
+      capitalErrors.push({
+        file: `${m.tag}`,
+        message: 'No se encontró su archivo en history/countries de la carpeta del juego.'
+      })
+    else reqs.push({ file, capital: m.to })
+  }
+  if (reqs.length) {
+    const res = await window.electronAPI.planCapitalPatches(gamePath, reqs, mod)
+    files.push(...res.files.map((f) => ({ path: f.path, data: f.data })))
+    capitalErrors.push(...res.errors)
+  }
+  return { files, errors, moves, capitalErrors }
 }

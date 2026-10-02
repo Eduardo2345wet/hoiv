@@ -5,6 +5,7 @@ import type { Project } from '../types'
 import { lookup, ownerWithBase } from './mapOps'
 import { exportOwner, noNationActive, pendingStates, technicalCountry } from './noNation'
 import { validateTag } from '../export/validator'
+import { lostCapitals, planCapitalMoves } from './capitals'
 
 export function validateMap(project: Project, ctx: MapContext): Issue[] {
   const issues: Issue[] = []
@@ -70,6 +71,7 @@ export function validateMap(project: Project, ctx: MapContext): Issue[] {
       })
   }
 
+  const reported = new Set<string>()
   // Capital de un país del mod en un estado que no es suyo (solo si la capital la ponemos nosotros)
   for (const c of project.countries) {
     if (!c.capital || c.technical) continue
@@ -83,13 +85,15 @@ export function validateMap(project: Project, ctx: MapContext): Issue[] {
         message: `La capital de ${c.names.name || c.tag} (${s.name}) es de ${owner || 'nadie'}, no suya. Píntala para ${c.tag} o elige otra capital (herramienta Capital, C).`,
         stateId: s.id
       })
-    else if (owner !== c.tag)
+    else if (owner !== c.tag) {
       // ---- AVISO: a un país del juego le quité el estado de su capital ----
+      reported.add(c.tag)
       issues.push({
         severity: 'aviso',
         message: `A ${c.names.name || c.tag} le quitaste el estado de su capital (${s.name}). El juego le buscará otra capital al empezar.`,
         stateId: s.id
       })
+    }
     // Capital sin victory points
     if (!s.victoryPoints.length)
       issues.push({
@@ -98,6 +102,43 @@ export function validateMap(project: Project, ctx: MapContext): Issue[] {
         stateId: s.id
       })
   }
+
+  // Capital de un país DEL JUEGO cuyo estado ahora es de otro país: el juego mostraría
+  // "Attempting to set capital state #N for X, they dont own it!"
+  const lost = lostCapitals(project, map, ctx.game ?? null).filter((l) => !reported.has(l.tag))
+  const moves = new Map(planCapitalMoves(project, map, ctx.game ?? null).map((m) => [m.tag, m]))
+  if (noNationActive(project) && lost.length)
+    issues.push({
+      severity: 'aviso',
+      message: `${lost.length} países del juego pierden el estado de su capital porque sus estados pasan a Sin nación (${lost
+        .slice(0, 8)
+        .map((l) => l.tag)
+        .join(
+          ', '
+        )}${lost.length > 8 ? '…' : ''}). Los que conserven estados pintados cambiarán de capital; el resto no existirá al inicio.`
+    })
+  else
+    for (const l of lost) {
+      const m = moves.get(l.tag)
+      const where = `${byId.get(l.capital)?.name ?? 'Estado ' + l.capital} (#${l.capital})`
+      const owner = l.newOwner || 'nadie'
+      const how = !l.remaining
+        ? `${l.name} se queda sin estados: no existirá al inicio y su capital no se toca.`
+        : m?.to
+          ? `Se moverá a ${byId.get(m.to)?.name ?? 'Estado ' + m.to} (#${m.to}) al exportar${m.manual ? ' (elegida por ti)' : ''}.`
+          : 'Con "Mover automáticamente las capitales perdidas" apagado, el juego avisará "Attempting to set capital state". Elige otra capital o activa el ajuste.'
+      issues.push({
+        severity: 'aviso',
+        message: `La capital de ${l.name} (${l.tag}), ${where}, ahora es de ${owner}. ${how}`,
+        stateId: l.capital
+      })
+    }
+  // Capitales que no se pueden parchar con seguridad: ese archivo no se exporta
+  for (const e of ctx.capitalErrors ?? [])
+    issues.push({
+      severity: 'error',
+      message: `No se puede exportar history/countries/${e.file}: ${e.message}`
+    })
 
   // ---- AVISOS ----
   // Países que se quedan sin estados (del mod o del juego afectados por mis cambios)

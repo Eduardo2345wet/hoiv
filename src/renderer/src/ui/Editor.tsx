@@ -20,6 +20,7 @@ import { Z } from './layers'
 import { registerCommands } from './commands'
 import { validateProject, type Issue } from '../export/validator'
 import { exportMod } from '../export/exportMod'
+import { moveReport } from '../map/capitals'
 import { planStateExport, type StateExportPlan } from '../export/statesExport'
 import { giveTreeToChosenCountry } from './countryFlow'
 import { colorForTag } from '../countries/countryOps'
@@ -127,16 +128,23 @@ export default function Editor(): JSX.Element {
   const doExport = async (): Promise<void> => {
     setIssues(null)
     const res = await exportMod(project, statePlan.current.files)
-    if (res.ok) store.toast('✔ ' + res.message)
-    else if (res.message !== 'Exportación cancelada.')
+    if (res.ok) {
+      // Informe de las capitales que se movieron al exportar
+      const moved = (statePlan.current.moves ?? []).filter((m) => m.to !== null).map(moveReport)
+      store.toast('✔ ' + res.message + (moved.length ? '\n' + moved.join('\n') : ''))
+    } else if (res.message !== 'Exportación cancelada.')
       store.toast('❌ ' + res.message, { kind: 'error' })
   }
   const startExport = async (validateOnly = false): Promise<void> => {
     const { map, gamePath } = store.get()
     // Parche de los estados modificados (solo mapa real); sus errores van al validador
     try {
-      statePlan.current = await planStateExport(project, map, gamePath, (p) =>
-        setExportProgress({ ...p, message: 'Preparando los archivos de estado…' })
+      statePlan.current = await planStateExport(
+        project,
+        map,
+        gamePath,
+        (p) => setExportProgress({ ...p, message: 'Preparando los archivos de estado…' }),
+        store.catalogGame()
       )
     } finally {
       setExportProgress(null)
@@ -145,6 +153,7 @@ export default function Editor(): JSX.Element {
       map,
       gamePath,
       patchErrors: statePlan.current.errors,
+      capitalErrors: statePlan.current.capitalErrors,
       gameTags: game?.countries.map(([t]) => t)
     })
     if (found.length) setIssues(found)

@@ -313,6 +313,22 @@ export default function MapTab({
                 Mapa de demostración
               </div>
             )}
+            <label
+              className="flex cursor-pointer items-center gap-1 rounded border border-hoi-border bg-hoi-panel/95 px-2 py-1 text-xs"
+              title="Si le quitas a un país del juego el estado de su capital, al exportar su capital pasa a su estado con más victory points (si no, el juego da el error «Attempting to set capital state»)"
+            >
+              <input
+                type="checkbox"
+                checked={project.mapSettings.moveLostCapitals !== false}
+                onChange={(e) =>
+                  store.updateProject((p) => ({
+                    ...p,
+                    mapSettings: { ...p.mapSettings, moveLostCapitals: e.target.checked }
+                  }))
+                }
+              />
+              Mover automáticamente las capitales perdidas
+            </label>
             <div className="flex items-center gap-1 rounded border border-hoi-border bg-hoi-panel/95 px-2 py-1 text-xs">
               <label
                 className="cursor-pointer"
