@@ -276,22 +276,32 @@ IV/mod/`.
 - El `path` del `.mod` apunta a donde quedará el mod después de copiarlo
   (`<Documentos de HOI4>/mod/<mod>`, con `/`); `descriptor.mod` no lleva `path` y ninguno de los
   dos lleva BOM. La detección de la carpeta de Documentos solo sirve para mostrar rutas.
-- `supported_version` sale de la versión del juego instalado (`launcher/launcher-settings.json`)
-  como `mayor.menor.*`; si no se puede leer, se usa una constante editable en Ajustes.
+- `supported_version` sale de `launcher-settings.json` en la RAÍZ de la carpeta del juego (respaldo:
+  `launcher/`): `rawVersion` "1.19.3.0" → `1.19.*`; sin él, X.Y de `version` (formato visto en un
+  HOI4 1.19.3 real). Ajustes muestra la versión detectada; si no se puede leer, se usa una
+  constante editable (por verificar).
 - Si ya hay una exportación anterior del mismo mod en esa carpeta pregunta "¿Reemplazar la
   exportación anterior?"; si aceptas, borra COMPLETAS su carpeta y su `.mod` (solo ahí) y escribe
   de nuevo. Se niega a escribir dentro de Documentos/Paradox Interactive/Hearts of Iron IV o de la
   instalación del juego.
 - Archivo → **Abrir carpeta de exportación**.
 
+### Revisar mod instalado (solo lectura)
+Botón en la ventana final de exportación y en la pestaña Exportar. LEE `<Documentos de HOI4>/mod/<mod>/`
+y `<mod>.mod` y los compara (hash, archivo por archivo) con la última exportación: «Al día» o la
+lista de archivos que faltan, sobran (p. ej. el `.hoi4modstudio.json` viejo de la sincronización
+automática) o son distintos, y si el `.mod` tiene otra `supported_version` o `path`. Si hay
+diferencias: «Borra la carpeta <mod> y el archivo <mod>.mod de la carpeta de mods y copia los
+nuevos», con botón para abrir esa carpeta. Nunca escribe nada en la carpeta del juego.
+
 ## Bloque único «Foco» (Blockly)
 
-Cada foco tiene UN bloque raíz «🎯 Foco: <nombre>» con tres secciones: Requisitos (available),
+Cada foco tiene UN bloque raíz «🎯 Foco: <nombre>» (estilo Scratch: cada sección es un título y, DEBAJO, su boca donde caen los bloques) con tres secciones: Requisitos (available),
 Saltar si (bypass) y Recompensa (completion_reward), cada una solo con condiciones o solo con
 efectos. Crece hacia abajo, así nada se superpone. No se puede borrar ni duplicar. Los bloques
 sueltos fuera de él se ven grises, no generan código y se ordenan en columna a su derecha al
 cargar y al soltar un bloque encima de otro. Los focos guardados con los tres bloques viejos se
-migran solos (formato de proyecto 7).
+migran solos (formato de proyecto 8; el bloque raíz de la versión anterior también).
 
 ## Capitales de países del juego
 
@@ -418,3 +428,19 @@ PNG de 5632×2048, ancho de línea con DPR 1, 2 y 3) y de la interfaz en un nave
 4. Si algo falla, mira `Documentos/Paradox Interactive/Hearts of Iron IV/logs/error.log`.
    Tip: arranca el juego con `-debug` (Steam → Propiedades → Opciones de lanzamiento) y en
    la consola usa `focus.autocomplete` para completar focos al instante.
+
+## Avisos del validador
+- Solo avisa de capitales/países sin estados cuando el país EXISTÍA al inicio en la base y TUS
+  cambios lo afectaron. Los liberables o formables que ya empiezan sin estados (Abjasia, Argelia…)
+  no dan ningún aviso. Los que pierden la capital pero conservan estados: aviso y la capital se
+  mueve al exportar. Los que se quedan sin estados: UN aviso agrupado (el `error.log` mostrará
+  «Attempting to set capital state… they dont own it!», es normal). En la tarjeta del país:
+  **Dejarle un estado** (elige en el mapa; vuelve a ser suyo y capital, un paso de deshacer). En
+  Sin nación, una sola línea informativa.
+- La ventana de avisos agrupa por tipo (errores primero, secciones plegables, «Ver todos»), y cada
+  aviso se puede **ignorar** (se guarda en el proyecto) con «Mostrar ignorados».
+- Bloques con fecha reales: `1938.10.25 = { if = { limit = { … } remove_core_of = GXC CHI = {
+  transfer_state = PREV } } }`. En Sin nación, los estados no pintados pierden `owner`,
+  `controller`, `add_core_of`, `remove_core_of` y `transfer_state` (con su `TAG = { }`) dentro de
+  bloques con fecha, también dentro de `if`; si un `if` o un `TAG = { }` queda vacío se quita,
+  sin tocar el resto byte a byte. El aviso de «cambios con fecha» detecta este patrón.

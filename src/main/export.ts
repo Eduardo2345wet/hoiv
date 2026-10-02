@@ -2,6 +2,7 @@
 import fs from 'fs'
 import path from 'path'
 import os from 'os'
+import crypto from 'crypto'
 import { safeFolderName } from '../shared/names'
 import { DEFAULT_SUPPORTED_VERSION, hoi4ModsDir } from './exportInfo'
 
@@ -22,11 +23,27 @@ export interface ExportModPayload {
   replacePrevious?: boolean
 }
 
+/** Lo que se escribió en la última exportación (para "Revisar mod instalado") */
+export interface ExportManifest {
+  slug: string
+  /** ruta relativa → sha1 */
+  files: Record<string, string>
+  mod: { path: string; supportedVersion: string; sha1: string }
+}
+
 export interface ExportResult {
   success: boolean
   error?: string
   modFolder?: string
+  manifest?: ExportManifest
 }
+
+export const sha1 = (b: Buffer | string): string =>
+  crypto.createHash('sha1').update(b).digest('hex')
+
+/** Valor de una línea clave="valor" de un descriptor / .mod */
+export const modValue = (text: string, key: string): string =>
+  new RegExp(`^${key}\\s*=\\s*"([^"]*)"`, 'm').exec(text)?.[1] ?? ''
 
 export { safeFolderName }
 
@@ -165,7 +182,16 @@ export async function handleExportMod(payload: ExportModPayload): Promise<Export
     }
     // NOMBRE.mod fuera de la carpeta, con la ruta absoluta (barras "/")
     fs.writeFileSync(outerFile, built.outerMod, 'utf-8')
-    return { success: true, modFolder }
+    const manifest: ExportManifest = {
+      slug: built.baseName,
+      files: Object.fromEntries(built.entries.map((e) => [e.rel, sha1(e.bytes)])),
+      mod: {
+        path: modValue(built.outerMod, 'path'),
+        supportedVersion: modValue(built.outerMod, 'supported_version'),
+        sha1: sha1(built.outerMod)
+      }
+    }
+    return { success: true, modFolder, manifest }
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Error desconocido al exportar el mod'
     return { success: false, error: message }

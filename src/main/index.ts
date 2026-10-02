@@ -4,6 +4,8 @@ import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import fs from 'fs'
 import path from 'path'
 import { exportPreviousExists, handleExportMod } from './export'
+import { reviewInstalled } from './reviewInstalled'
+import { safeFolderName } from '../shared/names'
 import { saveImage } from './saveImage'
 import { readGameFlags } from './gameFlags'
 import { findHoi4Documents, hoi4DocumentsCandidates } from './hoi4Docs'
@@ -140,8 +142,7 @@ app.whenReady().then(() => {
 
   // Datos para "Exportar mod". La app NUNCA escribe en la carpeta de mods del juego: estas rutas
   // solo se muestran y van en el .mod (donde el usuario copiará el mod a mano).
-  ipcMain.handle('get-export-info', async () => {
-    const st = loadSettings(settingsFile)
+  const hoi4Docs = (): { docs: string | null; modsDir: string } => {
     const docs = findHoi4Documents(
       hoi4DocumentsCandidates(
         app.getPath('documents'),
@@ -150,9 +151,14 @@ app.whenReady().then(() => {
     )
     const docsOrDefault =
       docs ?? path.join(app.getPath('documents'), 'Paradox Interactive', 'Hearts of Iron IV')
+    return { docs, modsDir: hoi4ModsDir(docsOrDefault) }
+  }
+  ipcMain.handle('get-export-info', async () => {
+    const st = loadSettings(settingsFile)
+    const { docs, modsDir } = hoi4Docs()
     return {
       /** Carpeta de mods de HOI4 (con "/"), exista o no todavía */
-      modsDir: hoi4ModsDir(docsOrDefault),
+      modsDir,
       docsFound: !!docs,
       defaultDir: defaultExportDir(app.getPath('desktop')),
       lastDir: st.lastExportDir ?? null,
@@ -276,7 +282,24 @@ app.whenReady().then(() => {
   )
 
   ipcMain.handle('export-mod', async (_, payload) => {
-    return handleExportMod(payload)
+    const res = await handleExportMod(payload)
+    // Se recuerda lo exportado para "Revisar mod instalado" (se guarda en los ajustes de la app)
+    if (res.success && res.manifest) {
+      const st = loadSettings(settingsFile)
+      saveSettings(settingsFile, {
+        ...st,
+        lastExports: { ...st.lastExports, [res.manifest.slug]: res.manifest }
+      })
+    }
+    return res
+  })
+  // Solo lectura: compara la copia de la carpeta de mods del juego con la última exportación
+  ipcMain.handle('review-installed', async (_, modName: string) => {
+    const slug = safeFolderName(modName)
+    const manifest = loadSettings(settingsFile).lastExports?.[slug]
+    const { modsDir } = hoi4Docs()
+    if (!manifest) return { result: { status: 'no-export' }, modsDir, slug }
+    return { result: reviewInstalled(modsDir, manifest), modsDir, slug }
   })
 
   createWindow()

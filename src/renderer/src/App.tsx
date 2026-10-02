@@ -12,6 +12,7 @@ import ProjectPropsDialog from './ui/ProjectPropsDialog'
 import SettingsDialog from './ui/SettingsDialog'
 import AskDialog from './ui/AskDialog'
 import ExportDialog from './ui/ExportDialog'
+import InstalledReviewDialog from './ui/InstalledReviewDialog'
 import CountryPicker from './ui/CountryPicker'
 import PromptDialog from './ui/PromptDialog'
 import ToastHost from './ui/ToastHost'
@@ -80,6 +81,10 @@ export default function App(): JSX.Element {
         else store.toast('Este proyecto todavía no se ha guardado.')
       },
       // Abre la carpeta donde se exportó el mod la última vez (la app no escribe en el juego)
+      reviewInstalled: () => {
+        const p = store.get().project
+        if (p) store.set({ reviewDialog: { modName: p.modName, folder: null, moves: [] } })
+      },
       openModFolder: () => {
         void window.electronAPI?.getExportInfo().then((i) => {
           void window.electronAPI?.openFolder(i.lastDir ?? i.defaultDir)
@@ -152,6 +157,7 @@ export default function App(): JSX.Element {
       {newDialog && <NewProjectDialog initialName={newDialog.name} />}
       {propsDialog && <ProjectPropsDialog />}
       <ExportDialog />
+      <InstalledReviewDialog />
       {settingsDialog && <SettingsDialog onClose={() => store.set({ settingsDialog: false })} />}
       <AskDialog />
       <CountryPicker />

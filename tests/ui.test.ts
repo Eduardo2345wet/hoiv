@@ -554,6 +554,13 @@ async function withFakeApi(
           installedVersion: '1.14.*',
           fallbackVersion: '1.19.*'
         }),
+        reviewInstalled: async () => ({
+          result: (window as unknown as Record<string, unknown>).__review ?? {
+            status: 'missing-copy'
+          },
+          modsDir: '/docs/hoi4/mod',
+          slug: 'mi_mod'
+        }),
         exportExists: async () => !!(window as unknown as Record<string, unknown>).__exists,
         exportMod: async (...a: unknown[]) => {
           calls.push(['exportMod', ...a])
@@ -802,6 +809,36 @@ describe('guardar no toca el juego; exportar a mano (parte 3)', () => {
       (x) => x[0] === 'setSettings' && (x[1] as Record<string, unknown>).lastExportDir
     )
     expect(set).toBeTruthy()
+    await page.close()
+  }, 60_000)
+
+  it('Revisar mod instalado (cinta Exportar) muestra las diferencias y la instrucción', async ({
+    skip
+  }) => {
+    if (!browser) skip()
+    const page = await withFakeApi({ askWhereToSave: false }, '/docs/hoi4/mod')
+    await page.evaluate(() => {
+      ;(window as unknown as Record<string, unknown>).__review = {
+        status: 'diff',
+        missing: [],
+        extra: ['.hoi4modstudio.json'],
+        different: [],
+        mod: {
+          missing: false,
+          pathDiffers: false,
+          versionDiffers: true,
+          contentDiffers: true,
+          current: { path: 'x', supportedVersion: '1.*' }
+        }
+      }
+    })
+    await open(page, [focus('Uno')])
+    await page.locator('button:text-is("Exportar")').first().click()
+    await page.click('button:has-text("Revisar mod instalado")')
+    await page.waitForSelector('text=.hoi4modstudio.json')
+    await page.waitForSelector('text=supported_version distinta (1.*)')
+    await page.waitForSelector('text=/Borra la carpeta mi_mod y el archivo mi_mod.mod/')
+    await page.waitForSelector('button:text-is("Abrir carpeta de mods del juego")')
     await page.close()
   }, 60_000)
 

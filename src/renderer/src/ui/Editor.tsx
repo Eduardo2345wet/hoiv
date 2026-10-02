@@ -130,9 +130,11 @@ export default function Editor(): JSX.Element {
     setIssues(null)
     const res = await exportMod(project, statePlan.current.files)
     if (res.ok) {
-      // Informe de las capitales que se movieron al exportar
+      // Ventana final: informe de capitales movidas + Revisar mod instalado (solo lectura)
       const moved = (statePlan.current.moves ?? []).filter((m) => m.to !== null).map(moveReport)
-      store.toast('✔ ' + res.message + (moved.length ? '\n' + moved.join('\n') : ''))
+      store.set({
+        reviewDialog: { modName: project.modName, folder: res.folder ?? null, moves: moved }
+      })
     } else if (res.message !== 'Exportación cancelada.')
       store.toast('❌ ' + res.message, { kind: 'error' })
   }

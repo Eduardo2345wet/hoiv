@@ -16,6 +16,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   ackCloseRequest: () => ipcRenderer.invoke('app-close-ack'),
   confirmClose: () => ipcRenderer.invoke('app-close-confirmed'),
   getExportInfo: () => ipcRenderer.invoke('get-export-info'),
+  reviewInstalled: (modName: string) => ipcRenderer.invoke('review-installed', modName),
   exportExists: (folder: string, modName: string) =>
     ipcRenderer.invoke('export-exists', folder, modName),
   openFolder: (p: string) => ipcRenderer.invoke('open-folder', p),

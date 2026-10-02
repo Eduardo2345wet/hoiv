@@ -1,5 +1,6 @@
 // Ajustes de la app y lectura OPCIONAL del contenido del juego base.
 // Si no hay carpeta de HOI4, la interfaz usa una lista integrada corta.
+import type { ExportManifest } from './export'
 import { readTopLevelCapital } from '../shared/countryHistory'
 import fs from 'fs'
 import path from 'path'
@@ -22,6 +23,8 @@ export interface Settings {
   lastExportDir?: string
   /** supported_version de reserva si no se puede leer la versión del juego (editable en Ajustes) */
   supportedVersion?: string
+  /** Última exportación de cada mod (slug → archivos y hashes) para "Revisar mod instalado" */
+  lastExports?: Record<string, ExportManifest>
 }
 
 export interface RecentProject {

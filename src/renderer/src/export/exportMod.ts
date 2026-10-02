@@ -133,7 +133,7 @@ export async function buildModPayload(
 export async function exportMod(
   project: Project,
   extraFiles: ModFile[] = []
-): Promise<{ ok: boolean; message: string }> {
+): Promise<{ ok: boolean; message: string; folder?: string }> {
   const api = window.electronAPI
   if (!api)
     return {
@@ -168,9 +168,5 @@ export async function exportMod(
   })
   if (!result.success) return { ok: false, message: result.error ?? 'Error desconocido' }
   void api.setSettings({ lastExportDir: folder })
-  const slug = safeFolderName(project.modName)
-  store.toast(`Mod exportado en ${folder}\nCopia ${slug}/ y ${slug}.mod a ${info.modsDir}`, {
-    action: { label: 'Abrir carpeta', run: () => void api.openFolder(folder) }
-  })
-  return { ok: true, message: `Mod exportado en:\n${result.modFolder}` }
+  return { ok: true, message: `Mod exportado en:\n${result.modFolder}`, folder }
 }

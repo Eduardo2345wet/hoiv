@@ -197,6 +197,8 @@ export interface AppState {
     modName: string
     resolve: (folder: string | null) => void
   } | null
+  /** Ventana final de exportación / Revisar mod instalado (folder = recién exportado) */
+  reviewDialog: { modName: string; folder: string | null; moves: string[] } | null
   /** Selector universal de país abierto */
   countryPicker: { title: string; resolve: (r: CountryPick | null) => void } | null
 }
@@ -246,6 +248,7 @@ let state: AppState = {
   settingsDialog: false,
   ask: null,
   exportDialog: null,
+  reviewDialog: null,
   countryPicker: null,
   toasts: []
 }

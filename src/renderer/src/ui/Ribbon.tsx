@@ -15,6 +15,7 @@ import {
   Redo2,
   RefreshCw,
   Save,
+  Search,
   Settings,
   Slash,
   UserPlus,
@@ -412,6 +413,12 @@ export default function Ribbon(): JSX.Element {
             label="Exportar mod…"
             disabled={off}
             onClick={() => runCommand('exportMod')}
+          />
+          <RBtn
+            icon={<Search size={20} />}
+            label="Revisar mod instalado"
+            disabled={off}
+            onClick={() => runCommand('reviewInstalled')}
           />
         </Group>
         <Group title="Mapa">

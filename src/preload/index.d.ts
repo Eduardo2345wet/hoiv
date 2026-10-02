@@ -39,6 +39,24 @@ export interface RecentProject {
   date: string
 }
 
+export type ReviewData =
+  | { status: 'ok' }
+  | { status: 'missing-copy' }
+  | { status: 'no-export' }
+  | {
+      status: 'diff'
+      missing: string[]
+      extra: string[]
+      different: string[]
+      mod: {
+        missing: boolean
+        pathDiffers: boolean
+        versionDiffers: boolean
+        contentDiffers: boolean
+        current?: { path: string; supportedVersion: string }
+      }
+    }
+
 export interface ExportInfo {
   /** Carpeta de mods de HOI4 (con "/"), exista o no: solo para mostrar y para el path del .mod */
   modsDir: string
@@ -104,6 +122,10 @@ export interface ElectronAPI {
   /** Datos para Exportar mod (rutas que solo se muestran: la app no escribe en el juego) */
   getExportInfo: () => Promise<ExportInfo>
   exportExists: (folder: string, modName: string) => Promise<boolean>
+  /** SOLO LECTURA: compara la copia instalada en el juego con la última exportación */
+  reviewInstalled: (
+    modName: string
+  ) => Promise<{ result: ReviewData; modsDir: string; slug: string }>
   /** Abre una carpeta (o muestra un archivo) en el explorador */
   openFolder: (p: string) => Promise<boolean>
   /** Documentos/HOI4 Mod Studio/Proyectos */
