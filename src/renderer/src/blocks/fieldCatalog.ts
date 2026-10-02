@@ -6,17 +6,23 @@
 //   y nunca se guardan como valor.
 import { countrySections, type CountryChoice } from '../countries/choices'
 import * as Blockly from 'blockly'
-import { getCatalogOptions, type CatalogKind } from '../catalog/catalog'
+import { getCatalogOptions, type CatalogKind, type CatalogOption } from '../catalog/catalog'
+import type { Project } from '../types'
 import { store } from '../store/appStore'
 import { validateTag } from '../export/validator'
 import { createFocusBelow, createIdea } from '../ui/projectOps'
+import { chooseCountryTag } from '../ui/countryFlow'
+import type { GameIdea } from '../../../shared/ideasParse'
 
 export const SPECIAL = {
   separator: '__sep__',
   create: '__crear__',
   other: '__otro__',
   pickTree: '__arbol__',
-  pickMap: '__mapa__'
+  pickMap: '__mapa__',
+  pickGame: '__juego__',
+  createFromGame: '__desde_juego__',
+  pickCountry: '__pais__'
 } as const
 const SPECIAL_VALUES: string[] = Object.values(SPECIAL)
 
@@ -30,6 +36,18 @@ export function isSpecialValue(v: string): boolean {
 
 type Option = [string, string]
 
+/** Solo las opciones DEL MOD (sin recorrer las listas del juego) */
+function modOptions(kind: CatalogKind, project: Project | null): CatalogOption[] {
+  if (kind === 'idea')
+    return (project?.ideas ?? []).map((i) => ({
+      id: i.id,
+      etiqueta: i.name || i.id,
+      origen: 'mod' as const,
+      uid: i.uid
+    }))
+  return []
+}
+
 /** Opciones del menú en orden: especiales arriba (árbol), mod, juego, separador, crear/escribir */
 export function buildMenu(kind: CatalogKind, current: string | null): Option[] {
   const s = store.get()
@@ -37,13 +55,17 @@ export function buildMenu(kind: CatalogKind, current: string | null): Option[] {
   // En "completó el foco" no se ofrece el foco que estoy editando
   const editingId =
     kind === 'focus' ? project?.focuses.find((f) => f.uid === s.selectedUid)?.id : undefined
-  const opts = getCatalogOptions(kind, project, store.catalogGame()).filter(
-    (o) => o.id !== editingId
-  )
+  // Listas enormes (ideas del juego, estados…) NUNCA se cargan en Blockly: solo lo del mod, los
+  // recientes y las opciones especiales; lo demás se busca en una ventana propia.
+  const short = kind === 'idea' || kind === 'state'
+  const opts = (
+    short ? modOptions(kind, project) : getCatalogOptions(kind, project, store.catalogGame())
+  ).filter((o) => o.id !== editingId)
 
   const menu: Option[] = []
   if (kind === 'focus') menu.push(['🎯 Elegir en el árbol…', SPECIAL.pickTree])
   if (kind === 'state') menu.push(['🗺 Elegir en el mapa…', SPECIAL.pickMap])
+  if (kind === 'idea') menu.push(['🔍 Elegir del juego…', SPECIAL.pickGame])
   if (current && !opts.some((o) => o.id === current)) {
     const why = kind === 'focus' || kind === 'idea' ? 'ya no existe' : 'no está en la lista'
     menu.push([`⚠ ${current} (${why})`, current])
@@ -61,14 +83,22 @@ export function buildMenu(kind: CatalogKind, current: string | null): Option[] {
     }
     add('Mis países', sec.mine)
     add('En el mapa', sec.onMap)
-    add('Todos los países del juego', sec.game)
+    // Más de 200 opciones nunca se cargan en Blockly: se elige en el selector universal
+    if (sec.game.length > 200) menu.push(['🔍 Elegir otro país del juego…', SPECIAL.pickCountry])
+    else add('Todos los países del juego', sec.game)
   }
   for (const o of kind === 'country' ? [] : opts) {
     const label = o.etiqueta && o.etiqueta !== o.id ? `${o.etiqueta} · ${o.id}` : o.id
     menu.push([o.origen === 'juego' ? `${label}  (juego)` : label, o.id])
   }
+  if (kind === 'idea' && s.recentIdeas.length) {
+    menu.push(['── Recientes ──', SPECIAL.separator])
+    for (const id of s.recentIdeas.slice(0, 8))
+      if (!opts.some((o) => o.id === id)) menu.push([`${id}  (juego)`, id])
+  }
   menu.push(['──────────', SPECIAL.separator])
   if (kind !== 'country' && kind !== 'state') menu.push(['+ Crear nuevo…', SPECIAL.create])
+  if (kind === 'idea') menu.push(['+ Crear a partir de uno del juego…', SPECIAL.createFromGame])
   menu.push(['Escribir otro ID…', SPECIAL.other])
   return menu
 }
@@ -131,6 +161,38 @@ export class FieldCatalog extends Blockly.FieldDropdown {
         exclude: s.selectedUid ? [s.selectedUid] : [],
         onPick: (uid) => set(store.get().project?.focuses.find((f) => f.uid === uid)?.id ?? null)
       })
+      return
+    }
+
+    if (v === SPECIAL.pickGame || v === SPECIAL.createFromGame) {
+      const copy = v === SPECIAL.createFromGame
+      const openCopy = (src: GameIdea): void =>
+        store.set({
+          ideaCopy: {
+            src,
+            onCreated: (id, uid) => {
+              set(id)
+              // Abre el espíritu nuevo para editarlo
+              store.set({ ideaToSelect: uid })
+              store.setUi({ ribbon: 'ideas' })
+            }
+          }
+        })
+      store.set({
+        ideaPicker: {
+          mode: copy ? 'copy' : 'use',
+          onUse: (id) => {
+            set(id)
+            if (!store.get().project?.ideas.some((i) => i.id === id)) store.pushRecent('idea', id)
+          },
+          onCopy: openCopy
+        }
+      })
+      return
+    }
+
+    if (v === SPECIAL.pickCountry) {
+      void chooseCountryTag('Elegir país').then((t) => t && set(t))
       return
     }
 

@@ -77,6 +77,8 @@ export interface Settings {
   askWhereToSave?: boolean
   lastExportDir?: string
   supportedVersion?: string
+  recentIdeas?: string[]
+  recentStates?: number[]
   /** Carpeta de instalación de HOI4 (opcional) */
   gamePath: string | null
   /** La encontró la app sola */
@@ -128,6 +130,8 @@ export interface ElectronAPI {
   /** Datos para Exportar mod (rutas que solo se muestran: la app no escribe en el juego) */
   getExportInfo: () => Promise<ExportInfo>
   exportExists: (folder: string, modName: string) => Promise<boolean>
+  /** Ideas del juego (common/ideas): se leen una vez y se guardan en caché */
+  readIdeasCatalog: (gamePath: string) => Promise<import('../shared/ideasParse').GameIdea[]>
   /** SOLO LECTURA: compara la copia instalada en el juego con la última exportación */
   reviewInstalled: (
     modName: string

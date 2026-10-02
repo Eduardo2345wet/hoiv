@@ -17,6 +17,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   confirmClose: () => ipcRenderer.invoke('app-close-confirmed'),
   getExportInfo: () => ipcRenderer.invoke('get-export-info'),
   reviewInstalled: (modName: string) => ipcRenderer.invoke('review-installed', modName),
+  readIdeasCatalog: (gamePath: string) => ipcRenderer.invoke('read-ideas-catalog', gamePath),
   exportExists: (folder: string, modName: string) =>
     ipcRenderer.invoke('export-exists', folder, modName),
   openFolder: (p: string) => ipcRenderer.invoke('open-folder', p),

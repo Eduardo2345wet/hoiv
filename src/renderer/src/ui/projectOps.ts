@@ -436,6 +436,40 @@ export function createIdea(p: Project, name = 'Nuevo espíritu'): { project: Pro
   return { project: next, idea }
 }
 
+/** Crea un espíritu del mod copiando una idea del juego (picture reutilizado, sin copiar archivos) */
+export function createIdeaFrom(
+  p: Project,
+  src: {
+    id: string
+    name: string
+    desc: string
+    picture: string
+    modifiers: [string, number][]
+    extraModifierText: string
+    extraText: string
+  },
+  name?: string
+): { project: Project; idea: Idea } {
+  const uid = newUid()
+  const finalName = name ?? `${src.name || src.id} (copia)`
+  const idea: Idea = {
+    uid,
+    id: ideaIdFor(p, finalName),
+    idAuto: false,
+    name: finalName,
+    description: src.desc,
+    modifiers: src.modifiers.map(([key, value]) => ({ key, value })),
+    // Sin ícono propio: el juego usa su GFX_idea_<picture> original
+    icon: null,
+    iconAuto: false,
+    picture: src.picture || undefined,
+    extraModifierText: src.extraModifierText || undefined,
+    extraText: src.extraText || undefined,
+    fromGame: src.id
+  }
+  return { project: { ...p, ideas: [...p.ideas, idea] }, idea }
+}
+
 export function updateIdea(p: Project, uid: string, patch: Partial<Idea>): Project {
   return {
     ...p,

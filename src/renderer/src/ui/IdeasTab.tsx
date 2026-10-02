@@ -1,8 +1,8 @@
 // Pestaña "Espíritus nacionales": lista + editor del seleccionado
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Plus, Trash2 } from 'lucide-react'
 import type { Idea, Project } from '../types'
-import { store } from '../store/appStore'
+import { store, useApp } from '../store/appStore'
 import { createIdea, deleteIdea, renameIdeaId, setIdeaName, updateIdea } from './projectOps'
 import { MODIFIERS, modifierDef } from '../catalog/modifiers'
 import { ID_REGEX } from '../export/validator'
@@ -12,6 +12,21 @@ import IconField from './IconField'
 export default function IdeasTab({ project }: { project: Project }): JSX.Element {
   const [selected, setSelected] = useState<string | null>(project.ideas[0]?.uid ?? null)
   const idea = project.ideas.find((i) => i.uid === selected) ?? null
+  // Un espíritu recién creado a partir de uno del juego se abre para editarlo
+  const toSelect = useApp((s) => s.ideaToSelect)
+  useEffect(() => {
+    if (!toSelect) return
+    setSelected(toSelect)
+    store.set({ ideaToSelect: null })
+  }, [toSelect])
+  const fromGame = (): void =>
+    store.set({
+      ideaPicker: {
+        mode: 'copy',
+        onUse: () => undefined,
+        onCopy: (src) => store.set({ ideaCopy: { src, onCreated: (_id, uid) => setSelected(uid) } })
+      }
+    })
 
   const add = (): void => {
     let uid = ''
@@ -30,6 +45,9 @@ export default function IdeasTab({ project }: { project: Project }): JSX.Element
         <div className="shrink-0 border-b border-hoi-border p-3">
           <button className="btn-primary w-full justify-center" onClick={add}>
             <Plus size={16} /> Nuevo espíritu
+          </button>
+          <button className="btn mt-2 w-full justify-center" onClick={fromGame}>
+            Nuevo a partir del juego…
           </button>
         </div>
         <ul className="min-h-0 flex-1 overflow-y-auto p-2">
@@ -179,6 +197,28 @@ function IdeaEditor({
             <Plus size={14} /> Añadir modificador
           </button>
         </div>
+
+        {(idea.extraText || idea.extraModifierText) && (
+          <div>
+            <label className="label">Avanzado (texto, solo lectura: se exporta tal cual)</label>
+            <textarea
+              readOnly
+              className="input h-28 resize-none font-mono text-[11px]"
+              value={[
+                idea.extraModifierText && `modifier = {\n${idea.extraModifierText}\n}`,
+                idea.extraText
+              ]
+                .filter(Boolean)
+                .join('\n')}
+            />
+          </div>
+        )}
+        {idea.picture && !idea.icon && (
+          <p className="text-xs text-hoi-muted">
+            Ícono del juego: <span className="font-mono">GFX_idea_{idea.picture}</span> (no se copia
+            ningún archivo; elige otro a la derecha si quieres cambiarlo).
+          </p>
+        )}
 
         <button
           className="btn mt-4 w-fit text-red-400"

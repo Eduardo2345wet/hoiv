@@ -23,6 +23,8 @@ export interface Settings {
   lastExportDir?: string
   /** supported_version de reserva si no se puede leer la versión del juego (editable en Ajustes) */
   supportedVersion?: string
+  recentIdeas?: string[]
+  recentStates?: number[]
   /** Última exportación de cada mod (slug → archivos y hashes) para "Revisar mod instalado" */
   lastExports?: Record<string, ExportManifest>
 }

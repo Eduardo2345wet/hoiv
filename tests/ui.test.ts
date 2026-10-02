@@ -1442,3 +1442,76 @@ describe('focos: herramientas, asas y líneas (parte B)', () => {
     await page.close()
   }, 60_000)
 })
+
+// ---------- Espíritus: ventana "Elegir del juego" (parte D) ----------
+describe('elegir ideas del juego (parte D)', () => {
+  it('lista virtualizada con 4000 ideas, pestañas, búsqueda sin acentos y "Usar este"', async ({
+    skip
+  }) => {
+    if (!browser) skip()
+    const page = await fresh()
+    await focusEditor(page)
+    await page.evaluate(() => {
+      const w = window as unknown as Record<string, unknown>
+      const ideas = Array.from({ length: 4000 }, (_, i) => ({
+        id: i % 10 === 0 ? `ley_${i}` : `idea_${i}`,
+        category: i % 10 === 0 ? 'economy' : 'country',
+        tab: i % 10 === 0 ? 'leyes' : 'espiritus',
+        file: 'x.txt',
+        picture: 'p',
+        name: i === 7 ? 'Unión Ática' : `Idea ${i}`,
+        desc: '',
+        modifiers: [['stability_factor', 5]],
+        extraModifierText: '',
+        extraText: ''
+      }))
+      w.__reads = 0
+      w.electronAPI = {
+        readIdeasCatalog: async () => {
+          ;(w.__reads as number)++
+          return ideas
+        },
+        getSettings: async () => ({}),
+        setSettings: async () => undefined
+      }
+      const st = (window as unknown as HoiWindow).__hoiStore as never as {
+        set(p: unknown): void
+      }
+      st.set({
+        gamePath: '/g',
+        ideaPicker: {
+          mode: 'use',
+          onUse: (id: string) => (w.__used = id),
+          onCopy: () => undefined
+        }
+      })
+    })
+    await page.waitForSelector('[data-idea-row]')
+    // Virtualizada: solo se dibujan las filas visibles
+    expect(await page.locator('[data-idea-row]').count()).toBeLessThan(40)
+    // Pestañas: las leyes están aparte
+    await page.click('[data-idea-tab="leyes"]')
+    await page.waitForFunction(() =>
+      document.querySelector('[data-idea-row]')?.textContent?.includes('ley_')
+    )
+    await page.click('[data-idea-tab="espiritus"]')
+    // Búsqueda sin acentos por nombre localizado
+    await page.fill('input[placeholder^="Buscar"]', 'union atica')
+    await page.waitForFunction(() => document.querySelectorAll('[data-idea-row]').length === 1)
+    await page.click('button:text-is("Usar este")')
+    expect(await page.evaluate(() => (window as unknown as Record<string, unknown>).__used)).toBe(
+      'idea_7'
+    )
+    // El catálogo se pide una sola vez aunque se abra otra vez
+    await page.evaluate(() => {
+      ;(window as unknown as HoiWindow).__hoiStore.set({
+        ideaPicker: { mode: 'use', onUse: () => undefined, onCopy: () => undefined }
+      })
+    })
+    await page.waitForSelector('[data-idea-row]')
+    expect(await page.evaluate(() => (window as unknown as Record<string, unknown>).__reads)).toBe(
+      1
+    )
+    await page.close()
+  }, 60_000)
+})

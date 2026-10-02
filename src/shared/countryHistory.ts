@@ -10,7 +10,7 @@ interface Tok {
 }
 
 /** Tokens (palabras, =, { y }) sin comentarios, espacios ni BOM, con su profundidad de llaves */
-function tokens(text: string): Tok[] {
+export function tokenizePdx(text: string): Tok[] {
   const out: Tok[] = []
   let depth = 0
   let i = 0
@@ -53,7 +53,7 @@ function tokens(text: string): Tok[] {
 
 /** Posiciones del número de cada `capital = N` de nivel superior */
 function topLevelCapitals(text: string): { s: number; e: number; n: number }[] {
-  const t = tokens(text)
+  const t = tokenizePdx(text)
   const found: { s: number; e: number; n: number }[] = []
   for (let i = 0; i + 2 < t.length; i++)
     if (

@@ -93,6 +93,14 @@ export interface Idea {
   modifiers: IdeaModifier[]
   icon: IconRef | null
   iconAuto: boolean
+  /** Creado a partir de una idea del juego: su `picture` (el juego usa su propio GFX_idea_<picture>) */
+  picture?: string
+  /** Líneas de modifier = { } no soportadas como fila (se exportan tal cual) */
+  extraModifierText?: string
+  /** Resto de sentencias de la idea original (allowed, on_add, cost…), solo lectura; se exporta tal cual */
+  extraText?: string
+  /** id de la idea del juego de la que se copió */
+  fromGame?: string
 }
 
 // ======================= Países =======================

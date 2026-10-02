@@ -12,6 +12,8 @@ import ProjectPropsDialog from './ui/ProjectPropsDialog'
 import SettingsDialog from './ui/SettingsDialog'
 import AskDialog from './ui/AskDialog'
 import ExportDialog from './ui/ExportDialog'
+import IdeaPicker from './ui/IdeaPicker'
+import IdeaCopyDialog from './ui/IdeaCopyDialog'
 import InstalledReviewDialog from './ui/InstalledReviewDialog'
 import CountryPicker from './ui/CountryPicker'
 import PromptDialog from './ui/PromptDialog'
@@ -115,6 +117,15 @@ export default function App(): JSX.Element {
     void window.electronAPI?.setSettings({ openTabs: paths })
   })
 
+  // Recientes de ideas y estados (guardados en los ajustes)
+  useEffect(() => {
+    void window.electronAPI
+      ?.getSettings()
+      .then((st) =>
+        store.set({ recentIdeas: st.recentIdeas ?? [], recentStates: st.recentStates ?? [] })
+      )
+  }, [])
+
   // Atajos de archivo y de pestañas
   useEffect(() => {
     const onKey = (e: KeyboardEvent): void => {
@@ -157,6 +168,8 @@ export default function App(): JSX.Element {
       {newDialog && <NewProjectDialog initialName={newDialog.name} />}
       {propsDialog && <ProjectPropsDialog />}
       <ExportDialog />
+      <IdeaPicker />
+      <IdeaCopyDialog />
       <InstalledReviewDialog />
       {settingsDialog && <SettingsDialog onClose={() => store.set({ settingsDialog: false })} />}
       <AskDialog />

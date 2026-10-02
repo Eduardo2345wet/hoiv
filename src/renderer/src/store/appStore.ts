@@ -1,6 +1,7 @@
 // Store central de la app (sin librerías): el estado vive aquí y los
 // componentes de React se suscriben con useApp(). Blockly también lo lee
 // (por ejemplo, los menús de FieldCatalog consultan el proyecto actual).
+import type { GameIdea } from '../../../shared/ideasParse'
 import { validateProjectName } from '../../../shared/names'
 import type { ExportInfo } from '../../../preload/index.d'
 import { useSyncExternalStore } from 'react'
@@ -202,6 +203,19 @@ export interface AppState {
   } | null
   /** Ventana final de exportación / Revisar mod instalado (folder = recién exportado) */
   reviewDialog: { modName: string; folder: string | null; moves: string[] } | null
+  /** "Elegir del juego" de ideas (mode copy = el botón principal es crear a partir de) */
+  ideaPicker: {
+    mode: 'use' | 'copy'
+    onUse: (id: string) => void
+    onCopy: (idea: GameIdea) => void
+  } | null
+  /** "Crear a partir de uno del juego" */
+  ideaCopy: { src: GameIdea; onCreated: (id: string, uid: string) => void } | null
+  /** Espíritu a seleccionar al abrir la pestaña Espíritus */
+  ideaToSelect: string | null
+  /** Últimos espíritus del juego usados (Recientes de Blockly) y últimos estados elegidos */
+  recentIdeas: string[]
+  recentStates: number[]
   /** Selector universal de país abierto */
   countryPicker: { title: string; resolve: (r: CountryPick | null) => void } | null
 }
@@ -252,6 +266,11 @@ let state: AppState = {
   settingsDialog: false,
   ask: null,
   exportDialog: null,
+  ideaPicker: null,
+  ideaCopy: null,
+  ideaToSelect: null,
+  recentIdeas: [],
+  recentStates: [],
   reviewDialog: null,
   countryPicker: null,
   toasts: []
@@ -644,6 +663,15 @@ export const store = {
     const d = state.exportDialog
     store.set({ exportDialog: null })
     d?.resolve(folder)
+  },
+
+  /** Anota un valor en "Recientes" (los últimos 8, sin repetidos) y lo guarda en los ajustes */
+  pushRecent(kind: 'idea' | 'state', value: string | number): void {
+    const key = kind === 'idea' ? 'recentIdeas' : 'recentStates'
+    const cur = state[key] as (string | number)[]
+    const next = [value, ...cur.filter((x) => x !== value)].slice(0, 8)
+    store.set({ [key]: next } as Partial<AppState>)
+    void window.electronAPI?.setSettings({ [key]: next } as never)
   },
 
   // ---- Diálogo de texto ----

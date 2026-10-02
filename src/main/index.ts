@@ -5,6 +5,7 @@ import fs from 'fs'
 import path from 'path'
 import { exportPreviousExists, handleExportMod } from './export'
 import { findInvalidLeftovers, reviewInstalled } from './reviewInstalled'
+import { readIdeasCatalog } from './ideasCatalog'
 import { safeFolderName } from '../shared/names'
 import { saveImage } from './saveImage'
 import { readGameFlags } from './gameFlags'
@@ -167,6 +168,9 @@ app.whenReady().then(() => {
       fallbackVersion: st.supportedVersion || DEFAULT_SUPPORTED_VERSION
     }
   })
+  ipcMain.handle('read-ideas-catalog', async (_, gamePath: string) =>
+    readIdeasCatalog(gamePath, path.join(app.getPath('userData'), 'cache'))
+  )
   ipcMain.handle('export-exists', async (_, folder: string, modName: string) =>
     exportPreviousExists(folder, modName)
   )
