@@ -6,6 +6,8 @@ import { countryReferences, deleteCountry, duplicateCountry } from '../countries
 import { suggestTag } from '../countries/tags'
 import { getCatalogOptions } from '../catalog/catalog'
 import FlagThumb from './FlagThumb'
+import { useState } from 'react'
+import { ScenariosDialog, StartPanel } from './StartPanel'
 
 interface Props {
   project: Project
@@ -15,6 +17,8 @@ interface Props {
 
 export default function CountriesTab({ project, onOpenWizard }: Props): JSX.Element {
   const game = useApp(() => store.catalogGame())
+  const [startTag, setStartTag] = useState<string | null>(null)
+  const [scenarios, setScenarios] = useState(false)
 
   const duplicate = (uid: string): void => {
     const src = project.countries.find((c) => c.uid === uid)!
@@ -40,6 +44,9 @@ export default function CountriesTab({ project, onOpenWizard }: Props): JSX.Elem
       <div className="mb-4 flex items-center gap-3">
         <button className="btn-primary" onClick={() => onOpenWizard()}>
           <Plus size={16} /> Crear país
+        </button>
+        <button className="btn" onClick={() => setScenarios(true)}>
+          Escenarios de inicio…
         </button>
         <span className="text-sm text-hoi-muted">
           {project.countries.filter((c) => !c.technical && !c.light).length} país(es) en el mod
@@ -105,6 +112,13 @@ export default function CountriesTab({ project, onOpenWizard }: Props): JSX.Elem
                   </button>
                   <button
                     className="btn px-2 py-1 text-xs"
+                    title="Valores iniciales, espíritus, tecnologías y diplomacia"
+                    onClick={() => setStartTag(c.tag)}
+                  >
+                    Situación inicial
+                  </button>
+                  <button
+                    className="btn px-2 py-1 text-xs"
                     title="Duplicar"
                     onClick={() => duplicate(c.uid)}
                   >
@@ -122,6 +136,10 @@ export default function CountriesTab({ project, onOpenWizard }: Props): JSX.Elem
             )
           })}
       </div>
+      {startTag && (
+        <StartPanel project={project} tag={startTag} onClose={() => setStartTag(null)} />
+      )}
+      {scenarios && <ScenariosDialog project={project} onClose={() => setScenarios(false)} />}
     </div>
   )
 }

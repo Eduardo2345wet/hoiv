@@ -567,3 +567,9 @@ Por verificar (constantes marcadas en `sections/decisions.ts`): tamaño de ícon
 Pestaña **Personajes**: líder, consejero, general, mariscal y almirante por país, con retratos, rasgos reales del juego (leídos de `common/country_leader` y `common/unit_leader`) y botón para traer los líderes del asistente. Exporta `common/characters/<mod>_<TAG>_characters.txt` (nunca `<TAG>.txt`), `interface/<mod>_portraits.gfx`, `gfx/leaders/<TAG>/*.dds` y localización; `recruit_character` va en la historia del país (generada o parche mínimo) o, si no hay historia editable, en `common/on_actions/<mod>_characters.txt`. Bloques nuevos: Reclutar, Quitar y Activar asesor.
 
 Por verificar: tamaño de retratos de general y consejero, `retire_character` / `activate_advisor`, `legacy_id = -1`.
+
+## Situación inicial y escenarios (S5)
+
+En **Países**, cada tarjeta tiene «Situación inicial»: estabilidad, apoyo a la guerra, convoyes, ranuras de investigación, espíritus iniciales, tecnologías iniciales (buscador sobre `common/technologies` del juego), diplomacia (facción propia o unirse a otra, títeres con autonomía leída de `common/autonomous_states`, garantías) y guerras al inicio (`on_actions` + `declare_war_on`). Todo va a la historia del país (archivo generado si es nuevo, parche mínimo si es del juego). Con fecha 1939, los cambios van en un bloque `1939.1.1`. «Escenarios de inicio…» edita `common/bookmarks`. No hay vista de resumen en el mapa con colores de facción (pendiente).
+
+Por verificar: `declare_war_on` en `on_startup`, imagen de escenario 640×220, forma del bloque `bookmark` (`"---"`).

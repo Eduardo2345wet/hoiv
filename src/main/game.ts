@@ -7,6 +7,7 @@ import fs from 'fs'
 import path from 'path'
 import { shineShape } from '../shared/shine'
 import { parseFocusFile } from '../shared/gameFocus'
+import { parseTechnologies, topLevelKeys, type GameTech } from '../shared/gameTech'
 import { parseTraits, type GameTrait } from '../shared/gameTraits'
 
 export interface Settings {
@@ -194,6 +195,9 @@ export interface GameCatalogResult {
   decisionIcons?: string[]
   /** Rasgos de líderes y consejeros (common/country_leader) y de militares (common/unit_leader) */
   leaderTraits?: GameTrait[]
+  /** Tecnologías (common/technologies) y estados de autonomía (common/autonomous_states) */
+  technologies?: GameTech[]
+  autonomyStates?: string[]
   unitTraits?: GameTrait[]
   decisionCategoryIcons?: string[]
   /** Cuadrícula del árbol de focos (interface/nationalfocusview.gui) */
@@ -382,12 +386,40 @@ export function readGameCatalog(gamePath: string): GameCatalogResult | null {
       return undefined
     }
   }
+  let technologies: GameTech[] | undefined
+  let autonomyStates: string[] | undefined
+  try {
+    const all = new Map<string, GameTech>()
+    for (const f of fs.readdirSync(path.join(gamePath, 'common', 'technologies')))
+      if (f.endsWith('.txt'))
+        for (const t of parseTechnologies(
+          fs.readFileSync(path.join(gamePath, 'common', 'technologies', f), 'utf-8')
+        ))
+          all.set(t.id, t)
+    technologies = [...all.values()]
+  } catch {
+    // sin la carpeta: no hay lista de tecnologías
+  }
+  try {
+    const keys = new Set<string>()
+    for (const f of fs.readdirSync(path.join(gamePath, 'common', 'autonomous_states')))
+      if (f.endsWith('.txt'))
+        for (const k of topLevelKeys(
+          fs.readFileSync(path.join(gamePath, 'common', 'autonomous_states', f), 'utf-8')
+        ))
+          keys.add(k)
+    autonomyStates = [...keys].sort()
+  } catch {
+    // sin la carpeta: lista integrada
+  }
   const leaderTraits = readTraits('country_leader')
   const unitTraits = readTraits('unit_leader')
 
   const result: GameCatalogResult = {
     leaderTraits,
     unitTraits,
+    technologies,
+    autonomyStates,
     decisionIcons,
     decisionCategoryIcons,
     eventPictures,

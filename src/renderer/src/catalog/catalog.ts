@@ -44,6 +44,16 @@ export interface GameCatalog {
   /** Íconos GFX_decision_* y GFX_decision_category_* del juego */
   decisionIcons?: string[]
   /** Rasgos reales del juego (líderes/consejeros y militares) */
+  technologies?: {
+    id: string
+    folder?: string
+    x?: number
+    y?: number
+    cost?: number
+    year?: number
+    leadsTo: string[]
+  }[]
+  autonomyStates?: string[]
   leaderTraits?: { id: string; slot?: string; type?: string }[]
   unitTraits?: { id: string; slot?: string; type?: string }[]
   decisionCategoryIcons?: string[]

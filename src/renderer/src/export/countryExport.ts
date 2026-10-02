@@ -15,6 +15,7 @@ import {
 } from '../icons/renderer'
 import { locText } from '../generator/focusTree'
 import '../sections/characters'
+import '../sections/start'
 import { patchHistory } from '../countries/history'
 import {
   datedBlocks,

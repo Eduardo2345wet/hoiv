@@ -204,11 +204,21 @@ export interface Character {
 /** Situación inicial de un país (diplomacia, facciones, estabilidad…) */
 export interface CountryStart {
   country: string
+  /** Porcentajes 0–100 (null = no se toca lo que dice el juego) */
   stability: number | null
   warSupport: number | null
+  convoys: number | null
+  researchSlots: number | null
+  ideas: string[]
+  technologies: string[]
+  /** Facción: name = crear una con este nombre; joins = unirse a la de ese país (tag) */
   faction: { name: string; joins: string | null } | null
   puppets: { tag: string; autonomy: string }[]
   guarantees: string[]
+  /** Guerras al inicio (on_actions on_startup + declare_war_on) */
+  wars: string[]
+  /** 1936 (por defecto) o 1939: en 1939 todo va en un bloque con fecha */
+  startDate: '1936' | '1939'
 }
 
 /** Ejército inicial de un país */
@@ -242,9 +252,14 @@ export interface Bookmark {
   uid: string
   name: string
   description: string
+  /** 1936.1.1.12 */
   date: string
   defaultCountry: string
+  /** Es el escenario marcado como `default = yes` */
+  isDefault: boolean
   picture: IconRef | null
+  /** Países destacados de la pantalla de selección */
+  featured: { tag: string; ideology: string; history: string; ideas: string[]; focuses: string[] }[]
 }
 
 export interface MusicTrack {

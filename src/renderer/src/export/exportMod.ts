@@ -22,6 +22,7 @@ import { SUPER_IMAGE_SIZE, superImagePath, superImagePaths } from '../sections/s
 import { EVENT_PICTURE_SIZE, eventImagePath, eventImagePaths, eventPng } from '../sections/events'
 import { decisionImagePaths, decisionImages } from '../sections/decisions'
 import { characterImagePaths, characterImages } from '../sections/characters'
+import { bookmarkImages } from '../sections/start'
 import { baseMod } from './statesExport'
 import { withTechnicalCapital } from '../map/noNation'
 import { withMovedCapitals } from '../map/capitals'
@@ -89,6 +90,10 @@ export async function buildExtraFiles(
       const img = await read(i.png, i.w, i.h)
       files.push({ path: i.path, data: writeDDS(img.width, img.height, img.rgba) })
     }
+    for (const i of bookmarkImages(project)) {
+      const img = await read(i.png, i.w, i.h)
+      files.push({ path: i.path, data: writeDDS(img.width, img.height, img.rgba) })
+    }
     // Íconos propios de decisiones y categorías
     for (const i of decisionImages(project)) {
       const img = await read(i.png, i.w, i.h)
@@ -129,6 +134,7 @@ export function plannedPaths(project: Project, game: GameCatalog | null = null):
   paths.push(...superImagePaths(project))
   paths.push(...decisionImagePaths(project))
   paths.push(...characterImagePaths(project))
+  paths.push(...bookmarkImages(project).map((i) => i.path))
   return paths
 }
 

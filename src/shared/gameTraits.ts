@@ -10,7 +10,7 @@ export interface GameTrait {
 }
 
 /** Cuerpo (sin llaves) de `key = { … }` al nivel que se pida, saltando comentarios y textos */
-function bodies(text: string, key: string): string[] {
+export function bodies(text: string, key: string): string[] {
   const out: string[] = []
   const re = new RegExp(`(^|[\\s}])${key}\\s*=\\s*\\{`, 'g')
   let m: RegExpExecArray | null
@@ -32,7 +32,7 @@ function bodies(text: string, key: string): string[] {
 }
 
 /** Hijos directos `nombre = { … }` de un cuerpo */
-function children(body: string): { id: string; body: string }[] {
+export function children(body: string): { id: string; body: string }[] {
   const out: { id: string; body: string }[] = []
   let depth = 0
   let i = 0
