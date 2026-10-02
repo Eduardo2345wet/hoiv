@@ -561,3 +561,9 @@ scripted GUI y la sintaxis del efecto de sonido (`SOUND_EFFECT`; el validador av
 Pestaña **Decisiones**: categorías y decisiones normales, misiones (con temporizador y `activate_mission`) y decisiones con objetivo (países o estados). Editor con General · Condiciones · Efectos · Costo y tiempo · IA · Objetivos. Exporta `common/decisions/categories/<mod>_categories.txt`, `common/decisions/<mod>_decisions.txt`, `interface/<mod>_decisions.gfx`, `gfx/interface/decisions/*.dds` y la localización. El validador avisa de misiones con `visible`, costos personalizados sin restar, decisiones sin `ai_will_do`, imágenes de categoría sin descripción y misiones que nadie activa.
 
 Por verificar (constantes marcadas en `sections/decisions.ts`): tamaño de íconos de decisión (66×66) y de imagen de categoría (460×150), nombre completo en `picture` de la categoría, y que `highlight_states`/`on_map_area` lleven la forma usada.
+
+## Personajes (S4)
+
+Pestaña **Personajes**: líder, consejero, general, mariscal y almirante por país, con retratos, rasgos reales del juego (leídos de `common/country_leader` y `common/unit_leader`) y botón para traer los líderes del asistente. Exporta `common/characters/<mod>_<TAG>_characters.txt` (nunca `<TAG>.txt`), `interface/<mod>_portraits.gfx`, `gfx/leaders/<TAG>/*.dds` y localización; `recruit_character` va en la historia del país (generada o parche mínimo) o, si no hay historia editable, en `common/on_actions/<mod>_characters.txt`. Bloques nuevos: Reclutar, Quitar y Activar asesor.
+
+Por verificar: tamaño de retratos de general y consejero, `retire_character` / `activate_advisor`, `legacy_id = -1`.

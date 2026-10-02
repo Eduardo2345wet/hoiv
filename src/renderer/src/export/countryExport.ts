@@ -14,7 +14,14 @@ import {
   renderPortraitPlaceholder
 } from '../icons/renderer'
 import { locText } from '../generator/focusTree'
+import '../sections/characters'
 import { patchHistory } from '../countries/history'
+import {
+  datedBlocks,
+  hasExtras,
+  historyExtras,
+  type HistoryExtras
+} from '../sections/historyExtras'
 import { writeDDS, writeTGA } from './images'
 import type { ModFile } from './exportMod'
 
@@ -76,17 +83,25 @@ export function politicsBlock(c: Country): string {
   return lines.join('\n') + '\n'
 }
 
-export function historyText(c: Country): string {
+export function historyText(c: Country, extras?: HistoryExtras): string {
+  const sc: Record<string, string> = { set_research_slots: '3', ...(extras?.scalars ?? {}) }
+  const head = Object.entries(sc).map(([k, v]) => `${k} = ${v}`)
+  // recruit_character y demás líneas sueltas van ANTES de set_politics
+  const politics = politicsBlock(c).trimEnd()
+  const lines = extras?.lines.length ? extras.lines.join('\n') + '\n' : ''
+  const dated = extras ? datedBlocks(extras) : ''
   return (
     [
       `capital = ${c.capital ?? 1}`,
-      `oob = "${c.tag}_1936"`,
-      'set_research_slots = 3',
+      `oob = "${extras?.oob ?? `${c.tag}_1936`}"`,
+      ...head,
       'set_technology = {',
       ...BASIC_TECHNOLOGIES.map((t) => `\t${t} = 1`),
       '}',
-      politicsBlock(c).trimEnd()
-    ].join('\n') + '\n'
+      lines + politics
+    ].join('\n') +
+    '\n' +
+    (dated ? dated + '\n' : '')
   )
 }
 
@@ -164,11 +179,14 @@ export function countryTextFiles(project: Project, game: GameCatalog | null = nu
             `color = rgb { ${c.color.join(' ')} }`
           ].join('\n') + '\n'
       })
-      files.push({ path: `history/countries/${historyFileName(c)}`, text: historyText(c) })
+      files.push({
+        path: `history/countries/${historyFileName(c)}`,
+        text: historyText(c, historyExtras(project, c))
+      })
       files.push({ path: `history/units/${c.tag}_1936.txt`, text: BASIC_DIVISION_TEMPLATE })
       loc.push(...nameLoc(c), ...partyLoc(c))
     } else {
-      files.push(...existingCountryTextFiles(c))
+      files.push(...existingCountryTextFiles(c, historyExtras(project, c)))
       if (c.existing.renameInGame) replaceLoc.push(...nameLoc(c))
     }
 
@@ -215,10 +233,13 @@ export function countryTextFiles(project: Project, game: GameCatalog | null = nu
  * sobrescribir con el nombre EXACTO del archivo del juego, así que se exporta únicamente
  * si se leyó de la carpeta del juego y el usuario cambió capital, política o líderes.
  */
-export function existingCountryTextFiles(c: Country): ModFile[] {
+export function existingCountryTextFiles(c: Country, extras?: HistoryExtras): ModFile[] {
   const e = c.existing
-  if (!e.historyEdited || !e.historyText || !e.historyFile) return []
-  return [{ path: `history/countries/${e.historyFile}`, text: patchHistory(e.historyText, c) }]
+  if (!(e.historyEdited || (extras && hasExtras(extras))) || !e.historyText || !e.historyFile)
+    return []
+  return [
+    { path: `history/countries/${e.historyFile}`, text: patchHistory(e.historyText, c, extras) }
+  ]
 }
 
 // ======================= Imágenes =======================

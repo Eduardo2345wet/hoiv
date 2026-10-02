@@ -56,6 +56,27 @@ export const effectBlocks = [
     ...base
   },
   {
+    type: 'eff_recruit_character',
+    message0: 'Reclutar personaje %1',
+    args0: [{ type: 'field_catalog', name: 'CHARACTER', kind: 'character', value: '' }],
+    tooltip: 'recruit_character: sin esto un personaje nunca aparece',
+    ...base
+  },
+  {
+    type: 'eff_retire_character',
+    message0: 'Quitar personaje %1',
+    args0: [{ type: 'field_catalog', name: 'CHARACTER', kind: 'character', value: '' }],
+    tooltip: 'retire_character. por verificar con effects_documentation',
+    ...base
+  },
+  {
+    type: 'eff_activate_advisor',
+    message0: 'Activar asesor %1',
+    args0: [{ type: 'field_catalog', name: 'CHARACTER', kind: 'character', value: '' }],
+    tooltip: 'activate_advisor: el consejero ocupa su ranura. por verificar con effects_documentation',
+    ...base
+  },
+  {
     type: 'eff_activate_mission',
     message0: 'Activar misión %1',
     args0: [{ type: 'field_catalog', name: 'MISSION', kind: 'decision', value: '' }],

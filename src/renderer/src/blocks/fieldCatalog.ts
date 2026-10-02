@@ -13,6 +13,7 @@ import { validateTag } from '../export/validator'
 import { createFocusBelow, createIdea } from '../ui/projectOps'
 import { createEvent, eventId } from '../sections/events'
 import { createSuperEvent } from '../sections/superEvents'
+import { createCharacter } from '../sections/characters'
 import { createDecision } from '../sections/decisions'
 import { chooseCountryTag } from '../ui/countryFlow'
 import { chooseState } from '../ui/stateFlow'
@@ -287,6 +288,22 @@ export class FieldCatalog extends Blockly.FieldDropdown {
           store.updateProject((p) => {
             const r = createSuperEvent(p, { title: t.trim() })
             newId = r.superEvent.id
+            return r.project
+          })
+          set(newId)
+        }
+      })
+    } else if (this.kind === 'character') {
+      store.openPrompt({
+        message: 'Nombre del nuevo personaje:',
+        defaultValue: '',
+        validate: (t) => (t.trim() ? null : 'Escribe un nombre'),
+        callback: (t) => {
+          if (!t) return
+          let newId: string | null = null
+          store.updateProject((p) => {
+            const r = createCharacter(p, { name: t.trim() })
+            newId = r.character.id
             return r.project
           })
           set(newId)

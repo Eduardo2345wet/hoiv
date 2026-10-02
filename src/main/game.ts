@@ -7,6 +7,7 @@ import fs from 'fs'
 import path from 'path'
 import { shineShape } from '../shared/shine'
 import { parseFocusFile } from '../shared/gameFocus'
+import { parseTraits, type GameTrait } from '../shared/gameTraits'
 
 export interface Settings {
   gamePath: string | null
@@ -191,6 +192,9 @@ export interface GameCatalogResult {
   eventPictures?: string[]
   /** Nombres GFX_decision_* (sin categorías) y GFX_decision_category_* de interface/*decision*.gfx */
   decisionIcons?: string[]
+  /** Rasgos de líderes y consejeros (common/country_leader) y de militares (common/unit_leader) */
+  leaderTraits?: GameTrait[]
+  unitTraits?: GameTrait[]
   decisionCategoryIcons?: string[]
   /** Cuadrícula del árbol de focos (interface/nationalfocusview.gui) */
   focusGrid?: FocusGrid
@@ -364,7 +368,26 @@ export function readGameCatalog(gamePath: string): GameCatalogResult | null {
     // sin la carpeta: solo se ofrecen las propias
   }
 
+  const readTraits = (dir: string): GameTrait[] | undefined => {
+    try {
+      const all = new Map<string, GameTrait>()
+      for (const f of fs.readdirSync(path.join(gamePath, 'common', dir)))
+        if (f.endsWith('.txt'))
+          for (const t of parseTraits(
+            fs.readFileSync(path.join(gamePath, 'common', dir, f), 'utf-8')
+          ))
+            all.set(t.id, t)
+      return [...all.values()].sort((a, b) => a.id.localeCompare(b.id))
+    } catch {
+      return undefined
+    }
+  }
+  const leaderTraits = readTraits('country_leader')
+  const unitTraits = readTraits('unit_leader')
+
   const result: GameCatalogResult = {
+    leaderTraits,
+    unitTraits,
     decisionIcons,
     decisionCategoryIcons,
     eventPictures,

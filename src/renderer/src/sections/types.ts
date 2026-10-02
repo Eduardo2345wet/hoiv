@@ -159,14 +159,46 @@ export interface Decision {
 export type CharacterRole =
   'country_leader' | 'advisor' | 'corps_commander' | 'field_marshal' | 'navy_leader'
 
+export type AdvisorSlot =
+  'political_advisor' | 'theorist' | 'army_chief' | 'navy_chief' | 'air_chief' | 'high_command'
+
 export interface Character {
   uid: string
+  /** Id del personaje (también la clave de localización del nombre) */
   id: string
   name: string
   country: string
   roles: CharacterRole[]
-  portrait: IconRef | null
+  /** Retratos PNG (data URL) por tipo: civil (líder/asesor), ejército y armada */
+  portraits: { civilian: string | null; army: string | null; navy: string | null }
+  /** recruit_character al inicio de la partida */
   recruit: boolean
+  leader: { ideology: string; traits: string[]; expire: string }
+  advisor: {
+    slot: AdvisorSlot
+    /** idea_token único */
+    ideaToken: string
+    cost: number
+    traits: string[]
+    allowed: BlockScript
+    canBeFired: boolean
+  }
+  army: {
+    skill: number
+    attack: number
+    defense: number
+    planning: number
+    logistics: number
+    traits: string[]
+  }
+  navy: {
+    skill: number
+    attack: number
+    defense: number
+    maneuvering: number
+    coordination: number
+    traits: string[]
+  }
 }
 
 /** Situación inicial de un país (diplomacia, facciones, estabilidad…) */

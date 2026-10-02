@@ -10,6 +10,7 @@ import { modSlug } from '../../../shared/names'
 import { plannedPaths } from './exportMod'
 import { pathProblems } from './registry'
 import { validateEvents } from '../sections/events'
+import { validateCharacters } from '../sections/characters'
 import { validateDecisions } from '../sections/decisions'
 import { validateSuperEvents } from '../sections/superEvents'
 import { sectionFiles } from '../sections/generators'
@@ -414,6 +415,10 @@ export function validateProject(
     }
   ))
     issues.push({ severity: i.severity, kind: 'Decisiones', message: i.message })
+
+  // ---- Personajes ----
+  for (const i of validateCharacters(project, game))
+    issues.push({ severity: i.severity, kind: 'Personajes', message: i.message })
 
   // ---- Seguridad de rutas: lista negra, carpetas permitidas y archivos del juego ----
   const regCtx = { gameFiles: opts.gameFiles }

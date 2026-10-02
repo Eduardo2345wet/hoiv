@@ -109,6 +109,8 @@ export interface GameCatalogData {
   goalsShineShape?: string
   eventPictures?: string[]
   decisionIcons?: string[]
+  leaderTraits?: { id: string; slot?: string; type?: string }[]
+  unitTraits?: { id: string; slot?: string; type?: string }[]
   decisionCategoryIcons?: string[]
   /** Cuadrícula del árbol de focos leída del juego (focus_spacing, link_offsets, link_spacing) */
   focusGrid?: {

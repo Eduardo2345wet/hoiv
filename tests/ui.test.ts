@@ -1655,7 +1655,6 @@ describe('pestañas de secciones nuevas (B0)', () => {
     const page = await fresh()
     await focusEditor(page)
     for (const [tab, texto, crear] of [
-      ['Personajes', 'Aún no hay personajes', 'Crear personaje'],
       ['Ejército', 'Aún no hay ejército', 'Crear plantilla de división'],
       ['Tecnologías', 'Aún no hay tecnologías', 'Crear tecnología'],
       ['Extras', 'Idiomas, música', 'Agregar']

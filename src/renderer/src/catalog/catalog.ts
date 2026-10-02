@@ -4,7 +4,7 @@ import type { Project } from '../types'
 import { BUILTIN_COUNTRIES, BUILTIN_IDEAS } from './builtin'
 
 export type CatalogKind =
-  'focus' | 'idea' | 'countryFlag' | 'country' | 'state' | 'event' | 'superEvent' | 'decision'
+  'focus' | 'idea' | 'countryFlag' | 'country' | 'state' | 'event' | 'superEvent' | 'decision' | 'character'
 
 export interface CatalogOption {
   id: string
@@ -43,6 +43,9 @@ export interface GameCatalog {
   eventPictures?: string[]
   /** Íconos GFX_decision_* y GFX_decision_category_* del juego */
   decisionIcons?: string[]
+  /** Rasgos reales del juego (líderes/consejeros y militares) */
+  leaderTraits?: { id: string; slot?: string; type?: string }[]
+  unitTraits?: { id: string; slot?: string; type?: string }[]
   decisionCategoryIcons?: string[]
   /** Cuadrícula del árbol de focos leída del juego (focus_spacing, link_offsets, link_spacing) */
   focusGrid?: {
@@ -97,6 +100,10 @@ export function getCatalogOptions(
             origen: 'mod',
             uid: e.uid
           })
+        break
+      case 'character':
+        for (const c of project.characters ?? [])
+          mod.push({ id: c.id, etiqueta: c.name || c.id, origen: 'mod', uid: c.uid })
         break
       case 'decision':
         for (const d of project.decisions ?? [])

@@ -2,6 +2,7 @@
 // copiando todo lo demás del archivo original del juego.
 import { IDEOLOGIES, type Country, type Ideology } from '../types'
 import { characterId } from './countryOps'
+import { datedBlocks, type HistoryExtras } from '../sections/historyExtras'
 
 interface Span {
   start: number
@@ -110,7 +111,7 @@ export function applyParsedHistory(c: Country, h: ParsedHistory): Country {
  * Reescribe la historia original con la capital, la política y las popularidades del país,
  * y recluta sus líderes nuevos justo antes de set_politics. Todo lo demás se copia igual.
  */
-export function patchHistory(original: string, c: Country): string {
+export function patchHistory(original: string, c: Country, extras?: HistoryExtras): string {
   let text = original.replace(/\r\n/g, '\n')
   const pol = c.politics
   const politics = [
@@ -126,7 +127,10 @@ export function patchHistory(original: string, c: Country): string {
     ...IDEOLOGIES.map((i) => `\t${i} = ${pol.popularities[i]}`),
     '}'
   ].join('\n')
-  const recruits = c.leaders.map((l) => `recruit_character = ${characterId(c, l.id)}`).join('\n')
+  const recruits = [
+    ...c.leaders.map((l) => `recruit_character = ${characterId(c, l.id)}`),
+    ...(extras?.lines ?? [])
+  ].join('\n')
 
   const replace = (span: Span | null, value: string, fallbackAppend: boolean): void => {
     if (span) text = text.slice(0, span.start) + value + text.slice(span.end)
@@ -146,5 +150,18 @@ export function patchHistory(original: string, c: Country): string {
     const popSpan = topLevelBlock(text, 'set_popularities')!
     text = text.slice(0, popSpan.start) + withRecruits + '\n' + text.slice(popSpan.start)
   }
+  // Claves de un solo valor: reemplazan la línea del juego (o se agregan al principio)
+  for (const [k, v] of Object.entries(extras?.scalars ?? {})) {
+    const line = topLevelLine(text, k)
+    if (line) text = text.slice(0, line.start) + `${k} = ${v}` + text.slice(line.end)
+    else text = `${k} = ${v}\n` + text
+  }
+  if (extras?.oob) {
+    const oob = topLevelLine(text, 'oob')
+    if (oob) text = text.slice(0, oob.start) + `oob = "${extras.oob}"` + text.slice(oob.end)
+    else text = `oob = "${extras.oob}"\n` + text
+  }
+  const dated = extras ? datedBlocks(extras) : ''
+  if (dated) text = text.trimEnd() + '\n' + dated + '\n'
   return text.endsWith('\n') ? text : text + '\n'
 }
