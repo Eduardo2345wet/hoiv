@@ -428,7 +428,7 @@ describe('validador del mapa', () => {
     const edits = Object.fromEntries(dmaStates.map((id) => [id, { owner: 'NVG' }]))
     expect(
       msgs({ ...proj, stateEdits: edits }, { map: realMap, gamePath: '/j' }).some((m) =>
-        m.includes('DMA se queda sin estados')
+        /no existirán al inicio por tus cambios \(.*DMA/.test(m)
       )
     ).toBe(true)
     // A un país del juego le quité su capital

@@ -237,6 +237,8 @@ export type TemplateId = 'blank' | 'blankNoNation' | 'game' | 'mod' | 'content'
 
 export interface Project {
   version: number
+  /** Avisos que el usuario decidió ignorar (clave estable de cada aviso) */
+  ignoredIssues?: string[]
   /** Plantilla de creación. Los proyectos viejos la toman de la base del mapa que tenían. */
   template?: TemplateId
   modName: string

@@ -21,6 +21,7 @@ import { registerCommands } from './commands'
 import { validateProject, type Issue } from '../export/validator'
 import { exportMod } from '../export/exportMod'
 import { moveReport } from '../map/capitals'
+import { ignoreIssue, isIgnored, unignoreIssue } from '../export/ignore'
 import { planStateExport, type StateExportPlan } from '../export/statesExport'
 import { giveTreeToChosenCountry } from './countryFlow'
 import { colorForTag } from '../countries/countryOps'
@@ -156,7 +157,9 @@ export default function Editor(): JSX.Element {
       capitalErrors: statePlan.current.capitalErrors,
       gameTags: game?.countries.map(([t]) => t)
     })
-    if (found.length) setIssues(found)
+    // Los avisos ignorados no detienen la exportación
+    const pending = found.filter((i) => !isIgnored(store.get().project!, i))
+    if (pending.length) setIssues(found)
     else if (validateOnly) store.toast('Validador: sin problemas')
     else void doExport()
   }
@@ -366,6 +369,8 @@ export default function Editor(): JSX.Element {
       {issues && (
         <ValidationDialog
           issues={issues}
+          ignoredKeys={project.ignoredIssues}
+          onIgnore={(i, ign) => change((p) => (ign ? ignoreIssue(p, i) : unignoreIssue(p, i)))}
           onClose={() => setIssues(null)}
           onExportAnyway={() => void doExport()}
           onFix={(i) => {

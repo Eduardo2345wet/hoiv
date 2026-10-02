@@ -107,28 +107,20 @@ export function validateMap(project: Project, ctx: MapContext): Issue[] {
   // "Attempting to set capital state #N for X, they dont own it!"
   const lost = lostCapitals(project, map, ctx.game ?? null).filter((l) => !reported.has(l.tag))
   const moves = new Map(planCapitalMoves(project, map, ctx.game ?? null).map((m) => [m.tag, m]))
-  if (noNationActive(project) && lost.length)
-    issues.push({
-      severity: 'aviso',
-      message: `${lost.length} países del juego pierden el estado de su capital porque sus estados pasan a Sin nación (${lost
-        .slice(0, 8)
-        .map((l) => l.tag)
-        .join(
-          ', '
-        )}${lost.length > 8 ? '…' : ''}). Los que conserven estados pintados cambiarán de capital; el resto no existirá al inicio.`
-    })
-  else
-    for (const l of lost) {
+  const noNationOn = noNationActive(project)
+  // Los que conservan estados: aviso por país y su capital se mueve al exportar. Los que se
+  // quedan sin estados van en un solo aviso agrupado (más abajo). En Sin nación, una sola línea.
+  if (!noNationOn)
+    for (const l of lost.filter((x) => x.remaining > 0)) {
       const m = moves.get(l.tag)
       const where = `${byId.get(l.capital)?.name ?? 'Estado ' + l.capital} (#${l.capital})`
       const owner = l.newOwner || 'nadie'
-      const how = !l.remaining
-        ? `${l.name} se queda sin estados: no existirá al inicio y su capital no se toca.`
-        : m?.to
-          ? `Se moverá a ${byId.get(m.to)?.name ?? 'Estado ' + m.to} (#${m.to}) al exportar${m.manual ? ' (elegida por ti)' : ''}.`
-          : 'Con "Mover automáticamente las capitales perdidas" apagado, el juego avisará "Attempting to set capital state". Elige otra capital o activa el ajuste.'
+      const how = m?.to
+        ? `Se moverá a ${byId.get(m.to)?.name ?? 'Estado ' + m.to} (#${m.to}) al exportar${m.manual ? ' (elegida por ti)' : ''}.`
+        : 'Con "Mover automáticamente las capitales perdidas" apagado, el juego avisará "Attempting to set capital state". Elige otra capital o activa el ajuste.'
       issues.push({
         severity: 'aviso',
+        kind: 'Capitales',
         message: `La capital de ${l.name} (${l.tag}), ${where}, ahora es de ${owner}. ${how}`,
         stateId: l.capital
       })
@@ -164,18 +156,31 @@ export function validateMap(project: Project, ctx: MapContext): Issue[] {
       ([tag, n]) => n && tag && !now.get(tag) && !project.countries.some((c) => c.tag === tag)
     )
     .map(([tag]) => tag)
-  if (noNation && gone.length)
-    // En Sin nación es lo normal: un solo aviso con el total
+  // Países del juego que existían al inicio y por MIS cambios se quedan sin estados (los liberables
+  // que ya empiezan sin estados no entran aquí: `before` solo cuenta lo que tenían en la base)
+  const vanished = [
+    ...new Set([...gone, ...lost.filter((l) => l.remaining === 0).map((l) => l.tag)])
+  ].sort()
+  const nameOf = (tag: string): string => ctx.game?.countries.find(([t]) => t === tag)?.[1] ?? tag
+  const moved = [...moves.values()].filter((m) => m.to !== null && !reported.has(m.tag)).length
+  if (noNation && (vanished.length || moved))
     issues.push({
       severity: 'aviso',
-      message: `${gone.length} países del juego no existirán al inicio porque no tienen estados (${gone.slice(0, 10).join(', ')}${gone.length > 10 ? '…' : ''}).`
+      kind: 'Capitales',
+      message: `Sin nación: ${vanished.length} países del juego no existirán al inicio y ${moved} cambiarán de capital por tus cambios. Es normal.`
     })
-  else
-    for (const tag of gone)
-      issues.push({
-        severity: 'aviso',
-        message: `${tag} se queda sin estados: desaparecerá al inicio de la partida.`
-      })
+  else if (vanished.length)
+    issues.push({
+      severity: 'aviso',
+      kind: 'Capitales',
+      message: `${vanished.length} países del juego no existirán al inicio por tus cambios (${vanished
+        .slice(0, 12)
+        .map(nameOf)
+        .join(
+          ', '
+        )}${vanished.length > 12 ? '…' : ''}). Para ellos, el error.log mostrará 'Attempting to set capital state… they dont own it!'. Es normal y no tumba el juego.`,
+      vanished
+    })
 
   // Mis focos mencionan países que no existirán al inicio
   const exists = (tag: string): boolean => !!now.get(tag)

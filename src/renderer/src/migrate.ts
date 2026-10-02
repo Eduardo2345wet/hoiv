@@ -80,6 +80,7 @@ export function migrateProject(raw: any): Project {
     )
   }
   delete p.modSync
+  p.ignoredIssues = Array.isArray(p.ignoredIssues) ? p.ignoredIssues : []
   p.version = PROJECT_VERSION
   return p as Project
 }

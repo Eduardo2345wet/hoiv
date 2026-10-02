@@ -4,6 +4,7 @@ import type { Country, Project } from '../types'
 import type { MapData, MapState } from '../../../shared/map/types'
 import type { GameCatalog } from '../catalog/catalog'
 import { exportOwner, technicalCountry } from './noNation'
+import { store } from '../store/appStore'
 
 export interface LostCapital {
   tag: string
@@ -73,13 +74,16 @@ export function lostCapitals(
   const byId = new Map(map.states.map((s) => [s.id, s]))
   const owners = statesByOwner(project, map)
   const tech = technicalCountry(project)?.tag
+  // Solo cuentan los países que EXISTÍAN al inicio en la base (los liberables o formables que
+  // ya empiezan sin estados no son cosa mía: no se avisa ni se mueve nada)
+  const existed = new Set(map.states.map((s) => s.owner))
   const tags = new Set([
     ...Object.keys(game?.countryCapitals ?? {}),
     ...project.countries.filter((c) => c.mode === 'existente').map((c) => c.tag)
   ])
   const out: LostCapital[] = []
   for (const tag of [...tags].sort()) {
-    if (tag === tech) continue
+    if (tag === tech || !existed.has(tag)) continue
     const cap = currentGameCapital(tag, project, game)
     const s = cap ? byId.get(cap) : undefined
     if (!cap || !s) continue
@@ -142,3 +146,23 @@ export function withMovedCapitals(
 /** Mensaje del informe al exportar: "Capital de Guangxi movida del estado 594 al 596" */
 export const moveReport = (m: CapitalMove): string =>
   `Capital de ${m.name} movida del estado ${m.capital} al ${m.to}`
+
+/** ¿Existía el país al inicio (tiene al menos un estado en la base, sin mis cambios)? */
+export const existedAtStart = (map: MapData | null, tag: string): boolean =>
+  !!map?.states.some((s) => s.owner === tag)
+
+/**
+ * "Dejarle un estado": el estado elegido vuelve a ser suyo y pasa a ser su capital, todo en UN
+ * paso de deshacer.
+ */
+export function leaveState(tag: string, stateId: number, map: MapData | null): void {
+  if (!map?.states.some((s) => s.id === stateId)) return
+  store.updateProject((p) => ({
+    ...p,
+    stateEdits: { ...p.stateEdits, [stateId]: { ...p.stateEdits[stateId], owner: tag } },
+    mapSettings: {
+      ...p.mapSettings,
+      capitalChoices: { ...p.mapSettings.capitalChoices, [tag]: stateId }
+    }
+  }))
+}

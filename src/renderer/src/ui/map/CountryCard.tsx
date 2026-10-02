@@ -8,7 +8,12 @@ import { toHex } from '../../countries/color'
 import { countryDrawColor } from '../../map/colors'
 import { flagForTag } from '../FlagThumb'
 import { chooseCountryTag } from '../countryFlow'
-import { currentGameCapital, planCapitalMoves } from '../../map/capitals'
+import {
+  currentGameCapital,
+  existedAtStart,
+  leaveState,
+  planCapitalMoves
+} from '../../map/capitals'
 import { exportOwner } from '../../map/noNation'
 
 interface Props {
@@ -70,6 +75,14 @@ export default function CountryCard({ project, gameColors, onOpenWizard }: Props
   const move = foreign
     ? planCapitalMoves(project, map, game).find((m) => m.tag === activeTag)
     : undefined
+  // País que existía al inicio y por mis cambios se quedó sin estados: devolverle uno
+  const leaveOne = (): void => {
+    store.startPick({
+      kind: 'state',
+      exclude: [],
+      onPick: (id) => leaveState(activeTag, Number(id), store.get().map)
+    })
+  }
   const pickCapital = (): void => {
     store.startPick({
       kind: 'state',
@@ -145,6 +158,14 @@ export default function CountryCard({ project, gameColors, onOpenWizard }: Props
           {getOwnerCounts(map!, project).get(activeTag) ? (
             <button className="btn mt-1 w-full justify-center text-xs" onClick={pickCapital}>
               Elegir otra capital…
+            </button>
+          ) : existedAtStart(map, activeTag) ? (
+            <button
+              className="btn mt-1 w-full justify-center text-xs"
+              title="Elige en el mapa un estado: vuelve a ser suyo y pasa a ser su capital"
+              onClick={leaveOne}
+            >
+              Dejarle un estado
             </button>
           ) : null}
         </div>

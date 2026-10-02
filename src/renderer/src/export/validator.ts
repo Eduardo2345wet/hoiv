@@ -27,6 +27,12 @@ export interface Issue {
   /** Arreglo automático ofrecido por el botón "Renombrar automáticamente" */
   fix?: 'rename-focus' | 'rename-idea'
   ideaUid?: string
+  /** Tipo para agrupar en la ventana (Capitales, Focos…) */
+  kind?: string
+  /** Clave estable para ignorar el aviso (por defecto, su texto) */
+  key?: string
+  /** Tags de los países del juego que desaparecen (el botón de la tarjeta los usa) */
+  vanished?: string[]
 }
 
 export const TAG_REGEX = /^[A-Z][A-Z0-9]{2}$/
