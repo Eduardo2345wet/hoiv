@@ -42,6 +42,14 @@ export const SECTIONS: SectionDef[] = [
     groups: groups('Evento', 'Cadena de eventos')
   },
   {
+    id: 'supereventos',
+    label: 'Súper eventos',
+    collection: 'superEvents',
+    createLabel: 'Crear súper evento',
+    empty: 'Aún no hay súper eventos. Crea el primero: una ventana grande con imagen y sonido.',
+    groups: groups('Súper evento')
+  },
+  {
     id: 'decisiones',
     label: 'Decisiones',
     collection: 'decisions',
