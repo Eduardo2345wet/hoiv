@@ -3,7 +3,14 @@
 import { useEffect, useRef } from 'react'
 import * as Blockly from 'blockly'
 import { registerAllBlocks, toolbox } from '../blocks'
-import { createSlots, SLOT_TYPES } from '../blocks/slots'
+import {
+  createSlots,
+  focusRoot,
+  hasOverlap,
+  migrateFocusBlocks,
+  setFocusRootName,
+  tidyLooseBlocks
+} from '../blocks/slots'
 import { generateSlots } from '../generator/pdx'
 import type { Focus, FocusScripts } from '../types'
 import { hoiDarkTheme } from './theme'
@@ -11,7 +18,7 @@ import { Z } from './layers'
 import { store } from '../store/appStore'
 
 /** Avisos de tamaño: Blockly calcula sus barras y controles con el tamaño que tenía el contenedor */
-export const blocklyStats = { resizes: 0 }
+export const blocklyStats: { resizes: number; ws?: Blockly.WorkspaceSvg } = { resizes: 0 }
 const resizers = new Set<() => void>()
 /** Pide recalcular el tamaño del editor de bloques (cambio de pestaña, panel, ventana cerrada…) */
 export function requestBlocklyResize(): void {
@@ -60,8 +67,14 @@ export default function BlocklyEditor({ focus, onChange }: Props): JSX.Element {
       move: { scrollbars: true, drag: true, wheel: true }
     })
     wsRef.current = ws
+    blocklyStats.ws = ws
     // Los bloques sueltos (fuera de una ranura) se ven desactivados y no generan código
     ws.addChangeListener(Blockly.Events.disableOrphans)
+    // Al soltar un bloque: si algo quedó encima de otra cosa, se ordenan los bloques sueltos
+    ws.addChangeListener((e) => {
+      if (e.type === Blockly.Events.BLOCK_DRAG && !(e as Blockly.Events.BlockDrag).isStart)
+        if (hasOverlap(ws)) tidyLooseBlocks(ws)
+    })
     ws.addChangeListener((e) => {
       if (e.isUiEvent || !uidRef.current) return
       const blocks = Blockly.serialization.workspaces.save(ws)
@@ -118,14 +131,15 @@ export default function BlocklyEditor({ focus, onChange }: Props): JSX.Element {
     Blockly.Events.disable()
     try {
       ws.clear()
-      if (focus?.blocks) Blockly.serialization.workspaces.load(focus.blocks as object, ws)
-      // Asegurar que existen las 3 ranuras
-      if (
-        focus &&
-        Object.values(SLOT_TYPES).some((t) => ws.getBlocksByType(t, false).length === 0)
-      ) {
-        ws.clear()
-        createSlots(ws)
+      if (focus) {
+        // Los focos guardados con los tres bloques viejos pasan al bloque único
+        Blockly.serialization.workspaces.load(migrateFocusBlocks(focus.blocks) as object, ws)
+        if (!focusRoot(ws)) {
+          ws.clear()
+          createSlots(ws)
+        }
+        setFocusRootName(ws, focus.name)
+        tidyLooseBlocks(ws)
       }
     } finally {
       Blockly.Events.enable()
@@ -136,6 +150,18 @@ export default function BlocklyEditor({ focus, onChange }: Props): JSX.Element {
     lastSaved.current = focus?.blocks ?? null
     uidRef.current = uid
   }, [focus])
+
+  // El título del bloque raíz sigue al nombre del foco
+  useEffect(() => {
+    const ws = wsRef.current
+    if (!ws || !focus) return
+    Blockly.Events.disable()
+    try {
+      setFocusRootName(ws, focus.name)
+    } finally {
+      Blockly.Events.enable()
+    }
+  }, [focus?.name, focus?.uid]) // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <div className="relative h-full w-full" style={{ zIndex: Z.blockly }}>

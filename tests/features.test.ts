@@ -1,4 +1,5 @@
 // Pruebas de las partes 2–6: catálogo, FieldCatalog, referencias, íconos, DDS, ideas y migración
+import { migrateFocusBlocks } from '../src/renderer/src/blocks/slots'
 import { beforeEach, describe, expect, it } from 'vitest'
 import fs from 'fs'
 import os from 'os'
@@ -76,7 +77,7 @@ function projectWithRefs(): Project {
   }
   p.focuses[1] = {
     ...b,
-    blocks,
+    blocks: migrateFocusBlocks(blocks),
     scripts: {
       available: `\thas_completed_focus = ${a.id}\n`,
       bypass: '',
@@ -456,7 +457,7 @@ describe('migración de proyecto.json', () => {
       ]
     }
     const p = migrateProject(v1)
-    expect(p.version).toBe(6)
+    expect(p.version).toBe(7)
     expect(p.stateEdits).toEqual({})
     expect(p.countries).toHaveLength(1)
     expect(p.countries[0]).toMatchObject({ tag: 'GER', mode: 'existente', focusTreeId: 'arbol_1' })

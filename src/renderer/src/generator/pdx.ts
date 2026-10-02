@@ -1,7 +1,7 @@
 // Generador propio que convierte los bloques en script de Paradox (PDX).
 // Cada bloque devuelve una o varias líneas terminadas en "\n".
 import * as Blockly from 'blockly'
-import { SLOT_TYPES } from '../blocks/slots'
+import { FOCUS_ROOT, SLOT_INPUTS } from '../blocks/slots'
 import type { FocusScripts } from '../types'
 
 export const pdxGenerator = new Blockly.CodeGenerator('PDX')
@@ -90,20 +90,16 @@ g['eff_if'] = (b) => {
 }
 
 // Las ranuras no generan nada por sí mismas (se leen con generateSlots)
-g[SLOT_TYPES.available] = () => ''
-g[SLOT_TYPES.bypass] = () => ''
-g[SLOT_TYPES.reward] = () => ''
+g[FOCUS_ROOT] = () => ''
 
-/** Lee las 3 ranuras de un espacio de trabajo y devuelve su código */
+/** Lee las 3 secciones del bloque raíz "Foco" y devuelve su código */
 export function generateSlots(ws: Blockly.Workspace): FocusScripts {
   pdxGenerator.init(ws)
-  const read = (type: string): string => {
-    const slot = ws.getBlocksByType(type, false)[0]
-    return slot ? pdxGenerator.statementToCode(slot, 'BODY') : ''
-  }
+  const root = ws.getBlocksByType(FOCUS_ROOT, false)[0]
+  const read = (input: string): string => (root ? pdxGenerator.statementToCode(root, input) : '')
   return {
-    available: read(SLOT_TYPES.available),
-    bypass: read(SLOT_TYPES.bypass),
-    reward: read(SLOT_TYPES.reward)
+    available: read(SLOT_INPUTS.available),
+    bypass: read(SLOT_INPUTS.bypass),
+    reward: read(SLOT_INPUTS.reward)
   }
 }

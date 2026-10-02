@@ -5,7 +5,11 @@ import os from 'os'
 import path from 'path'
 import * as Blockly from 'blockly'
 import { registerAllBlocks } from '../src/renderer/src/blocks'
-import { SLOT_TYPES } from '../src/renderer/src/blocks/slots'
+import {
+  FOCUS_ROOT,
+  migrateFocusBlocks,
+  OLD_SLOT_TYPES as SLOT_TYPES
+} from '../src/renderer/src/blocks/slots'
 import { generateSlots } from '../src/renderer/src/generator/pdx'
 import { generateFocusTree, generateLocalisation } from '../src/renderer/src/generator/focusTree'
 import { validateProject, validateTag } from '../src/renderer/src/export/validator'
@@ -20,7 +24,7 @@ registerAllBlocks()
 function workspaceWithBlocks(): Blockly.Workspace {
   const ws = new Blockly.Workspace()
   Blockly.serialization.workspaces.load(
-    {
+    migrateFocusBlocks({
       blocks: {
         blocks: [
           {
@@ -85,7 +89,7 @@ function workspaceWithBlocks(): Blockly.Workspace {
           }
         ]
       }
-    },
+    }) as object,
     ws
   )
   return ws
@@ -103,9 +107,9 @@ describe('generador PDX', () => {
 
   it('setCheck impide poner un efecto en Requisitos', () => {
     const ws = new Blockly.Workspace()
-    const slot = ws.newBlock(SLOT_TYPES.available)
+    const slot = ws.newBlock(FOCUS_ROOT)
     const eff = ws.newBlock('eff_add_political_power')
-    const conn = slot.getInput('BODY')!.connection!
+    const conn = slot.getInput('AVAILABLE')!.connection!
     expect(conn.getConnectionChecker().canConnect(conn, eff.previousConnection, false)).toBe(false)
     const cond = ws.newBlock('cond_has_war')
     expect(conn.getConnectionChecker().canConnect(conn, cond.previousConnection, false)).toBe(true)
@@ -139,7 +143,9 @@ describe('árbol de focos', () => {
 
   it('genera localización', () => {
     const loc = generateLocalisation(sampleProject())
-    expect(loc.startsWith('l_english:\n mi_mod_mexico_MEX_foco_1:0 "Industria \\"moderna\\""')).toBe(true)
+    expect(
+      loc.startsWith('l_english:\n mi_mod_mexico_MEX_foco_1:0 "Industria \\"moderna\\""')
+    ).toBe(true)
     expect(loc).toContain(' mi_mod_mexico_MEX_foco_1_desc:0 ""')
   })
 })

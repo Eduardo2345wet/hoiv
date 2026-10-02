@@ -1,4 +1,5 @@
 // Proyectos de ejemplo compartidos por las pruebas
+import { migrateFocusBlocks } from '../src/renderer/src/blocks/slots'
 import { DEFAULT_MAP_SETTINGS, type Project } from '../src/renderer/src/types'
 import { createFocus } from '../src/renderer/src/ui/projectOps'
 import { newCountry } from '../src/renderer/src/countries/countryOps'
@@ -51,7 +52,7 @@ export function withRefs(): Project {
   p.focuses[1] = {
     ...b,
     prerequisites: [a.uid],
-    blocks,
+    blocks: migrateFocusBlocks(blocks),
     scripts: {
       available: `\thas_completed_focus = ${a.id}\n`,
       bypass: '',

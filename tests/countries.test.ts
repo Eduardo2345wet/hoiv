@@ -431,7 +431,7 @@ describe('migración v2 → v3', () => {
       countryFlags: []
     }
     const p = migrateProject(v2)
-    expect(p.version).toBe(6)
+    expect(p.version).toBe(7)
     expect(p.stateEdits).toEqual({})
     expect(p.countries).toHaveLength(1)
     expect(p.countries[0]).toMatchObject({ tag: 'ZZZ', mode: 'nuevo', focusTreeId: 'arbol_1' })

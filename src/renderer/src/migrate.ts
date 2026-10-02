@@ -3,6 +3,7 @@ import { DEFAULT_MAP_SETTINGS, PROJECT_VERSION, type Project } from './types'
 import { templateOf } from './templates'
 import { newCountry } from './countries/countryOps'
 import { BUILTIN_COUNTRIES } from './catalog/builtin'
+import { migrateFocusBlocks } from './blocks/slots'
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 export function migrateProject(raw: any): Project {
@@ -70,6 +71,14 @@ export function migrateProject(raw: any): Project {
   // v5 → v6: la plantilla es parte del proyecto. Un proyecto viejo toma la de su base guardada
   // y NO se borra nada (los estados ya pintados se conservan tal cual).
   p.template = p.template ?? templateOf(p)
+  // v6 → v7: los tres bloques sueltos (requisitos, saltar si, recompensa) pasan a UN bloque
+  // "Foco" con tres secciones, sin perder su contenido. Y se quita la sincronización con el juego.
+  if (version < 7) {
+    p.focuses = p.focuses.map((f: any) =>
+      f.blocks ? { ...f, blocks: migrateFocusBlocks(f.blocks) } : f
+    )
+  }
+  delete p.modSync
   p.version = PROJECT_VERSION
   return p as Project
 }

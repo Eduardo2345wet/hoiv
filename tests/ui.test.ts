@@ -803,3 +803,95 @@ describe('mod sincronizado al guardar (parte 3)', () => {
     await page.close()
   }, 60_000)
 })
+
+// ---------- Bloque único "Foco" (requisitos / saltar si / recompensa) ----------
+describe('bloque único Foco en el editor', () => {
+  it('Requisitos crece hacia abajo sin pisar "Saltar si"; la raíz no se borra; los sueltos no tocan', async () => {
+    const page = await fresh()
+    await focusEditor(page)
+    await page.waitForFunction(
+      () => !!(window as never as { __hoiBlockly: { ws?: unknown } }).__hoiBlockly.ws
+    )
+    const r = await page.evaluate(async () => {
+      type W = {
+        getBlocksByType(t: string, o: boolean): never[]
+        getTopBlocks(o: boolean): never[]
+      }
+      const Bw = (window as never as { __hoiBlockly: { ws: W } }).__hoiBlockly
+      const ws = Bw.ws as never as {
+        newBlock(t: string): {
+          initSvg(): void
+          render(): void
+          previousConnection: unknown
+          nextConnection: unknown
+          getInput(n: string): { connection: { connect(c: unknown): void } }
+          moveBy(x: number, y: number): void
+          getRelativeToSurfaceXY(): { x: number; y: number }
+          getBoundingRectangle(): { top: number; bottom: number; left: number; right: number }
+          isDeletable(): boolean
+          type: string
+        }
+        getBlocksByType(t: string, o: boolean): never[]
+      }
+      const root = (
+        ws.getBlocksByType('focus_root', false) as unknown as ReturnType<typeof ws.newBlock>[]
+      )[0]
+      const mk = (t: string): ReturnType<typeof ws.newBlock> => {
+        const b = ws.newBlock(t)
+        b.initSvg()
+        b.render()
+        return b
+      }
+      const not = mk('cond_not')
+      root.getInput('AVAILABLE').connection.connect(not.previousConnection)
+      const inner = mk('cond_has_war')
+      not.getInput('CHILDREN').connection.connect(inner.previousConnection)
+      const second = mk('cond_has_war')
+      inner.nextConnection &&
+        (inner.nextConnection as { connect(c: unknown): void }).connect(second.previousConnection)
+      await new Promise((r) => setTimeout(r, 200))
+      const all = document.querySelectorAll('.blocklyDraggable').length
+      const box = (
+        root as unknown as { getBoundingRectangle(): { top: number; bottom: number } }
+      ).getBoundingRectangle()
+      return {
+        hasRoot: !!root,
+        deletable: root.isDeletable(),
+        all,
+        top: box.top,
+        bottom: box.bottom,
+        slotTypes: ['slot_available', 'slot_bypass', 'slot_reward'].map(
+          (t) => ws.getBlocksByType(t, false).length
+        )
+      }
+    })
+    expect(r.hasRoot).toBe(true)
+    expect(r.deletable).toBe(false)
+    expect(r.slotTypes).toEqual([0, 0, 0])
+    // Las tres secciones viven dentro de UN bloque: el título "Saltar si" queda debajo de lo que
+    // se añadió a Requisitos, no encima
+    const pos = await page.evaluate(() => {
+      const t = [...document.querySelectorAll('.blocklyText')].map((e) => ({
+        text: (e.textContent ?? '').replace(/\u00a0/g, ' '),
+        y: e.getBoundingClientRect().top
+      }))
+      const find = (s: string): number => {
+        const f = t.find((x) => x.text.includes(s))
+        if (!f) throw new Error(`sin texto ${s}: ${JSON.stringify(t.map((x) => x.text))}`)
+        return f.y
+      }
+      const cond = [...document.querySelectorAll('.blocklyBlockCanvas .blocklyText')].filter((e) =>
+        (e.textContent ?? '').includes('guerra')
+      )
+      return {
+        req: find('Requisitos'),
+        skip: find('Saltar si'),
+        lastCond: Math.max(...cond.map((e) => e.getBoundingClientRect().bottom), 0),
+        reward: find('Recompensa')
+      }
+    })
+    expect(pos.skip).toBeGreaterThan(pos.lastCond - 2)
+    expect(pos.reward).toBeGreaterThan(pos.skip)
+    await page.close()
+  }, 60_000)
+})
