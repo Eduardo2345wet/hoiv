@@ -1645,3 +1645,27 @@ describe('memoria del mapa (parte F)', () => {
     await page.close()
   }, 60_000)
 })
+
+// ---------- Secciones nuevas: pestañas con estado vacío (B0) ----------
+describe('pestañas de secciones nuevas (B0)', () => {
+  it('cada pestaña muestra su estado vacío con el botón Crear (aún sin acción) y sin datos de ejemplo', async ({
+    skip
+  }) => {
+    if (!browser) skip()
+    const page = await fresh()
+    await focusEditor(page)
+    for (const [tab, texto, crear] of [
+      ['Eventos', 'Aún no hay eventos', 'Crear evento'],
+      ['Decisiones', 'Aún no hay decisiones', 'Crear decisión'],
+      ['Personajes', 'Aún no hay personajes', 'Crear personaje'],
+      ['Ejército', 'Aún no hay ejército', 'Crear plantilla de división'],
+      ['Tecnologías', 'Aún no hay tecnologías', 'Crear tecnología'],
+      ['Extras', 'Idiomas, música', 'Agregar']
+    ] as const) {
+      await page.locator(`button:text-is("${tab}")`).first().click()
+      await page.waitForSelector(`text=${texto}`)
+      expect(await page.locator(`button:has-text("${crear}")`).first().isDisabled()).toBe(true)
+    }
+    await page.close()
+  }, 60_000)
+})

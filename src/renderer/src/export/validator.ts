@@ -8,6 +8,8 @@ import { SHINE_TEMPLATE, shineShape } from '../../../shared/shine'
 import { validateCountry } from '../countries/validateCountry'
 import { modSlug } from '../../../shared/names'
 import { plannedPaths } from './exportMod'
+import { pathProblems } from './registry'
+import { sectionFiles } from '../sections/generators'
 import { treeCountry } from '../countries/countryOps'
 import { validateMap } from '../map/validateMap'
 import type { MapData } from '../../../shared/map/types'
@@ -85,7 +87,8 @@ export interface MapContext {
 export function validateProject(
   project: Project,
   game: GameCatalog | null = null,
-  mapCtx: MapContext | null = null
+  mapCtx: MapContext | null = null,
+  opts: { gameFiles?: Set<string> } = {}
 ): Issue[] {
   const issues: Issue[] = []
   // (los tags de los países se validan en countries/validateCountries.ts)
@@ -370,6 +373,16 @@ export function validateProject(
       })
     else seenPaths.set(key, path)
   }
+
+  // ---- Seguridad de rutas: lista negra, carpetas permitidas y archivos del juego ----
+  const regCtx = { gameFiles: opts.gameFiles }
+  const reported = new Set<string>()
+  for (const path of plannedPaths(project, game))
+    for (const m of pathProblems(path, regCtx))
+      if (!reported.has(m)) (reported.add(m), issues.push({ severity: 'error', message: m }))
+  for (const i of sectionFiles(project, regCtx).issues)
+    if (!reported.has(i.message))
+      (reported.add(i.message), issues.push({ severity: 'error', message: i.message }))
 
   // ---- Mapa ----
   if (mapCtx) {

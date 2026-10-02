@@ -503,3 +503,28 @@ real) y se suben otra vez desde el `MapData` en memoria al volver. Hay un solo `
 La caché de banderas conserva solo las 2 más recientes; Ajustes muestra cuánto ocupa la caché y
 tiene «Limpiar caché». **Modo ligero** (Ajustes, apagado por defecto): texturas a la mitad (≈ 9 MB),
 zoom sin animación ni inercia y liberar las texturas al minimizar.
+
+## Base de las secciones nuevas (eventos, decisiones, personajes…)
+- **Modelo:** `events`, `superEvents`, `decisionCategories`, `decisions`, `characters`,
+  `countryStart`, `oobs`, `technologies`, `ideologies`, `bookmarks`, `music`, `loadingScreens` y
+  `languages` viven DENTRO de `Project` (`proyecto.json`, formato 9, migración con colecciones
+  vacías; el inglés es el idioma base). Todo pasa por el store de la pestaña activa (deshacer/rehacer,
+  nada compartido entre pestañas). Los líderes del asistente se unificarán con `characters` en la
+  sección de personajes (para no exportarlos dos veces).
+- **Exportador con registro de rutas** (`export/registry.ts`, `shared/exportPaths.ts`): cada sección
+  aporta un generador puro (`sections/generators.ts`). Dos generadores con la misma ruta, la lista
+  negra (`map/*`, `interface/countrytechtreeview.gui`, `music/music.asset`,
+  `common/characters/<TAG>.txt`), carpetas fuera de la lista blanca y archivos con el nombre de uno
+  del juego (índice de solo lectura) son ERRORES; los parches mínimos de `history/states` e
+  `history/countries` están registrados. El proceso principal repite la comprobación. Un proyecto
+  vacío exporta solo `descriptor.mod` y `<slug>.mod`.
+- **Serializador** (`export/clausewitz.ts`): comillas una sola vez, nunca `\"`.
+  **Localización** (`export/localisation.ts`): `localisation/<idioma>/<mod>_<sección>_l_<idioma>.yml`,
+  UTF-8 con BOM y `l_<idioma>:`.
+- **BlocklyArea** (`ui/BlocklyArea.tsx`, `blocks/area.ts`): ranura reutilizable de efectos o
+  condiciones (país o estado), con la caja de herramientas de los focos filtrada y el mismo
+  generador PDX.
+- **Interfaz común:** pestañas Eventos · Decisiones · Personajes · Ejército · Tecnologías · Extras con
+  grupos Crear / Editar / Ver / Probar, el mismo esqueleto (lista con buscador · editor ·
+  propiedades y vista previa plegable) y componentes únicos en `ui/kit`. Sin datos de ejemplo: el
+  botón «Crear …» se habilita cuando cada sección registra su acción.

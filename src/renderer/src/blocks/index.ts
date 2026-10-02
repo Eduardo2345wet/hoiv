@@ -6,6 +6,7 @@ import { registerConditionBlocks, conditionBlocks } from './conditions'
 import { registerEffectBlocks, effectBlocks } from './effects'
 import { registerSlotBlocks } from './slots'
 import { registerFieldCatalog } from './fieldCatalog'
+import { registerAreaBlocks } from './area'
 import { COLOR_CONDITION, COLOR_EFFECT, COLOR_STATE } from './checks'
 
 let registered = false
@@ -18,6 +19,7 @@ export function registerAllBlocks(): void {
   registerSlotBlocks()
   registerConditionBlocks()
   registerEffectBlocks()
+  registerAreaBlocks()
 }
 
 const blocksOf = (defs: { type: string }[], filter: (t: string) => boolean) =>

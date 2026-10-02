@@ -1,6 +1,7 @@
 // Plantillas de "Nuevo proyecto". La plantilla se elige al CREAR el proyecto y queda fija:
 // decide la base del mapa (lienzo en blanco, mapa del juego, mapa de un mod) y qué pasa con lo
 // que no se pinta. Para otra plantilla se crea OTRO proyecto (nunca se copian estados pintados).
+import { emptySections } from './sections/types'
 import {
   DEFAULT_MAP_SETTINGS,
   PROJECT_VERSION,
@@ -123,6 +124,7 @@ export function emptyProjectFor(
     icons: [],
     countryFlags: [],
     stateEdits: {},
-    mapSettings: mapSettingsFor(template, mod)
+    mapSettings: mapSettingsFor(template, mod),
+    ...emptySections()
   }
 }

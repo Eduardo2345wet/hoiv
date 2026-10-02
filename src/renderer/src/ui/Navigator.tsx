@@ -1,5 +1,6 @@
 // Navegador del proyecto (como el Assembly Navigator de NX): árbol plegable con los países,
 // los árboles de focos, los espíritus y los íconos. En la vista Mapa la Paleta es una sección más.
+import { SECTIONS } from '../sections/ui'
 import { useState, type ReactNode } from 'react'
 import { ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react'
 import type { Project } from '../types'
@@ -213,6 +214,16 @@ export default function Navigator({ project }: { project: Project }): JSX.Elemen
             )
           )}
         </Section>
+        {/* Secciones nuevas: cada una abre su pestaña (la lista completa está allí) */}
+        {SECTIONS.map((d) => (
+          <Section
+            key={d.id}
+            title={d.label}
+            count={((project[d.collection] as unknown[] | undefined) ?? []).length}
+            open={false}
+            onToggle={() => store.setUi({ ribbon: d.id })}
+          />
+        ))}
         <Section
           title="Íconos"
           count={project.icons.length}

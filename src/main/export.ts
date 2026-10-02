@@ -4,6 +4,7 @@ import path from 'path'
 import os from 'os'
 import crypto from 'crypto'
 import { modSlug, safeFolderName } from '../shared/names'
+import { pathProblems } from '../shared/exportPaths'
 import { DEFAULT_SUPPORTED_VERSION, hoi4ModsDir } from './exportInfo'
 
 export interface ExportModPayload {
@@ -120,14 +121,19 @@ export function buildModFiles(payload: ExportModPayload): BuiltMod | { error: st
       rel: `common/national_focus/${tag || 'mod'}_focus.txt`,
       bytes: Buffer.from(focusTreeScript, 'utf-8')
     })
-  entries.push({
-    rel: `localisation/english/${baseName}_l_english.yml`,
-    bytes: Buffer.from('\uFEFF' + locYaml, 'utf-8')
-  })
+  // Sin textos (solo la cabecera) no se escribe: un proyecto vacío exporta solo el descriptor
+  if (/^\s*[A-Za-z0-9_.-]+:\d*\s*"/m.test(locYaml))
+    entries.push({
+      rel: `localisation/english/${baseName}_l_english.yml`,
+      bytes: Buffer.from('\uFEFF' + locYaml, 'utf-8')
+    })
   for (const f of payload.files ?? []) {
     const rel = f.path.replace(/\\/g, '/')
     if (rel.startsWith('/') || rel.split('/').includes('..') || /^[a-z]:/i.test(rel))
       return { error: `Ruta no permitida: ${f.path}` }
+    // Defensa en profundidad: la lista negra también se aplica aquí
+    const bad = pathProblems(rel)[0]
+    if (bad) return { error: bad }
     entries.push({
       rel,
       bytes: f.data

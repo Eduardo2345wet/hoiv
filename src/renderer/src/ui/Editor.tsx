@@ -18,6 +18,8 @@ import Navigator from './Navigator'
 import Overlay from './Overlay'
 import { Z } from './layers'
 import { registerCommands } from './commands'
+import SectionScreen from './SectionScreen'
+import { sectionById } from '../sections/ui'
 import { autoLayout, dropFocus, repairTree } from '../focus/layout'
 import { validateProject, type Issue } from '../export/validator'
 import { exportMod } from '../export/exportMod'
@@ -53,6 +55,7 @@ export default function Editor(): JSX.Element {
   // La vista la decide la pestaña de la cinta (Inicio y Exportar conservan la vista de antes)
   const ribbon = useApp((s) => s.ui.ribbon)
   const lastView = useRef<Tab>('focos')
+  const sectionDef = sectionById(ribbon)
   const tab: Tab = (['mapa', 'focos', 'paises', 'ideas', 'iconos'] as string[]).includes(ribbon)
     ? (ribbon as Tab)
     : lastView.current
@@ -157,13 +160,22 @@ export default function Editor(): JSX.Element {
     } finally {
       setExportProgress(null)
     }
-    const found = validateProject(project, game, {
-      map,
-      gamePath,
-      patchErrors: statePlan.current.errors,
-      capitalErrors: statePlan.current.capitalErrors,
-      gameTags: game?.countries.map(([t]) => t)
-    })
+    // Índice de archivos del juego: la exportación nunca pisa uno con el mismo nombre
+    const gameFiles = gamePath
+      ? new Set(await window.electronAPI?.listGameFiles?.(gamePath).catch(() => [] as string[]))
+      : undefined
+    const found = validateProject(
+      project,
+      game,
+      {
+        map,
+        gamePath,
+        patchErrors: statePlan.current.errors,
+        capitalErrors: statePlan.current.capitalErrors,
+        gameTags: game?.countries.map(([t]) => t)
+      },
+      { gameFiles }
+    )
     // Los avisos ignorados no detienen la exportación
     const pending = found.filter((i) => !isIgnored(store.get().project!, i))
     if (pending.length) setIssues(found)
@@ -302,7 +314,12 @@ export default function Editor(): JSX.Element {
   return (
     <div className="relative flex min-h-0 flex-1 bg-hoi-bg" style={{ zIndex: Z.panels }}>
       <Navigator project={project} />
-      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+      <div className="relative flex min-h-0 min-w-0 flex-1 flex-col">
+        {sectionDef && (
+          <div className="absolute inset-0 z-20 bg-hoi-bg">
+            <SectionScreen def={sectionDef} project={project} />
+          </div>
+        )}
         {mapMounted && (
           <div className={tab === 'mapa' ? 'min-h-0 flex-1' : 'hidden'}>
             <MapTab

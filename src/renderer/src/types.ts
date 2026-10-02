@@ -1,7 +1,8 @@
+import type { SectionData } from './sections/types'
 // Tipos de datos del proyecto (lo que se guarda en proyecto.json)
 
 /** Versión actual del formato de proyecto.json (ver migrate.ts) */
-export const PROJECT_VERSION = 8
+export const PROJECT_VERSION = 9
 
 /** Texto ya generado de las 3 ranuras de Blockly de un foco */
 export interface FocusScripts {
@@ -253,7 +254,7 @@ export interface StateEdit {
 /** Plantilla con la que se CREÓ el proyecto (queda fija; ver templates.ts) */
 export type TemplateId = 'blank' | 'blankNoNation' | 'game' | 'mod' | 'content'
 
-export interface Project {
+export interface Project extends SectionData {
   version: number
   /** Ajustes de los árboles de focos */
   treeSettings?: TreeSettings

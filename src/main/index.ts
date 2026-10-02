@@ -7,6 +7,7 @@ import { exportPreviousExists, handleExportMod } from './export'
 import { findInvalidLeftovers, reviewInstalled } from './reviewInstalled'
 import { readIdeasCatalog } from './ideasCatalog'
 import { cacheInfo, clearCache } from './cacheTools'
+import { listGameFiles } from './gameFiles'
 import { safeFolderName } from '../shared/names'
 import { saveImage } from './saveImage'
 import { readGameFlags } from './gameFlags'
@@ -189,6 +190,7 @@ app.whenReady().then(() => {
     clearCache(cacheDirPath())
     return cacheInfo(cacheDirPath())
   })
+  ipcMain.handle('list-game-files', async (_, gamePath: string) => listGameFiles(gamePath))
   ipcMain.handle('export-exists', async (_, folder: string, modName: string) =>
     exportPreviousExists(folder, modName)
   )

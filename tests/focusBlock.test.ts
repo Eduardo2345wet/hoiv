@@ -132,7 +132,7 @@ describe('bloque único Foco', () => {
     }
     const m = migrateProject(raw)
     expect(m.version).toBe(PROJECT_VERSION)
-    expect(PROJECT_VERSION).toBeGreaterThanOrEqual(8)
+    expect(PROJECT_VERSION).toBeGreaterThanOrEqual(9)
     const tipos = (
       m.focuses[0].blocks as { blocks: { blocks: { type: string }[] } }
     ).blocks.blocks.map((b) => b.type)

@@ -131,6 +131,8 @@ export interface ElectronAPI {
   /** Datos para Exportar mod (rutas que solo se muestran: la app no escribe en el juego) */
   getExportInfo: () => Promise<ExportInfo>
   exportExists: (folder: string, modName: string) => Promise<boolean>
+  /** Archivos del juego (minúsculas, con "/") para no pisarlos al exportar */
+  listGameFiles: (gamePath: string) => Promise<string[]>
   getMemory: () => Promise<{
     main: number
     total: number

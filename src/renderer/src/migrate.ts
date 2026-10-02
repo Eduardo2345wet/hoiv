@@ -4,6 +4,7 @@ import { templateOf } from './templates'
 import { newCountry } from './countries/countryOps'
 import { BUILTIN_COUNTRIES } from './catalog/builtin'
 import { migrateFocusBlocks } from './blocks/slots'
+import { emptySections, SECTION_KEYS } from './sections/types'
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 export function migrateProject(raw: any): Project {
@@ -81,6 +82,11 @@ export function migrateProject(raw: any): Project {
   }
   delete p.modSync
   p.ignoredIssues = Array.isArray(p.ignoredIssues) ? p.ignoredIssues : []
+  // v8 → v9: colecciones de las secciones nuevas (vacías por defecto; nada se inventa)
+  const empty = emptySections() as unknown as Record<string, unknown>
+  for (const k of SECTION_KEYS) if (!Array.isArray(p[k])) p[k] = empty[k]
+  if (!p.languages.some((l: any) => l?.code === 'english'))
+    p.languages = [{ code: 'english' }, ...p.languages]
   p.version = PROJECT_VERSION
   return p as Project
 }

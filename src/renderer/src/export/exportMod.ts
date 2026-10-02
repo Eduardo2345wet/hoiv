@@ -17,6 +17,7 @@ import {
 } from './countryExport'
 import type { GameCatalog } from '../catalog/catalog'
 import { store } from '../store/appStore'
+import { sectionFiles } from '../sections/generators'
 import { baseMod } from './statesExport'
 import { withTechnicalCapital } from '../map/noNation'
 import { withMovedCapitals } from '../map/capitals'
@@ -66,6 +67,8 @@ export async function buildExtraFiles(
   if (plan.shineGfx) files.push({ path: plan.shinePath, text: plan.shineGfx })
   // Países: textos (tags, countries, historia, OOB, personajes, localización) e imágenes
   files.push(...countryTextFiles(project, game))
+  // Secciones nuevas (eventos, decisiones…): cada generador aporta sus archivos
+  files.push(...sectionFiles(project).files)
   if (read) files.push(...(await countryImageFiles(project, read)))
   return files
 }
@@ -76,7 +79,9 @@ export async function buildExtraFiles(
  */
 export function plannedPaths(project: Project, game: GameCatalog | null = null): string[] {
   const mod = safeFolderName(project.modName)
-  const paths = ['descriptor.mod', `localisation/english/${mod}_l_english.yml`]
+  const paths = ['descriptor.mod']
+  if (/^\s*[A-Za-z0-9_.-]+:\d*\s*"/m.test(generateLocalisation(project)))
+    paths.push(`localisation/english/${mod}_l_english.yml`)
   for (const t of generateAllFocusTrees(project))
     if (project.focuses.some((f) => f.treeId === t.treeId))
       paths.push(`common/national_focus/${t.tag}_focus.txt`)
@@ -86,6 +91,7 @@ export function plannedPaths(project: Project, game: GameCatalog | null = null):
   if (plan.gfx) paths.push(plan.gfxPath)
   if (plan.shineGfx) paths.push(plan.shinePath)
   paths.push(...countryTextFiles(project, game).map((f) => f.path))
+  paths.push(...sectionFiles(project).files.map((f) => f.path))
   paths.push(...countryImagePaths(project))
   return paths
 }

@@ -9,6 +9,7 @@ import {
   FilePlus,
   FolderOpen,
   GitBranch,
+  FileCheck,
   Image as ImageIcon,
   LayoutGrid,
   Maximize,
@@ -30,7 +31,8 @@ import { VIEW_MODES, type ViewMode } from '../map/colors'
 import { LABEL_MODES, type LabelMode } from '../map/labelLayout'
 import { TOOLS } from './map/MapTab'
 import { noNationActive } from '../map/noNation'
-import { runCommand } from './commands'
+import { hasCommand, runCommand } from './commands'
+import { SECTIONS } from '../sections/ui'
 import FileMenu from './FileMenu'
 import { Z } from './layers'
 
@@ -40,7 +42,13 @@ export const RIBBON_TABS: [RibbonId, string][] = [
   ['focos', 'Focos'],
   ['paises', 'Países'],
   ['ideas', 'Espíritus'],
+  ['eventos', 'Eventos'],
+  ['decisiones', 'Decisiones'],
+  ['personajes', 'Personajes'],
+  ['ejercito', 'Ejército'],
+  ['tecnologias', 'Tecnologías'],
   ['iconos', 'Íconos'],
+  ['extras', 'Extras'],
   ['exportar', 'Exportar']
 ]
 
@@ -170,7 +178,38 @@ export default function Ribbon(): JSX.Element {
     </Group>
   )
 
+  // Pestañas de las secciones nuevas: mismos grupos (Crear · Editar · Ver · Probar) en todas
+  const sectionTab = (def: (typeof SECTIONS)[number]): JSX.Element => (
+    <>
+      {def.groups.map((g) => (
+        <Group key={g.title} title={g.title}>
+          {g.actions.map((a) => (
+            <RBtn
+              key={a.id}
+              icon={g.title === 'Crear' ? <Plus size={20} /> : <FileCheck size={20} />}
+              label={g.title === 'Crear' ? def.createLabel : a.label}
+              disabled={off || (a.id !== 'validate' && !hasCommand(`section:${def.id}:${a.id}`))}
+              title={
+                hasCommand(`section:${def.id}:${a.id}`) || a.id === 'validate'
+                  ? undefined
+                  : 'Disponible cuando se construya esta sección'
+              }
+              onClick={() =>
+                runCommand(a.id === 'validate' ? 'validate' : `section:${def.id}:${a.id}`)
+              }
+            />
+          ))}
+        </Group>
+      ))}
+    </>
+  )
   const content: Record<RibbonId, JSX.Element> = {
+    eventos: sectionTab(SECTIONS[0]),
+    decisiones: sectionTab(SECTIONS[1]),
+    personajes: sectionTab(SECTIONS[2]),
+    ejercito: sectionTab(SECTIONS[3]),
+    tecnologias: sectionTab(SECTIONS[4]),
+    extras: sectionTab(SECTIONS[5]),
     inicio: (
       <>
         <Group title="Proyecto">

@@ -1,3 +1,4 @@
+import { emptySections } from '../src/renderer/src/sections/types'
 // Proyectos de ejemplo compartidos por las pruebas
 import { migrateFocusBlocks } from '../src/renderer/src/blocks/slots'
 import { DEFAULT_MAP_SETTINGS, type Project } from '../src/renderer/src/types'
@@ -11,7 +12,8 @@ export function emptyProject(): Project {
     focusTreeId: 'arbol_1'
   }
   return {
-    version: 5,
+    ...emptySections(),
+    version: 9,
     modName: 'Mi Mod',
     tag: 'MEX',
     countries: [country],

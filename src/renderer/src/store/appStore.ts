@@ -64,7 +64,20 @@ export const TOAST_MS = 4000
 let toastId = 0
 
 // ======================= Pestañas de proyectos =======================
-export type RibbonId = 'inicio' | 'mapa' | 'focos' | 'paises' | 'ideas' | 'iconos' | 'exportar'
+export type RibbonId =
+  | 'inicio'
+  | 'mapa'
+  | 'focos'
+  | 'paises'
+  | 'ideas'
+  | 'iconos'
+  | 'exportar'
+  | 'eventos'
+  | 'decisiones'
+  | 'personajes'
+  | 'ejercito'
+  | 'tecnologias'
+  | 'extras'
 
 /** Estado de la interfaz que es PROPIO de cada pestaña (nada se comparte entre pestañas) */
 export interface TabUi {
