@@ -28,8 +28,12 @@ import { colorForTag } from '../countries/countryOps'
 import { suggestTag } from '../countries/tags'
 import { createQuickCountry } from '../map/quickCountry'
 import {
+  connectExclusive,
+  connectPrerequisite,
   createFocus,
   createFocusBelow,
+  exclusiveError,
+  prerequisiteError,
   createIdea,
   deleteFocus,
   renameFocusAuto,
@@ -207,9 +211,31 @@ export default function Editor(): JSX.Element {
     change((p) => deleteFocus(p, uid))
     setSelected(null)
   }
-  const onLink = (from: string, to: string): void => {
-    if (tool === 'prereq') change((p) => togglePrerequisite(p, from, to))
-    else change((p) => toggleExclusive(p, from, to))
+  /** Conecta con un solo paso de deshacer; si no se puede, un aviso explica por qué */
+  const onLink = (kind: 'prereq' | 'excl', from: string, to: string): string | null => {
+    const cur = store.get().project!
+    const r =
+      kind === 'prereq' ? connectPrerequisite(cur, from, to) : connectExclusive(cur, from, to)
+    if (typeof r === 'string') {
+      store.toast(r, { kind: 'error' })
+      return r
+    }
+    change(() => r)
+    return null
+  }
+  const canLink = (kind: 'prereq' | 'excl', from: string, to: string): string | null =>
+    kind === 'prereq'
+      ? prerequisiteError(store.get().project!, from, to)
+      : exclusiveError(store.get().project!, from, to)
+  const addChildOf = (uid: string): void => {
+    let created = ''
+    change((p) => {
+      const r = createFocusBelow(p, uid)
+      created = r.focus.uid
+      const linked = connectPrerequisite(r.project, uid, created)
+      return typeof linked === 'string' ? r.project : linked
+    })
+    setSelected(created)
   }
   const onBlocksChange = useCallback(
     (uid: string, blocks: unknown, scripts: FocusScripts) =>
@@ -315,6 +341,9 @@ export default function Editor(): JSX.Element {
                   change((p) => updateFocus(p, uid, { x, y }), { group: `drag:${uid}` })
                 }
                 onLink={onLink}
+                canLink={canLink}
+                onAddChild={addChildOf}
+                onTool={setTool}
                 onUnlinkPrereq={(a, b) => change((p) => togglePrerequisite(p, a, b))}
                 onUnlinkExclusive={(a, b) => change((p) => toggleExclusive(p, a, b))}
                 onAddAt={addFocusAt}

@@ -1123,3 +1123,184 @@ describe('bloque Foco dibujado como Scratch', () => {
     await page.close()
   }, 90_000)
 })
+
+// ---------- Focos: seleccionar y editar con cualquier herramienta ----------
+describe('focos: herramientas, asas y líneas (parte B)', () => {
+  const focusAt = (
+    uid: string,
+    name: string,
+    x: number,
+    y: number,
+    pre: string[] = []
+  ): unknown => ({
+    uid,
+    treeId: 'arbol_1',
+    id: `capas_NVG_${uid}`,
+    name,
+    description: '',
+    cost: 10,
+    icon: { kind: 'game', gfx: 'GFX_goal_unknown' },
+    iconAuto: false,
+    x,
+    y,
+    prerequisites: pre,
+    mutuallyExclusive: [],
+    blocks: null,
+    scripts: { available: '', bypass: '', reward: '' }
+  })
+  async function treePage(): Promise<Page> {
+    const page = await fresh()
+    await focusEditor(page)
+    await page.evaluate(
+      ([a, b, c]) => {
+        const st = (window as unknown as HoiWindow).__hoiStore as never as {
+          updateProject(f: (p: { focuses: unknown[] }) => unknown): void
+        }
+        st.updateProject((p) => ({ ...p, focuses: [a, b, c] }))
+      },
+      [focusAt('f1', 'Uno', 0, 0), focusAt('f2', 'Dos', 2, 0), focusAt('f3', 'Tres', 4, 0)] as const
+    )
+    return page
+  }
+  const node = (page: Page, name: string): ReturnType<Page['locator']> =>
+    page.locator('[data-focus-uid]').filter({ hasText: name })
+  const focuses = (
+    page: Page
+  ): Promise<{ uid: string; prerequisites: string[]; mutuallyExclusive: string[] }[]> =>
+    page.evaluate(
+      () =>
+        (
+          (window as unknown as HoiWindow).__hoiStore.get() as unknown as {
+            project: {
+              focuses: { uid: string; prerequisites: string[]; mutuallyExclusive: string[] }[]
+            }
+          }
+        ).project.focuses
+    )
+  const nameField = (page: Page): Promise<string> => page.locator('[data-focus-name]').inputValue()
+
+  it('un clic selecciona con cualquier herramienta', async ({ skip }) => {
+    if (!browser) skip()
+    const page = await treePage()
+    for (const [tool, expected] of [
+      ['Mover', 'Uno'],
+      ['Prerrequisito', 'Dos'],
+      ['Excluyente', 'Tres']
+    ] as const) {
+      await page.locator(`button:has-text("${tool}")`).first().click()
+      await node(page, expected).click()
+      expect(await nameField(page), tool).toBe(expected)
+      await page.keyboard.press('Escape')
+      await page.keyboard.press('Escape')
+    }
+    await page.close()
+  }, 60_000)
+
+  it('Prerrequisito con dos clics; Esc/mismo foco cancelan; ciclo y repetida avisan', async ({
+    skip
+  }) => {
+    if (!browser) skip()
+    const page = await treePage()
+    await page.locator('button:has-text("Prerrequisito")').first().click()
+    await node(page, 'Uno').click()
+    await page.waitForSelector('text=Ahora haz clic en el foco HIJO')
+    await node(page, 'Dos').click()
+    expect((await focuses(page)).find((f) => f.uid === 'f2')!.prerequisites).toEqual(['f1'])
+    expect(await nameField(page)).toBe('Dos') // queda seleccionado el hijo
+    // Esc cancela la conexión pendiente pero el foco sigue seleccionado
+    await node(page, 'Tres').click()
+    await page.keyboard.press('Escape')
+    await node(page, 'Uno').click()
+    expect((await focuses(page)).find((f) => f.uid === 'f3')!.prerequisites).toEqual([])
+    expect(await nameField(page)).toBe('Uno')
+    await page.keyboard.press('Escape')
+    // Ciclo: Dos → Uno (Uno ya es padre de Dos)
+    await node(page, 'Dos').click()
+    await node(page, 'Uno').click()
+    await page.waitForSelector('text=ciclo')
+    expect((await focuses(page)).find((f) => f.uid === 'f1')!.prerequisites).toEqual([])
+    // Repetida: Uno → Dos otra vez
+    await node(page, 'Uno').click()
+    await node(page, 'Dos').click()
+    await page.waitForSelector('text=ya es prerrequisito')
+    await page.close()
+  }, 60_000)
+
+  it('Excluyente crea la exclusión en ambos sentidos', async ({ skip }) => {
+    if (!browser) skip()
+    const page = await treePage()
+    await page.locator('button:has-text("Excluyente")').first().click()
+    await node(page, 'Dos').click()
+    await page.waitForSelector('text=Ahora el foco excluyente')
+    await node(page, 'Tres').click()
+    const f = await focuses(page)
+    expect(f.find((x) => x.uid === 'f2')!.mutuallyExclusive).toEqual(['f3'])
+    expect(f.find((x) => x.uid === 'f3')!.mutuallyExclusive).toEqual(['f2'])
+    await page.close()
+  }, 60_000)
+
+  it('asas: clic en ● añade un hijo; arrastrar ● conecta; arrastrar ✕ excluye', async ({
+    skip
+  }) => {
+    if (!browser) skip()
+    const page = await treePage()
+    await node(page, 'Uno').hover()
+    await page.locator('[data-handle="child"]').click()
+    let f = await focuses(page)
+    expect(f).toHaveLength(4)
+    const child = f[3]
+    expect(child.prerequisites).toEqual(['f1'])
+    // arrastrar ● de Dos hasta Tres
+    await node(page, 'Dos').hover()
+    const h = (await page.locator('[data-handle="child"]').boundingBox())!
+    const t = (await node(page, 'Tres').boundingBox())!
+    await page.mouse.move(h.x + h.width / 2, h.y + h.height / 2)
+    await page.mouse.down()
+    await page.mouse.move(t.x + t.width / 2, t.y + t.height / 2, { steps: 8 })
+    await page.mouse.up()
+    f = await focuses(page)
+    expect(f.find((x) => x.uid === 'f3')!.prerequisites).toEqual(['f2'])
+    // ✕ de Dos hasta Tres → exclusión
+    await node(page, 'Dos').hover()
+    const x = (await page.locator('[data-handle="excl"]').boundingBox())!
+    await page.mouse.move(x.x + x.width / 2, x.y + x.height / 2)
+    await page.mouse.down()
+    await page.mouse.move(t.x + t.width / 2, t.y + t.height / 2, { steps: 8 })
+    await page.mouse.up()
+    f = await focuses(page)
+    expect(f.find((x2) => x2.uid === 'f3')!.mutuallyExclusive).toEqual(['f2'])
+    await page.close()
+  }, 60_000)
+
+  it('una línea se selecciona con clic y se borra con Supr (un paso de deshacer); Supr no actúa al escribir', async ({
+    skip
+  }) => {
+    if (!browser) skip()
+    const page = await treePage()
+    await page.evaluate(() => {
+      const st = (window as unknown as HoiWindow).__hoiStore as never as {
+        updateProject(
+          f: (p: { focuses: { uid: string; prerequisites: string[] }[] }) => unknown
+        ): void
+      }
+      st.updateProject((p) => ({
+        ...p,
+        focuses: p.focuses.map((f) => (f.uid === 'f2' ? { ...f, prerequisites: ['f1'] } : f))
+      }))
+    })
+    const line = page.locator('[data-line="prereq"] path').first()
+    await line.click({ force: true })
+    expect((await focuses(page)).find((f) => f.uid === 'f2')!.prerequisites).toEqual(['f1']) // un clic no borra
+    await page.keyboard.press('Delete')
+    expect((await focuses(page)).find((f) => f.uid === 'f2')!.prerequisites).toEqual([])
+    await page.keyboard.press('Control+z')
+    expect((await focuses(page)).find((f) => f.uid === 'f2')!.prerequisites).toEqual(['f1'])
+    // Escribiendo en el campo Nombre, Supr no borra el foco
+    await node(page, 'Tres').click()
+    await page.locator('[data-focus-name]').click()
+    await page.keyboard.press('Delete')
+    await page.waitForTimeout(200)
+    expect(await focuses(page)).toHaveLength(3)
+    await page.close()
+  }, 60_000)
+})

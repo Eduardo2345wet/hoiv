@@ -305,6 +305,64 @@ export function togglePrerequisite(p: Project, parent: string, child: string): P
   }
 }
 
+const labelOf = (p: Project, uid: string): string => {
+  const f = p.focuses.find((x) => x.uid === uid)
+  return f ? `«${f.name || f.id}»` : 'el foco'
+}
+
+/** ¿`ancestor` es (directa o indirectamente) prerrequisito de `uid`? */
+export function dependsOn(p: Project, uid: string, ancestor: string): boolean {
+  const seen = new Set<string>()
+  const stack = [uid]
+  while (stack.length) {
+    const cur = stack.pop()
+    const f = p.focuses.find((x) => x.uid === cur)
+    for (const pre of f?.prerequisites ?? [])
+      if (!seen.has(pre)) {
+        if (pre === ancestor) return true
+        seen.add(pre)
+        stack.push(pre)
+      }
+  }
+  return false
+}
+
+/** Por qué NO se puede conectar padre → hijo (null si se puede) */
+export function prerequisiteError(p: Project, parent: string, child: string): string | null {
+  const a = p.focuses.find((f) => f.uid === parent)
+  const b = p.focuses.find((f) => f.uid === child)
+  if (!a || !b) return 'No se encontró alguno de los focos.'
+  if (parent === child) return 'Un foco no puede ser prerrequisito de sí mismo.'
+  if (a.treeId !== b.treeId) return 'Los dos focos deben estar en el mismo árbol.'
+  if (b.prerequisites.includes(parent))
+    return `${labelOf(p, parent)} ya es prerrequisito de ${labelOf(p, child)}.`
+  if (dependsOn(p, parent, child))
+    return `Haría un ciclo: ${labelOf(p, parent)} ya depende de ${labelOf(p, child)}.`
+  return null
+}
+
+/** Conecta padre → hijo. Devuelve el proyecto nuevo o el mensaje de por qué no se puede */
+export function connectPrerequisite(p: Project, parent: string, child: string): Project | string {
+  const err = prerequisiteError(p, parent, child)
+  if (err) return err
+  return togglePrerequisite(p, parent, child)
+}
+
+export function exclusiveError(p: Project, a: string, b: string): string | null {
+  const fa = p.focuses.find((f) => f.uid === a)
+  const fb = p.focuses.find((f) => f.uid === b)
+  if (!fa || !fb) return 'No se encontró alguno de los focos.'
+  if (a === b) return 'Un foco no puede ser excluyente de sí mismo.'
+  if (fa.treeId !== fb.treeId) return 'Los dos focos deben estar en el mismo árbol.'
+  if (fa.mutuallyExclusive.includes(b)) return 'Esos dos focos ya son mutuamente excluyentes.'
+  return null
+}
+
+/** Crea la exclusión en los dos sentidos (o el mensaje de por qué no se puede) */
+export function connectExclusive(p: Project, a: string, b: string): Project | string {
+  return exclusiveError(p, a, b) ?? toggleExclusive(p, a, b)
+}
+
 /** Añade o quita la exclusión mutua entre a y b (se guarda en los dos) */
 export function toggleExclusive(p: Project, a: string, b: string): Project {
   if (a === b) return p

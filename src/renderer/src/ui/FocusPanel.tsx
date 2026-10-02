@@ -42,6 +42,7 @@ export default function FocusPanel({ project, focus, onDelete }: Props): JSX.Ele
         <div>
           <label className="label">Nombre</label>
           <input
+            data-focus-name
             className="input"
             value={focus.name}
             onChange={(e) =>

@@ -148,6 +148,8 @@ export interface AppState {
   gameFlags: GameFlags | null
   /** Datos de la barra de estado que publica el mapa (no son de una pestaña) */
   mapStatus: { hover: string; zoom: number; engine: string }
+  /** Mensaje de la herramienta de focos (conexión pendiente) para la barra de estado */
+  focusHint: string
   project: Project | null
   /** Historial (snapshots del proyecto; son inmutables, así que comparten memoria) */
   past: Project[]
@@ -221,6 +223,7 @@ let state: AppState = {
   activeTabId: null,
   ui: { ...DEFAULT_TAB_UI },
   mapStatus: { hover: '', zoom: 1, engine: '' },
+  focusHint: '',
   gameFlags: null,
   project: null,
   past: [],

@@ -35,6 +35,7 @@ export default function StatusBar(): JSX.Element {
   const game = useApp(() => store.catalogGame())
   const hasGame = useApp((s) => !!s.gamePath)
   const pick = useApp((s) => s.pick)
+  const focusHint = useApp((s) => s.focusHint)
   const filePath = useApp((s) => s.filePath)
 
   let hint = project ? 'Listo.' : 'Crea o abre un proyecto para empezar.'
@@ -44,8 +45,9 @@ export default function StatusBar(): JSX.Element {
       activeTag && activeTag !== NO_NATION ? countryLabel(activeTag, project, game) : null
     hint = toolHint(ui.tool, name)
   } else if (project && ui.ribbon === 'focos')
-    hint =
-      ui.focusTool === 'select'
+    hint = focusHint
+      ? focusHint
+      : ui.focusTool === 'select'
         ? 'Doble clic en el lienzo para añadir un foco; arrastra para moverlo.'
         : 'Haz clic en el foco de origen y luego en el de destino.'
   void TOOLS

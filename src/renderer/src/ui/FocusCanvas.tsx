@@ -12,6 +12,10 @@ const NODE_W = 104
 const NODE_H = 96
 
 export type Tool = 'select' | 'prereq' | 'exclusive'
+export type LinkKind = 'prereq' | 'excl'
+
+/** Línea seleccionada (se borra con Supr) */
+type Line = { kind: LinkKind; a: string; b: string }
 
 interface Props {
   project: Project
@@ -20,7 +24,12 @@ interface Props {
   tool: Tool
   onSelect: (uid: string | null) => void
   onMove: (uid: string, x: number, y: number) => void
-  onLink: (from: string, to: string) => void
+  /** Conecta (kind prereq: from = padre; excl: exclusión). Devuelve el motivo si no se pudo */
+  onLink: (kind: LinkKind, from: string, to: string) => string | null
+  /** Por qué NO se puede conectar (null si se puede): colorea el destino al arrastrar */
+  canLink: (kind: LinkKind, from: string, to: string) => string | null
+  onAddChild: (uid: string) => void
+  onTool: (t: Tool) => void
   onUnlinkPrereq: (parent: string, child: string) => void
   onUnlinkExclusive: (a: string, b: string) => void
   onAddAt: (x: number, y: number) => void
@@ -38,6 +47,23 @@ export default function FocusCanvas(props: Props): JSX.Element {
   const [linkFrom, setLinkFrom] = useState<string | null>(null)
   const boxRef = useRef<HTMLDivElement>(null)
   const [hover, setHover] = useState<string | null>(null)
+  const [selLine, setSelLine] = useState<Line | null>(null)
+  // Línea provisional al arrastrar desde un asa y foco destino (verde válido / rojo no)
+  const [ghost, setGhost] = useState<{
+    kind: LinkKind
+    from: string
+    x: number
+    y: number
+    target: string | null
+    valid: boolean
+  } | null>(null)
+  const latest = useRef(props)
+  latest.current = props
+  const ghostTarget = useRef<string | null>(null)
+  const linkRef = useRef<string | null>(null)
+  const selLineRef = useRef<Line | null>(null)
+  linkRef.current = linkFrom
+  selLineRef.current = selLine
   // Modo selección genérico del store (ej. "completó el foco" → 🎯 Elegir en el árbol)
   const pick = useApp((s) => (s.pick?.kind === 'focus' ? s.pick : null))
 
@@ -54,6 +80,7 @@ export default function FocusCanvas(props: Props): JSX.Element {
   const drag = useRef<
     | { kind: 'pan'; sx: number; sy: number; px: number; py: number }
     | { kind: 'node'; uid: string; offX: number; offY: number }
+    | { kind: 'handle'; link: LinkKind; uid: string; sx: number; sy: number; moved: boolean }
     | null
   >(null)
 
@@ -95,25 +122,34 @@ export default function FocusCanvas(props: Props): JSX.Element {
       return
     }
     if (e.button === 0) {
-      props.onSelect(null)
-      setLinkFrom(null)
+      setSelLine(null)
+      // Con una conexión pendiente, el clic en el fondo solo la cancela (el foco sigue seleccionado)
+      if (linkFrom) setLinkFrom(null)
+      else props.onSelect(null)
     }
   }
 
   const onNodeDown = (e: React.PointerEvent, f: Focus): void => {
     e.stopPropagation()
-    boxRef.current?.focus()
+    boxRef.current?.focus({ preventScroll: true })
     if (e.button !== 0) return
     if (pick) {
       store.finishPick(f.uid)
       return
     }
+    setSelLine(null)
     if (tool !== 'select') {
-      // Modo conexión: primer clic = origen, segundo clic = destino
-      if (!linkFrom) setLinkFrom(f.uid)
-      else {
-        props.onLink(linkFrom, f.uid)
+      // Un clic en un foco SIEMPRE lo selecciona. Conexión: 1er clic = padre, 2º = hijo.
+      const kind: LinkKind = tool === 'prereq' ? 'prereq' : 'excl'
+      if (!linkFrom || linkFrom === f.uid) {
+        props.onSelect(f.uid)
+        setLinkFrom(linkFrom === f.uid ? null : f.uid) // el mismo foco cancela la conexión
+      } else {
+        const err = props.onLink(kind, linkFrom, f.uid)
         setLinkFrom(null)
+        // Si se creó, queda seleccionado el hijo (o el segundo foco); si no, el que se pulsó
+        props.onSelect(f.uid)
+        void err
       }
       return
     }
@@ -128,11 +164,40 @@ export default function FocusCanvas(props: Props): JSX.Element {
     }
   }
 
+  const startHandle = (e: React.PointerEvent, uid: string, link: LinkKind): void => {
+    e.stopPropagation()
+    if (e.button !== 0) return
+    boxRef.current?.focus({ preventScroll: true })
+    props.onSelect(uid)
+    setSelLine(null)
+    ;(e.currentTarget as Element).setPointerCapture?.(e.pointerId)
+    drag.current = { kind: 'handle', link, uid, sx: e.clientX, sy: e.clientY, moved: false }
+  }
+
   const onPointerMove = (e: React.PointerEvent): void => {
     const d = drag.current
     if (!d) return
     if (d.kind === 'pan') {
       setPan({ x: d.px + e.clientX - d.sx, y: d.py + e.clientY - d.sy })
+    } else if (d.kind === 'handle') {
+      if (!d.moved && Math.hypot(e.clientX - d.sx, e.clientY - d.sy) < 5) return
+      d.moved = true
+      const w = toWorld(e.clientX, e.clientY)
+      const target = focuses.find(
+        (x) =>
+          x.uid !== d.uid &&
+          Math.abs(w.x - cx(x.x)) < NODE_W / 2 &&
+          Math.abs(w.y - cy(x.y)) < NODE_H / 2
+      )
+      ghostTarget.current = target?.uid ?? null
+      setGhost({
+        kind: d.link,
+        from: d.uid,
+        x: w.x,
+        y: w.y,
+        target: target?.uid ?? null,
+        valid: !!target && !props.canLink(d.link, d.uid, target.uid)
+      })
     } else {
       const w = toWorld(e.clientX, e.clientY)
       // Ajuste a la cuadrícula
@@ -148,12 +213,53 @@ export default function FocusCanvas(props: Props): JSX.Element {
     props.onAddAt(Math.max(0, Math.floor(w.x / CELL_W)), Math.max(0, Math.floor(w.y / CELL_H)))
   }
 
-  const onKeyDown = (e: React.KeyboardEvent): void => {
-    if ((e.key === 'Delete' || e.key === 'Backspace') && selected) props.onDelete(selected)
-    if (e.key === 'Escape') setLinkFrom(null)
-  }
+  // Atajos con cualquier herramienta, pero NUNCA mientras se escribe en un campo
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent): void => {
+      const t = e.target as HTMLElement | null
+      if (
+        t?.closest?.(
+          'input, textarea, select, [contenteditable="true"], .injectionDiv, .blocklyWidgetDiv'
+        )
+      )
+        return
+      if (store.get().pick) return
+      const pr = latest.current
+      if (e.key === 'Escape') {
+        if (linkRef.current) setLinkFrom(null)
+        else if (selLineRef.current) setSelLine(null)
+        else if (pr.tool !== 'select') pr.onTool('select')
+        return
+      }
+      if (e.key === 'Delete' || e.key === 'Backspace') {
+        const l = selLineRef.current
+        if (l) {
+          if (l.kind === 'prereq') pr.onUnlinkPrereq(l.a, l.b)
+          else pr.onUnlinkExclusive(l.a, l.b)
+          setSelLine(null)
+        } else if (pr.selected) pr.onDelete(pr.selected)
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
 
   const byUid = new Map(focuses.map((f) => [f.uid, f]))
+  // Mensaje de la conexión pendiente (también en la barra de estado)
+  const hint =
+    tool === 'select'
+      ? ''
+      : tool === 'prereq'
+        ? linkFrom
+          ? 'Ahora haz clic en el foco HIJO (Esc o clic en el vacío cancelan)'
+          : 'Haz clic en el foco PADRE (el que se completa primero)'
+        : linkFrom
+          ? 'Ahora el foco excluyente (Esc o clic en el vacío cancelan)'
+          : 'Elige el primer foco'
+  useEffect(() => {
+    store.set({ focusHint: hint })
+    return () => store.set({ focusHint: '' })
+  }, [hint])
   const exclusivePairs: [Focus, Focus][] = []
   for (const f of focuses)
     for (const o of f.mutuallyExclusive) {
@@ -178,15 +284,29 @@ export default function FocusCanvas(props: Props): JSX.Element {
         backgroundPosition: `${pan.x}px ${pan.y}px`
       }}
       onWheel={onWheel}
+      // El navegador puede desplazar un contenedor overflow:hidden al enfocar o al hacer clic: se anula
+      onScroll={(e) => {
+        e.currentTarget.scrollTop = 0
+        e.currentTarget.scrollLeft = 0
+      }}
       onPointerDown={onBackgroundDown}
       onPointerMove={onPointerMove}
       onPointerUp={() => {
+        const d = drag.current
         // Soltar un foco cierra el paso de deshacer del arrastre
-        if (drag.current?.kind === 'node') store.endGroup()
+        if (d?.kind === 'node') store.endGroup()
+        if (d?.kind === 'handle') {
+          if (!d.moved) props.onAddChild(d.uid)
+          else if (ghostTarget.current) {
+            props.onLink(d.link, d.uid, ghostTarget.current)
+            props.onSelect(ghostTarget.current)
+          }
+          ghostTarget.current = null
+          setGhost(null)
+        }
         drag.current = null
       }}
       onDoubleClick={onDoubleClick}
-      onKeyDown={onKeyDown}
       onContextMenu={(e) => e.preventDefault()}
     >
       <div
@@ -211,13 +331,26 @@ export default function FocusCanvas(props: Props): JSX.Element {
               return (
                 <g
                   key={`p-${pu}-${child.uid}`}
+                  data-line="prereq"
                   className="cursor-pointer"
-                  onPointerDown={(e) => e.stopPropagation()}
-                  onClick={() => props.onUnlinkPrereq(pu, child.uid)}
+                  onPointerDown={(e) => {
+                    e.stopPropagation()
+                    boxRef.current?.focus({ preventScroll: true })
+                    setSelLine({ kind: 'prereq', a: pu, b: child.uid })
+                  }}
                 >
-                  <title>Prerrequisito (clic para borrar)</title>
+                  <title>Prerrequisito (clic para seleccionarlo, Supr para borrarlo)</title>
                   <path d={d} stroke="transparent" strokeWidth={12} fill="none" />
-                  <path d={d} stroke="#d4d4d8" strokeWidth={3} fill="none" />
+                  <path
+                    d={d}
+                    stroke={
+                      selLine?.kind === 'prereq' && selLine.a === pu && selLine.b === child.uid
+                        ? '#f97316'
+                        : '#d4d4d8'
+                    }
+                    strokeWidth={3}
+                    fill="none"
+                  />
                 </g>
               )
             })
@@ -225,11 +358,15 @@ export default function FocusCanvas(props: Props): JSX.Element {
           {exclusivePairs.map(([a, b]) => (
             <g
               key={`x-${a.uid}-${b.uid}`}
+              data-line="excl"
               className="cursor-pointer"
-              onPointerDown={(e) => e.stopPropagation()}
-              onClick={() => props.onUnlinkExclusive(a.uid, b.uid)}
+              onPointerDown={(e) => {
+                e.stopPropagation()
+                boxRef.current?.focus({ preventScroll: true })
+                setSelLine({ kind: 'excl', a: a.uid, b: b.uid })
+              }}
             >
-              <title>Mutuamente excluyente (clic para borrar)</title>
+              <title>Mutuamente excluyente (clic para seleccionarla, Supr para borrarla)</title>
               <line
                 x1={cx(a.x)}
                 y1={cy(a.y)}
@@ -243,12 +380,32 @@ export default function FocusCanvas(props: Props): JSX.Element {
                 y1={cy(a.y)}
                 x2={cx(b.x)}
                 y2={cy(b.y)}
-                stroke="#ef4444"
+                stroke={
+                  selLine?.kind === 'excl' && selLine.a === a.uid && selLine.b === b.uid
+                    ? '#f97316'
+                    : '#ef4444'
+                }
                 strokeWidth={3}
                 strokeDasharray="8 4"
               />
             </g>
           ))}
+          {ghost && (
+            <line
+              x1={cx(byUid.get(ghost.from)!.x)}
+              y1={
+                ghost.kind === 'prereq'
+                  ? cy(byUid.get(ghost.from)!.y) + NODE_H / 2
+                  : cy(byUid.get(ghost.from)!.y)
+              }
+              x2={ghost.x}
+              y2={ghost.y}
+              stroke={ghost.kind === 'prereq' ? '#38bdf8' : '#ef4444'}
+              strokeWidth={3}
+              strokeDasharray="6 4"
+              pointerEvents="none"
+            />
+          )}
         </svg>
 
         {/* Cajas de los focos */}
@@ -257,20 +414,38 @@ export default function FocusCanvas(props: Props): JSX.Element {
           const isLink = f.uid === linkFrom
           const excluded = !!pick?.exclude.includes(f.uid)
           const pickHover = !!pick && !excluded && hover === f.uid
-          const border = pickHover
-            ? 'border-amber-400 bg-amber-500/20'
-            : isLink
-              ? 'border-sky-400'
-              : isSel && !pick
-                ? 'border-hoi-accent'
-                : 'border-hoi-border'
+          const isFrom = linkFrom === f.uid
+          const isGhostTarget = ghost?.target === f.uid
+          const border = isGhostTarget
+            ? ghost?.valid
+              ? 'border-green-500 bg-green-500/20'
+              : 'border-red-500 bg-red-500/20'
+            : isFrom
+              ? 'border-amber-400 bg-amber-500/20'
+              : pickHover
+                ? 'border-amber-400 bg-amber-500/20'
+                : isLink
+                  ? 'border-sky-400'
+                  : isSel && !pick
+                    ? 'border-hoi-accent'
+                    : 'border-hoi-border'
           return (
             <div
               key={f.uid}
+              data-focus-uid={f.uid}
               onPointerDown={(e) => onNodeDown(e, f)}
               onPointerEnter={() => setHover(f.uid)}
               onPointerLeave={() => setHover((h) => (h === f.uid ? null : h))}
-              onDoubleClick={(e) => e.stopPropagation()}
+              onDoubleClick={(e) => {
+                e.stopPropagation()
+                props.onSelect(f.uid)
+                // Doble clic: cursor en el campo "Nombre" del panel
+                setTimeout(() => {
+                  const el = document.querySelector<HTMLInputElement>('[data-focus-name]')
+                  el?.focus()
+                  el?.select()
+                }, 0)
+              }}
               className={`absolute flex flex-col items-center justify-center rounded-md border-2 bg-hoi-card px-1 text-center shadow-lg ${border} ${
                 excluded ? 'opacity-30' : ''
               }`}
@@ -293,6 +468,28 @@ export default function FocusCanvas(props: Props): JSX.Element {
                 {f.name || <span className="text-red-400">sin nombre</span>}
               </div>
               <div className="text-[10px] text-hoi-muted">{f.cost} sem.</div>
+              {hover === f.uid && !pick && (
+                <>
+                  <button
+                    data-handle="child"
+                    title="Clic: añadir un hijo · Arrastra hasta otro foco: prerrequisito"
+                    className="absolute -bottom-3 left-1/2 flex h-5 w-5 -translate-x-1/2 items-center justify-center rounded-full border-2 border-sky-400 bg-hoi-panel text-[10px] leading-none text-sky-300"
+                    style={{ cursor: 'pointer' }}
+                    onPointerDown={(e) => startHandle(e, f.uid, 'prereq')}
+                  >
+                    ●
+                  </button>
+                  <button
+                    data-handle="excl"
+                    title="Arrastra hasta otro foco: exclusión mutua"
+                    className="absolute -right-3 top-1/2 flex h-5 w-5 -translate-y-1/2 items-center justify-center rounded-full border-2 border-red-500 bg-hoi-panel text-[11px] font-bold leading-none text-red-400"
+                    style={{ cursor: 'pointer' }}
+                    onPointerDown={(e) => startHandle(e, f.uid, 'excl')}
+                  >
+                    ✕
+                  </button>
+                </>
+              )}
             </div>
           )
         })}
@@ -303,18 +500,14 @@ export default function FocusCanvas(props: Props): JSX.Element {
           🎯 Haz clic en el foco que necesitas · Esc para cancelar
         </div>
       )}
-      {!pick && tool !== 'select' && (
+      {!pick && hint && (
         <div className="pointer-events-none absolute left-1/2 top-2 -translate-x-1/2 rounded bg-black/70 px-3 py-1 text-xs">
-          {linkFrom
-            ? 'Ahora haz clic en el segundo foco (Esc para cancelar)'
-            : tool === 'prereq'
-              ? 'Haz clic en el foco PADRE (el que se completa primero)'
-              : 'Haz clic en el primer foco excluyente'}
+          {hint}
         </div>
       )}
       <div className="pointer-events-none absolute bottom-2 left-2 text-[11px] text-hoi-muted">
         Doble clic: nuevo foco · Arrastrar fondo: mover · Rueda: zoom ({Math.round(zoom * 100)}%) ·
-        Supr: borrar · Clic en una línea: quitarla
+        Supr: borrar · Clic en una línea: seleccionarla (Supr la borra)
       </div>
     </div>
   )
