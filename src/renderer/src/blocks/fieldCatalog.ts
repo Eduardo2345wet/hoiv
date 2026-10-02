@@ -65,13 +65,13 @@ export function buildMenu(kind: CatalogKind, current: string | null): Option[] {
   const menu: Option[] = []
   if (kind === 'focus') menu.push(['🎯 Elegir en el árbol…', SPECIAL.pickTree])
   if (kind === 'state') menu.push(['🗺 Elegir en el mapa…', SPECIAL.pickMap])
-  if (kind === 'idea') menu.push(['🔍 Elegir del juego…', SPECIAL.pickGame])
   if (current && !opts.some((o) => o.id === current)) {
     const why = kind === 'focus' || kind === 'idea' ? 'ya no existe' : 'no está en la lista'
     menu.push([`⚠ ${current} (${why})`, current])
   } else if (!current) {
     menu.push(['— elige —', ''])
   }
+  if (kind === 'idea') menu.push(['🔍 Elegir del juego…', SPECIAL.pickGame])
   if (kind === 'country') {
     // Mismo orden que el selector universal: Mis países → En el mapa → Todos (sin banderas)
     const sec = countrySections(project, s.map, store.catalogGame())
