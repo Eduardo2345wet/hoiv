@@ -1,6 +1,7 @@
 // Pantalla común de las secciones nuevas: lista con buscador a la izquierda, editor al centro y
 // propiedades / vista previa del script a la derecha (plegable). Sin datos de ejemplo.
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { registerCommands } from './commands'
 import type { Project } from '../types'
 import { screenOf, type SectionDef } from '../sections/ui'
 import { EmptyState, ListPanel, SplitPane } from './kit'
@@ -18,6 +19,28 @@ export default function SectionScreen({
   const labelOf = (i: Record<string, unknown>): string =>
     screen?.label?.(i) ?? String(i.name ?? i.title ?? i.id ?? i.country ?? i.code ?? '')
   const create = screen?.create
+  const [view, setView] = useState<'editor' | 'overview'>('editor')
+  // Comandos de la cinta (Editar): duplicar y borrar el elemento elegido
+  useEffect(
+    () =>
+      registerCommands({
+        [`section:${def.id}:create`]: () => doCreate(),
+        [`section:${def.id}:duplicate`]: () => {
+          const uid = selected && screen?.duplicate?.(selected)
+          if (uid) setSelected(uid)
+        },
+        [`section:${def.id}:delete`]: () => {
+          if (selected) {
+            screen?.remove?.(selected)
+            setSelected(null)
+          }
+        },
+        [`section:${def.id}:preview`]: () =>
+          setView((v) => (v === 'editor' ? 'overview' : 'editor'))
+      }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [def.id, selected, screen]
+  )
   const doCreate = (): void => {
     const uid = create?.()
     if (uid) setSelected(uid)
@@ -45,7 +68,16 @@ export default function SectionScreen({
         />
       }
       center={
-        selected && screen?.renderEditor ? (
+        view === 'overview' && screen?.renderOverview ? (
+          <div>
+            <div className="border-b border-hoi-border p-2 text-xs">
+              <button className="btn px-2 py-0.5" onClick={() => setView('editor')}>
+                ← Volver al editor
+              </button>
+            </div>
+            {screen.renderOverview(project, selected, (u) => (setSelected(u), setView('editor')))}
+          </div>
+        ) : selected && screen?.renderEditor ? (
           screen.renderEditor(project, selected)
         ) : (
           <EmptyState

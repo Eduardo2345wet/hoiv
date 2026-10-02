@@ -528,3 +528,18 @@ zoom sin animación ni inercia y liberar las texturas al minimizar.
   grupos Crear / Editar / Ver / Probar, el mismo esqueleto (lista con buscador · editor ·
   propiedades y vista previa plegable) y componentes únicos en `ui/kit`. Sin datos de ejemplo: el
   botón «Crear …» se habilita cuando cada sección registra su acción.
+
+## Eventos
+Pestaña **Eventos**: lista, editor (General · Texto · Opciones · Avanzado) con vista previa al estilo
+del juego, opciones con bloques (condición y efectos) y ai_chance, imagen (del juego, subida o de la
+biblioteca; DDS + sprite en `interface/<mod>_events.gfx`), variantes condicionales de título y
+descripción, y **cadena** de eventos (grafo). El bloque «Lanzar evento» (país, noticias o estado, con
+días, aleatorio y país destino) funciona en focos, eventos y decisiones; «Enlazar a otro evento» lo
+agrega a una opción. Plantillas: noticias mundial, oculto con retraso y elección con 2 caminos.
+Exporta `events/<mod>_<namespace>.txt` (un archivo por namespace, con `add_namespace`),
+`localisation/english/<mod>_events_l_english.yml` y las imágenes. `news_event` siempre lleva `major` y
+nunca `fire_only_once`. El validador revisa namespace, ID entero < 100000 y único, major, MTTH con
+is_triggered_only, evento automático sin país, al menos una opción sin condición, textos e imagen.
+«Copiar comando de consola» (`event <id>`) sirve para probarlo con `-debug`. No hecho: arrastrar
+desde una opción hasta un evento en la cadena (se usa el selector «Enlazar a otro evento»).
+Constante por verificar: tamaño de las imágenes de evento (210×176).

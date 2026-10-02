@@ -9,6 +9,26 @@ export interface BlockScript {
 }
 export const emptyScript = (): BlockScript => ({ blocks: null, code: '' })
 
+/** Imagen de un evento: del juego, de mi biblioteca (icons) o subida directamente */
+export type EventPicture =
+  | { kind: 'game'; gfx: string }
+  | { kind: 'asset'; assetId: string }
+  | { kind: 'upload'; png: string; name: string }
+
+export interface EventVariant {
+  text: string
+  trigger: BlockScript
+}
+
+export interface EventOption {
+  uid: string
+  name: string
+  trigger: BlockScript
+  effects: BlockScript
+  /** ai_chance base (proporcional); 0 = la IA nunca la elige por azar */
+  aiBase: number
+}
+
 export interface GameEvent {
   uid: string
   type: 'country_event' | 'news_event' | 'state_event'
@@ -18,15 +38,24 @@ export interface GameEvent {
   countries: string[]
   title: string
   description: string
-  picture: IconRef | null
+  /** Variantes condicionales: la primera cuyo trigger se cumpla se muestra (la base va al final) */
+  titleVariants: EventVariant[]
+  descVariants: EventVariant[]
+  picture: EventPicture | null
   trigger: BlockScript
   immediate: BlockScript
-  options: { name: string; trigger: BlockScript; effects: BlockScript; aiChance: number }[]
+  after: BlockScript
+  options: EventOption[]
+  /** mean_time_to_happen en días (0 = ninguno) */
+  mtthDays: number
+  /** timeout_days (0 = el valor por defecto del juego, 13) */
+  timeoutDays: number
   flags: {
     triggeredOnly: boolean
     fireOnlyOnce: boolean
     major: boolean
     hidden: boolean
+    minorFlavor: boolean
   }
 }
 

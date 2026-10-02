@@ -68,3 +68,47 @@ export function generateArea(ws: Blockly.Workspace): string {
   const root = areaRoot(ws)
   return root ? pdxGenerator.statementToCode(root, 'BODY') : ''
 }
+
+/** Texto de un script de bloques guardado (sin interfaz: espacio de trabajo sin dibujar) */
+export function codeOfBlocks(blocks: unknown): string {
+  if (!blocks) return ''
+  registerAreaBlocks()
+  const ws = new Blockly.Workspace()
+  try {
+    Blockly.serialization.workspaces.load(blocks as object, ws)
+    return generateArea(ws)
+  } finally {
+    ws.dispose()
+  }
+}
+
+/**
+ * Agrega un bloque (JSON de serialización) al final de la boca de una ranura y devuelve el script
+ * nuevo con su texto. Sirve para "Enlazar a evento…" sin abrir el editor de bloques.
+ */
+export function appendBlock(
+  script: { blocks: unknown | null; code: string },
+  mode: AreaMode,
+  scope: AreaScope,
+  block: Record<string, unknown>
+): { blocks: unknown; code: string } {
+  type Json = { blocks?: { blocks?: Record<string, any>[] } } // eslint-disable-line @typescript-eslint/no-explicit-any
+  const base: Json = script.blocks
+    ? (JSON.parse(JSON.stringify(script.blocks)) as Json)
+    : { blocks: { blocks: [] } }
+  const list = (base.blocks ??= { blocks: [] }).blocks ?? (base.blocks.blocks = [])
+  let root = list.find((b) => String(b.type).startsWith(AREA_ROOT))
+  if (!root) {
+    root = { type: areaRootType(mode, scope), x: 20, y: 20 }
+    list.unshift(root)
+  }
+  root.inputs ??= {}
+  if (!root.inputs.BODY) root.inputs.BODY = { block }
+  else {
+    let cur = root.inputs.BODY.block
+    while (cur.next?.block) cur = cur.next.block
+    cur.next = { block }
+  }
+  const out = { blocks: { languageVersion: 0, blocks: list } }
+  return { blocks: out, code: codeOfBlocks(out) }
+}

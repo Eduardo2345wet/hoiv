@@ -19,7 +19,7 @@ export interface SectionDef {
   groups: { title: string; actions: { id: string; label: string }[] }[]
 }
 
-const groups = (create: string): SectionDef['groups'] => [
+const groups = (create: string, view = 'Vista previa del script'): SectionDef['groups'] => [
   { title: 'Crear', actions: [{ id: 'create', label: create }] },
   {
     title: 'Editar',
@@ -28,7 +28,7 @@ const groups = (create: string): SectionDef['groups'] => [
       { id: 'delete', label: 'Borrar' }
     ]
   },
-  { title: 'Ver', actions: [{ id: 'preview', label: 'Vista previa del script' }] },
+  { title: 'Ver', actions: [{ id: 'preview', label: view }] },
   { title: 'Probar', actions: [{ id: 'validate', label: 'Validar' }] }
 ]
 
@@ -39,7 +39,7 @@ export const SECTIONS: SectionDef[] = [
     collection: 'events',
     createLabel: 'Crear evento',
     empty: 'Aún no hay eventos. Crea el primero para empezar una cadena.',
-    groups: groups('Evento')
+    groups: groups('Evento', 'Cadena de eventos')
   },
   {
     id: 'decisiones',
@@ -88,6 +88,16 @@ export const sectionById = (id: string): SectionDef | undefined => SECTIONS.find
 export interface SectionScreen {
   /** Crea un elemento nuevo (con deshacer) y devuelve su uid */
   create?: () => string | null
+  duplicate?: (uid: string) => string | null
+  remove?: (uid: string) => void
+  /** Plantillas de partida del menú de crear */
+  templates?: { id: string; label: string; create: () => string | null }[]
+  /** Vista alternativa de toda la sección (por ejemplo la cadena de eventos) */
+  renderOverview?: (
+    project: Project,
+    selected: string | null,
+    select: (uid: string) => void
+  ) => ReactNode
   renderEditor?: (project: Project, selected: string | null) => ReactNode
   renderPreview?: (project: Project, selected: string | null) => ReactNode
   label?: (item: Record<string, unknown>) => string

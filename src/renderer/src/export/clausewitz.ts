@@ -42,7 +42,8 @@ export function serialize(nodes: Node[], level = 0): string {
   const out: string[] = []
   for (const n of nodes) {
     if (n.raw !== undefined) {
-      if (n.raw.trim()) out.push(indent(n.raw.replace(/\n+$/, ''), level))
+      // El script de los bloques ya viene con una tabulación por línea: se normaliza antes de indentar
+      if (n.raw.trim()) out.push(indent(n.raw.replace(/\n+$/, '').replace(/^\t/gm, ''), level))
     } else if (n.children) {
       out.push(`${pad}${n.key} ${n.op ?? '='} {`)
       const inner = serialize(n.children, level + 1)

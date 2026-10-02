@@ -1655,7 +1655,6 @@ describe('pestañas de secciones nuevas (B0)', () => {
     const page = await fresh()
     await focusEditor(page)
     for (const [tab, texto, crear] of [
-      ['Eventos', 'Aún no hay eventos', 'Crear evento'],
       ['Decisiones', 'Aún no hay decisiones', 'Crear decisión'],
       ['Personajes', 'Aún no hay personajes', 'Crear personaje'],
       ['Ejército', 'Aún no hay ejército', 'Crear plantilla de división'],
@@ -1666,6 +1665,51 @@ describe('pestañas de secciones nuevas (B0)', () => {
       await page.waitForSelector(`text=${texto}`)
       expect(await page.locator(`button:has-text("${crear}")`).first().isDisabled()).toBe(true)
     }
+    await page.close()
+  }, 60_000)
+})
+
+// ---------- Eventos (S1) ----------
+describe('eventos (S1)', () => {
+  it('crear un evento desde la pestaña, editarlo y ver su script y la cadena', async ({ skip }) => {
+    if (!browser) skip()
+    const page = await fresh()
+    await focusEditor(page)
+    // El proyecto de prueba es de formato viejo: se le agregan las colecciones de las secciones
+    await page.evaluate(() => {
+      const st = (window as unknown as HoiWindow).__hoiStore as never as {
+        updateProject(f: (p: object) => object): void
+      }
+      st.updateProject((p) => ({
+        ...p,
+        countries: [],
+        events: [],
+        superEvents: [],
+        decisionCategories: [],
+        decisions: [],
+        characters: [],
+        countryStart: [],
+        oobs: [],
+        technologies: [],
+        ideologies: [],
+        bookmarks: [],
+        music: [],
+        loadingScreens: [],
+        languages: [{ code: 'english' }]
+      }))
+    })
+    await page.locator('button:text-is("Eventos")').first().click()
+    await page.waitForSelector('text=Aún no hay eventos')
+    await page.locator('button:has-text("Crear evento")').first().click()
+    await page.waitForSelector('text=General')
+    await page.locator('button[role="tab"]:text-is("Texto")').click()
+    await page.locator('label:text-is("Título") + input').fill('Mi evento')
+    await page.waitForSelector('text=country_event = {')
+    expect(await page.locator('pre').first().textContent()).toContain('id = capas.1')
+    // la lista muestra el evento y la cadena abre
+    expect(await page.locator('li:has-text("Mi evento")').count()).toBeGreaterThan(0)
+    await page.locator('button:has-text("Cadena de eventos")').first().click()
+    await page.waitForSelector('text=Volver al editor')
     await page.close()
   }, 60_000)
 })

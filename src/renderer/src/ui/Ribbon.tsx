@@ -31,8 +31,18 @@ import { VIEW_MODES, type ViewMode } from '../map/colors'
 import { LABEL_MODES, type LabelMode } from '../map/labelLayout'
 import { TOOLS } from './map/MapTab'
 import { noNationActive } from '../map/noNation'
-import { hasCommand, runCommand } from './commands'
-import { SECTIONS } from '../sections/ui'
+import { runCommand } from './commands'
+import { SECTIONS, screenOf } from '../sections/ui'
+
+const sectionHas = (id: string, action: string): boolean => {
+  const s = screenOf(id)
+  if (!s) return false
+  if (action === 'create') return !!s.create
+  if (action === 'duplicate') return !!s.duplicate
+  if (action === 'delete') return !!s.remove
+  if (action === 'preview') return !!s.renderOverview
+  return false
+}
 import FileMenu from './FileMenu'
 import { Z } from './layers'
 
@@ -188,9 +198,9 @@ export default function Ribbon(): JSX.Element {
               key={a.id}
               icon={g.title === 'Crear' ? <Plus size={20} /> : <FileCheck size={20} />}
               label={g.title === 'Crear' ? def.createLabel : a.label}
-              disabled={off || (a.id !== 'validate' && !hasCommand(`section:${def.id}:${a.id}`))}
+              disabled={off || (a.id !== 'validate' && !sectionHas(def.id, a.id))}
               title={
-                hasCommand(`section:${def.id}:${a.id}`) || a.id === 'validate'
+                sectionHas(def.id, a.id) || a.id === 'validate'
                   ? undefined
                   : 'Disponible cuando se construya esta sección'
               }

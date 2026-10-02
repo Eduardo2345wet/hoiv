@@ -187,6 +187,8 @@ export interface GameCatalogResult {
   countryRuling: Record<string, string>
   /** Forma (claves en orden) de una entrada real de interface/goals_shine.gfx */
   goalsShineShape?: string
+  /** Nombres GFX_report_event_* de interface/eventpictures.gfx */
+  eventPictures?: string[]
   /** Cuadrícula del árbol de focos (interface/nationalfocusview.gui) */
   focusGrid?: FocusGrid
 }
@@ -330,7 +332,20 @@ export function readGameCatalog(gamePath: string): GameCatalogResult | null {
     // sin el archivo: se usan las constantes por verificar
   }
 
+  let eventPictures: string[] | undefined
+  try {
+    const gfx = fs.readFileSync(path.join(gamePath, 'interface', 'eventpictures.gfx'), 'utf-8')
+    eventPictures = [
+      ...new Set(
+        [...gfx.matchAll(/name\s*=\s*"?(GFX_report_event_[A-Za-z0-9_]+)"?/g)].map((m) => m[1])
+      )
+    ].sort()
+  } catch {
+    // sin el archivo: solo se ofrecen las propias
+  }
+
   const result: GameCatalogResult = {
+    eventPictures,
     focusGrid,
     focusIds: [...focusIds],
     focusTreeTags,

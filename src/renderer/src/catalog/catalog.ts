@@ -3,7 +3,7 @@
 import type { Project } from '../types'
 import { BUILTIN_COUNTRIES, BUILTIN_IDEAS } from './builtin'
 
-export type CatalogKind = 'focus' | 'idea' | 'countryFlag' | 'country' | 'state'
+export type CatalogKind = 'focus' | 'idea' | 'countryFlag' | 'country' | 'state' | 'event'
 
 export interface CatalogOption {
   id: string
@@ -38,6 +38,8 @@ export interface GameCatalog {
   countryRuling?: Record<string, string>
   /** Forma de una entrada real de interface/goals_shine.gfx del juego */
   goalsShineShape?: string
+  /** Nombres GFX_report_event_* de interface/eventpictures.gfx */
+  eventPictures?: string[]
   /** Cuadrícula del árbol de focos leída del juego (focus_spacing, link_offsets, link_spacing) */
   focusGrid?: {
     spacing: { x: number; y: number }
@@ -81,6 +83,15 @@ export function getCatalogOptions(
             etiqueta: i.name || i.id,
             origen: 'mod',
             uid: i.uid
+          })
+        break
+      case 'event':
+        for (const e of project.events ?? [])
+          mod.push({
+            id: `${e.namespace}.${e.number}`,
+            etiqueta: e.title || `${e.namespace}.${e.number}`,
+            origen: 'mod',
+            uid: e.uid
           })
         break
       case 'countryFlag':

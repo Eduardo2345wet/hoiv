@@ -9,6 +9,7 @@ import { validateCountry } from '../countries/validateCountry'
 import { modSlug } from '../../../shared/names'
 import { plannedPaths } from './exportMod'
 import { pathProblems } from './registry'
+import { validateEvents } from '../sections/events'
 import { sectionFiles } from '../sections/generators'
 import { treeCountry } from '../countries/countryOps'
 import { validateMap } from '../map/validateMap'
@@ -373,6 +374,13 @@ export function validateProject(
       })
     else seenPaths.set(key, path)
   }
+
+  // ---- Eventos ----
+  for (const i of validateEvents(
+    project,
+    game?.eventPictures ? new Set(game.eventPictures) : undefined
+  ))
+    issues.push({ severity: i.severity, kind: 'Eventos', message: i.message })
 
   // ---- Seguridad de rutas: lista negra, carpetas permitidas y archivos del juego ----
   const regCtx = { gameFiles: opts.gameFiles }

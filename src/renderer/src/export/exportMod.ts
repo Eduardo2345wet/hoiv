@@ -18,6 +18,7 @@ import {
 import type { GameCatalog } from '../catalog/catalog'
 import { store } from '../store/appStore'
 import { sectionFiles } from '../sections/generators'
+import { EVENT_PICTURE_SIZE, eventImagePath, eventImagePaths, eventPng } from '../sections/events'
 import { baseMod } from './statesExport'
 import { withTechnicalCapital } from '../map/noNation'
 import { withMovedCapitals } from '../map/capitals'
@@ -69,7 +70,19 @@ export async function buildExtraFiles(
   files.push(...countryTextFiles(project, game))
   // Secciones nuevas (eventos, decisiones…): cada generador aporta sus archivos
   files.push(...sectionFiles(project).files)
-  if (read) files.push(...(await countryImageFiles(project, read)))
+  if (read) {
+    files.push(...(await countryImageFiles(project, read)))
+    // Imágenes de eventos (subidas o de la biblioteca): DDS al tamaño de las del juego
+    for (const e of project.events) {
+      const png = eventPng(project, e.picture)
+      if (!png) continue
+      const img = await read(png, EVENT_PICTURE_SIZE.w, EVENT_PICTURE_SIZE.h)
+      files.push({
+        path: eventImagePath(project, e),
+        data: writeDDS(img.width, img.height, img.rgba)
+      })
+    }
+  }
   return files
 }
 
@@ -93,6 +106,7 @@ export function plannedPaths(project: Project, game: GameCatalog | null = null):
   paths.push(...countryTextFiles(project, game).map((f) => f.path))
   paths.push(...sectionFiles(project).files.map((f) => f.path))
   paths.push(...countryImagePaths(project))
+  paths.push(...eventImagePaths(project))
   return paths
 }
 

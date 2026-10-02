@@ -41,7 +41,26 @@ const EQUIPMENT: [string, string][] = [
   ['cazas', 'fighter_equipment']
 ]
 
+export const EVENT_TYPES: [string, string][] = [
+  ['de país', 'country_event'],
+  ['de noticias', 'news_event'],
+  ['de estado', 'state_event']
+]
+
 export const effectBlocks = [
+  {
+    type: 'eff_fire_event',
+    message0: 'Lanzar evento %1 %2 en %3 días (+ %4 aleatorios) para %5',
+    args0: [
+      { type: 'field_dropdown', name: 'TYPE', options: EVENT_TYPES },
+      { type: 'field_catalog', name: 'EVENT', kind: 'event', value: '' },
+      { type: 'field_number', name: 'DAYS', value: 1, min: 0 },
+      { type: 'field_number', name: 'RANDOM', value: 0, min: 0 },
+      { type: 'field_catalog', name: 'TARGET', kind: 'country', value: '' }
+    ],
+    tooltip: 'Dispara un evento. Sin país destino, lo recibe este mismo país.',
+    ...base
+  },
   {
     type: 'eff_add_political_power',
     message0: 'Ganar %1 de poder político',

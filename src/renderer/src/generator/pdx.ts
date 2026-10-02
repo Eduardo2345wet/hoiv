@@ -82,6 +82,16 @@ g['eff_country_event'] = (b) => {
     ? `country_event = {\n\tid = ${id(b, 'EVENT')}${d}}\n`
     : `country_event = ${id(b, 'EVENT')}\n`
 }
+g['eff_fire_event'] = (b) => {
+  const days = Number(f(b, 'DAYS')) || 0
+  const rnd = Number(f(b, 'RANDOM')) || 0
+  const parts = [`id = ${id(b, 'EVENT')}`]
+  if (days) parts.push(`days = ${days}`)
+  if (rnd) parts.push(`random_days = ${rnd}`)
+  const body = `${f(b, 'TYPE')} = { ${parts.join(' ')} }`
+  const target = id(b, 'TARGET')
+  return target ? `${target} = {\n\t${body}\n}\n` : `${body}\n`
+}
 g['eff_set_country_flag'] = (b) => `set_country_flag = ${id(b, 'FLAG')}\n`
 g['eff_if'] = (b) => {
   const limit = pdxGenerator.statementToCode(b, 'LIMIT')
