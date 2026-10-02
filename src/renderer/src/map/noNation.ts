@@ -11,8 +11,15 @@ import { effectiveCores, effectiveOwner } from './mapOps'
 
 export const NO_NATION_COLOR: [number, number, number] = [200, 200, 200]
 /** Líneas que se quitan de los bloques con fecha de los estados pendientes */
-// por verificar: estas son todas las claves con las que un bloque con fecha devuelve el estado a otro país
-export const DATED_KEYS_TO_STRIP = ['owner', 'controller', 'add_core_of', 'transfer_state']
+// Patrón real (HOI4 1.19.3): 1938.10.25 = { if = { limit = { … } remove_core_of = GXC  CHI = { transfer_state = PREV } } }
+// por verificar: que no haya otras claves con las que un bloque con fecha devuelva el estado a otro país
+export const DATED_KEYS_TO_STRIP = [
+  'owner',
+  'controller',
+  'add_core_of',
+  'remove_core_of',
+  'transfer_state'
+]
 
 /** ¿Está activo el modo Sin nación? (solo con el lienzo en blanco) */
 export function noNationActive(p: Project | null): boolean {

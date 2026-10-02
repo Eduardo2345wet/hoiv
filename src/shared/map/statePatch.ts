@@ -112,6 +112,39 @@ function statements(toks: Tok[], from: number, to: number): Stmt[] | null {
   return out
 }
 
+const TAG_KEY = /^[A-Z][A-Z0-9]{2}$/
+const LOGIC_KEYS = ['NOT', 'AND', 'limit']
+
+/**
+ * Sentencias a quitar de un bloque con fecha (patrón real de HOI4 1.19.3):
+ *   1938.10.25 = { if = { limit = { … } remove_core_of = GXC  CHI = { transfer_state = PREV } } }
+ * Se quitan las claves pedidas sueltas, en cualquier `if`/`else` y dentro de `TAG = { … }`; y si un
+ * `if` o un `TAG = { }` se queda sin nada (salvo su `limit`), se quita ENTERO. Nunca se entra en
+ * `limit` ni en NOT/AND.
+ */
+function datedKills(toks: Tok[], stmts: Stmt[], keys: string[]): Stmt[] {
+  const kill: Stmt[] = []
+  for (const st of stmts) {
+    if (!st.block) {
+      if (keys.includes(st.key)) kill.push(st)
+      continue
+    }
+    const containerKey =
+      TAG_KEY.test(st.key) && !LOGIC_KEYS.includes(st.key)
+        ? true
+        : ['if', 'else', 'else_if'].includes(st.key)
+    if (!containerKey) continue
+    const inner = statements(toks, st.valStart + 1, st.valEnd)
+    if (!inner) continue
+    const sub = datedKills(toks, inner, keys)
+    if (!sub.length) continue
+    const meaningful = inner.filter((x) => x.key !== 'limit')
+    if (meaningful.length && meaningful.every((x) => sub.includes(x))) kill.push(st)
+    else kill.push(...sub)
+  }
+  return kill
+}
+
 function matchBrace(toks: Tok[], open: number): number {
   let d = 0
   for (let i = open; i < toks.length; i++) {
@@ -242,7 +275,7 @@ export function patchStateText(text: string, targets: StateTarget[]): PatchResul
           })
           continue
         }
-        for (const st of inner) if (target.stripDated.includes(st.key)) removeStmt(st)
+        for (const st of datedKills(toks, inner, target.stripDated)) removeStmt(st)
       }
     }
 

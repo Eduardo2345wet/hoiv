@@ -19,6 +19,7 @@ import { handleStroke, type ToolId } from '../src/renderer/src/map/tools'
 import { brushForKey, NO_NATION, setBrush } from '../src/renderer/src/map/brush'
 import { createQuickCountry } from '../src/renderer/src/map/quickCountry'
 import {
+  DATED_KEYS_TO_STRIP,
   exportCores,
   exportOwner,
   nextPendingIndex,
@@ -281,7 +282,7 @@ describe('lienzo en blanco', () => {
           expect(t.stripDated).toBeUndefined()
         } else {
           expect(t.owner).toBe(tech)
-          expect(t.stripDated).toEqual(['owner', 'controller', 'add_core_of', 'transfer_state'])
+          expect(t.stripDated).toEqual(DATED_KEYS_TO_STRIP)
           // Sin cores del juego
           expect(t.cores).toEqual([])
         }
@@ -312,7 +313,7 @@ describe('lienzo en blanco', () => {
           id: 7,
           owner: 'SNN',
           cores: [],
-          stripDated: ['owner', 'controller', 'add_core_of', 'transfer_state']
+          stripDated: DATED_KEYS_TO_STRIP
         }
       ])
       expect(r.errors).toEqual([])
@@ -326,7 +327,7 @@ describe('lienzo en blanco', () => {
             id: 7,
             owner: 'SNN',
             cores: [],
-            stripDated: ['owner', 'controller', 'add_core_of', 'transfer_state']
+            stripDated: DATED_KEYS_TO_STRIP
           }
         ]).text
       ).toBe(r.text)

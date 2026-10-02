@@ -12,8 +12,20 @@ export interface JominiParser {
 const asArray = <T>(v: T | T[] | undefined): T[] =>
   v === undefined ? [] : Array.isArray(v) ? v : [v]
 const DATE_KEY = /^\d{1,4}\.\d{1,2}\.\d{1,2}$/
-// por verificar: claves que cuentan como "cambio con fecha" de dueño o cores
+// Patrón real (HOI4 1.19.3): 1938.10.25 = { if = { limit = { … } remove_core_of = GXC  CHI = { transfer_state = PREV } } }
+// por verificar: que no haya otras claves de "cambio con fecha" de dueño o cores
 const CHANGE_KEYS = ['owner', 'add_core_of', 'remove_core_of', 'controller', 'transfer_state']
+
+/** ¿Hay un cambio de dueño/cores en el bloque, aunque esté dentro de if o de TAG = { }? (sin mirar limit) */
+function hasChange(blk: any): boolean {
+  if (!blk || typeof blk !== 'object' || Array.isArray(blk)) return false
+  for (const [k, v] of Object.entries(blk)) {
+    if (k === 'limit') continue
+    if (CHANGE_KEYS.includes(k)) return true
+    if (asArray<any>(v).some((x) => hasChange(x))) return true
+  }
+  return false
+}
 
 export function statesFromParsed(parsed: any, file: string): MapState[] {
   const out: MapState[] = []
@@ -27,9 +39,7 @@ export function statesFromParsed(parsed: any, file: string): MapState[] {
       .filter((p: any) => Array.isArray(p) && p.length >= 2)
       .map((p: any) => [Number(p[0]), Number(p[1])])
     const hasDatedChanges = Object.keys(history).some(
-      (k) =>
-        DATE_KEY.test(k) &&
-        asArray<any>(history[k]).some((blk) => blk && CHANGE_KEYS.some((c) => c in blk))
+      (k) => DATE_KEY.test(k) && asArray<any>(history[k]).some((blk) => hasChange(blk))
     )
     const nameKey = String(st.name ?? `STATE_${id}`)
     out.push({
