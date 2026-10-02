@@ -18,6 +18,10 @@ export interface Settings {
   restoreTabs?: boolean
   /** Preguntar siempre dónde guardar (por defecto sí) */
   askWhereToSave?: boolean
+  /** Última carpeta elegida en "Exportar mod" */
+  lastExportDir?: string
+  /** supported_version de reserva si no se puede leer la versión del juego (editable en Ajustes) */
+  supportedVersion?: string
 }
 
 export interface RecentProject {

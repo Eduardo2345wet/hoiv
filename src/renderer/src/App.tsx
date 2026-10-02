@@ -11,12 +11,12 @@ import NewProjectDialog from './ui/NewProjectDialog'
 import ProjectPropsDialog from './ui/ProjectPropsDialog'
 import SettingsDialog from './ui/SettingsDialog'
 import AskDialog from './ui/AskDialog'
+import ExportDialog from './ui/ExportDialog'
 import CountryPicker from './ui/CountryPicker'
 import PromptDialog from './ui/PromptDialog'
 import ToastHost from './ui/ToastHost'
 import { loadGameSettings } from './ui/SettingsDialog'
-import { registerCommands } from './ui/commands'
-import { modDestination } from './export/modSync'
+import { registerCommands, runCommand } from './ui/commands'
 import {
   dirOf,
   closeTabAsk,
@@ -79,13 +79,11 @@ export default function App(): JSX.Element {
         if (fp) void window.electronAPI?.openFolder(dirOf(fp))
         else store.toast('Este proyecto todavía no se ha guardado.')
       },
+      // Abre la carpeta donde se exportó el mod la última vez (la app no escribe en el juego)
       openModFolder: () => {
-        const p = store.get().project
-        if (p)
-          void modDestination(p).then((d) => {
-            if (d) void window.electronAPI?.openFolder(d.folder)
-            else store.toast('No se encontró la carpeta de mods de HOI4.')
-          })
+        void window.electronAPI?.getExportInfo().then((i) => {
+          void window.electronAPI?.openFolder(i.lastDir ?? i.defaultDir)
+        })
       }
     })
     // Cerrar la ventana: una sola pregunta con los proyectos sin guardar
@@ -126,6 +124,9 @@ export default function App(): JSX.Element {
       } else if (k === 's') {
         e.preventDefault()
         void saveActive(e.shiftKey)
+      } else if (k === 'e') {
+        e.preventDefault()
+        runCommand('exportMod')
       } else if (k === 'w') {
         e.preventDefault()
         const id = store.get().activeTabId
@@ -150,6 +151,7 @@ export default function App(): JSX.Element {
       <StatusBar />
       {newDialog && <NewProjectDialog initialName={newDialog.name} />}
       {propsDialog && <ProjectPropsDialog />}
+      <ExportDialog />
       {settingsDialog && <SettingsDialog onClose={() => store.set({ settingsDialog: false })} />}
       <AskDialog />
       <CountryPicker />

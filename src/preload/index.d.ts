@@ -25,6 +25,9 @@ export interface ExportModPayload {
   locYaml: string
   /** Archivos extra: ideas, íconos .dds, .gfx (rutas relativas al mod, con "/") */
   files?: { path: string; text?: string; bom?: boolean; data?: Uint8Array }[]
+  gameModsDir?: string
+  supportedVersion?: string
+  replacePrevious?: boolean
 }
 
 export type MapModArg = { path: string; name: string; replacePaths: string[] }
@@ -36,16 +39,17 @@ export interface RecentProject {
   date: string
 }
 
-export interface SyncModResult {
-  status: 'ok' | 'needs-confirm' | 'error'
-  error?: string
-  modFolder?: string
-  modFile?: string
-  written: string[]
-  removed: string[]
-  unchanged: number
-  unknown: string[]
-  firstTime: boolean
+export interface ExportInfo {
+  /** Carpeta de mods de HOI4 (con "/"), exista o no: solo para mostrar y para el path del .mod */
+  modsDir: string
+  docsFound: boolean
+  /** <Escritorio>/HOI4 Mod Studio - Exportados */
+  defaultDir: string
+  lastDir: string | null
+  /** Versión del juego instalado ("1.19.*") o null si no se pudo leer */
+  installedVersion: string | null
+  /** supported_version de reserva (editable en Ajustes) */
+  fallbackVersion: string
 }
 
 export interface Settings {
@@ -53,6 +57,8 @@ export interface Settings {
   openTabs?: string[]
   restoreTabs?: boolean
   askWhereToSave?: boolean
+  lastExportDir?: string
+  supportedVersion?: string
   /** Carpeta de instalación de HOI4 (opcional) */
   gamePath: string | null
   /** La encontró la app sola */
@@ -83,7 +89,7 @@ export interface GameCatalogData {
 }
 
 export interface ElectronAPI {
-  selectFolder: () => Promise<string | null>
+  selectFolder: (defaultPath?: string) => Promise<string | null>
   /** Abre "Guardar como"; devuelve la ruta elegida o null */
   /** Guarda un PNG con "Guardar como": { path } si se guardó, { error } si falló, null si se canceló */
   saveImageDialog: (
@@ -95,10 +101,9 @@ export interface ElectronAPI {
   ackCloseRequest: () => Promise<void>
   confirmClose: () => Promise<void>
   /** Carpeta de mods de HOI4 en Documentos (null si HOI4 no ha creado sus datos) */
-  getModDestination: () => Promise<{ docs: string | null; modsRoot: string | null }>
-  isHoi4Running: () => Promise<boolean>
-  /** Sincroniza el mod con la carpeta de mods (manifiesto, solo cambios, borra lo que ya no se genera) */
-  syncMod: (payload: ExportModPayload, confirmForeign?: boolean) => Promise<SyncModResult>
+  /** Datos para Exportar mod (rutas que solo se muestran: la app no escribe en el juego) */
+  getExportInfo: () => Promise<ExportInfo>
+  exportExists: (folder: string, modName: string) => Promise<boolean>
   /** Abre una carpeta (o muestra un archivo) en el explorador */
   openFolder: (p: string) => Promise<boolean>
   /** Documentos/HOI4 Mod Studio/Proyectos */
@@ -118,7 +123,6 @@ export interface ElectronAPI {
   /** Guarda directamente en una ruta ya conocida */
   saveProjectToPath: (filePath: string, content: string) => Promise<boolean>
   openProjectDialog: () => Promise<{ path: string; content: string } | null>
-  getDefaultModPath: () => Promise<string>
   getSettings: () => Promise<Settings>
   /** Busca HOI4 (registro de Windows, bibliotecas de Steam, rutas típicas) */
   detectGame: () => Promise<DetectGameResult>

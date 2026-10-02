@@ -3,7 +3,7 @@ import { contextBridge, ipcRenderer } from 'electron'
 import type { ExportModPayload } from './index.d'
 
 contextBridge.exposeInMainWorld('electronAPI', {
-  selectFolder: () => ipcRenderer.invoke('select-folder'),
+  selectFolder: (defaultPath?: string) => ipcRenderer.invoke('select-folder', defaultPath),
   saveProjectDialog: (content: string, defaultName?: string) =>
     ipcRenderer.invoke('save-project-dialog', content, defaultName),
   saveImageDialog: (bytes: Uint8Array, defaultName?: string) =>
@@ -15,10 +15,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   },
   ackCloseRequest: () => ipcRenderer.invoke('app-close-ack'),
   confirmClose: () => ipcRenderer.invoke('app-close-confirmed'),
-  getModDestination: () => ipcRenderer.invoke('get-mod-destination'),
-  isHoi4Running: () => ipcRenderer.invoke('is-hoi4-running'),
-  syncMod: (payload: unknown, confirmForeign?: boolean) =>
-    ipcRenderer.invoke('sync-mod', payload, confirmForeign ?? false),
+  getExportInfo: () => ipcRenderer.invoke('get-export-info'),
+  exportExists: (folder: string, modName: string) =>
+    ipcRenderer.invoke('export-exists', folder, modName),
   openFolder: (p: string) => ipcRenderer.invoke('open-folder', p),
   getProjectsDir: () => ipcRenderer.invoke('get-projects-dir'),
   createProject: (parent: string, name: string, json: string) =>
@@ -27,7 +26,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
   saveProjectToPath: (filePath: string, content: string) =>
     ipcRenderer.invoke('save-project-to-path', filePath, content),
   openProjectDialog: () => ipcRenderer.invoke('open-project-dialog'),
-  getDefaultModPath: () => ipcRenderer.invoke('get-default-mod-path'),
   getSettings: () => ipcRenderer.invoke('get-settings'),
   detectGame: () => ipcRenderer.invoke('detect-game'),
   setSettings: (s: unknown) => ipcRenderer.invoke('set-settings', s),

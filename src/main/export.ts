@@ -1,7 +1,9 @@
 // Escribe los archivos del mod en disco (se ejecuta en el proceso principal de Electron).
 import fs from 'fs'
 import path from 'path'
+import os from 'os'
 import { safeFolderName } from '../shared/names'
+import { DEFAULT_SUPPORTED_VERSION, hoi4ModsDir } from './exportInfo'
 
 export interface ExportModPayload {
   /** Nombres de los mods de los que depende (dependencies = { … }) */
@@ -12,6 +14,12 @@ export interface ExportModPayload {
   focusTreeScript: string
   locYaml: string
   files?: { path: string; text?: string; bom?: boolean; data?: Uint8Array }[]
+  /** Carpeta de mods de HOI4 donde el usuario COPIARÁ el mod (con "/"): va en el path del .mod */
+  gameModsDir?: string
+  /** supported_version del descriptor, ej. "1.19.*" */
+  supportedVersion?: string
+  /** El usuario aceptó reemplazar la exportación anterior de este mod en la carpeta elegida */
+  replacePrevious?: boolean
 }
 
 export interface ExportResult {
@@ -21,6 +29,20 @@ export interface ExportResult {
 }
 
 export { safeFolderName }
+
+/** ¿La carpeta es (o está dentro de) Documentos/Paradox Interactive/Hearts of Iron IV? */
+export function isHoi4DocumentsFolder(folder: string): boolean {
+  return /\/paradox interactive\/hearts of iron iv(\/|$)/i.test(folder.replace(/\\/g, '/'))
+}
+
+/** ¿Ya hay una exportación de este mod en la carpeta (la carpeta del mod o su .mod)? */
+export function exportPreviousExists(exportPath: string, modName: string): boolean {
+  const base = safeFolderName(modName)
+  return (
+    fs.existsSync(path.join(exportPath, base)) ||
+    fs.existsSync(path.join(exportPath, `${base}.mod`))
+  )
+}
 
 /**
  * Detecta si la carpeta elegida es (o está dentro de) la instalación del juego.
@@ -56,14 +78,12 @@ export interface BuiltMod {
 }
 
 /**
- * Todos los archivos del mod, en memoria (sin escribir): los usan la exportación a otra carpeta
- * y la sincronización con el juego, así los dos dejan EXACTAMENTE lo mismo. descriptor.mod va en
- * UTF-8 SIN BOM; el .yml, con BOM.
+ * Todos los archivos del mod, en memoria (sin escribir). descriptor.mod va en UTF-8 SIN BOM;
+ * el .yml, con BOM.
  */
 export function buildModFiles(payload: ExportModPayload): BuiltMod | { error: string } {
-  const { exportPath, modName, tag, focusTreeScript, locYaml } = payload
+  const { modName, tag, focusTreeScript, locYaml } = payload
   const baseName = safeFolderName(modName)
-  const modFolder = path.join(exportPath, baseName)
   const tags = `tags={\n\t"Alternative History"\n\t"National Focuses"\n}`
   // Base de mapa de otro mod: el nuestro depende de él (debe cargarse antes)
   // por verificar: el launcher de HOI4 respeta dependencies = { "Nombre" } para el orden de carga
@@ -71,7 +91,7 @@ export function buildModFiles(payload: ExportModPayload): BuiltMod | { error: st
   const dependencies = deps.length
     ? `dependencies={\n${deps.map((d) => `\t"${escapeQuotes(d)}"`).join('\n')}\n}\n`
     : ''
-  const descriptor = `version="1.0"\n${tags}\nname="${escapeQuotes(modName)}"\n${dependencies}supported_version="1.*"\n`
+  const descriptor = `version="1.0"\n${tags}\nname="${escapeQuotes(modName)}"\n${dependencies}supported_version="${payload.supportedVersion || DEFAULT_SUPPORTED_VERSION}"\n`
   const entries: ModEntry[] = [{ rel: 'descriptor.mod', bytes: Buffer.from(descriptor, 'utf-8') }]
   if (focusTreeScript)
     entries.push({
@@ -93,8 +113,14 @@ export function buildModFiles(payload: ExportModPayload): BuiltMod | { error: st
         : Buffer.from((f.bom ? '\uFEFF' : '') + (f.text ?? ''), 'utf-8')
     })
   }
-  const absPath = modFolder.replace(/\\/g, '/')
-  return { baseName, entries, outerMod: `${descriptor}path="${absPath}"\n` }
+  // El .mod apunta a donde quedará el mod DESPUÉS de copiarlo a mano (no a la carpeta exportada)
+  const modsDir = (
+    payload.gameModsDir ||
+    hoi4ModsDir(path.join(os.homedir(), 'Documents', 'Paradox Interactive', 'Hearts of Iron IV'))
+  )
+    .replace(/\\/g, '/')
+    .replace(/\/+$/, '')
+  return { baseName, entries, outerMod: `${descriptor}path="${modsDir}/${baseName}"\n` }
 }
 
 export async function handleExportMod(payload: ExportModPayload): Promise<ExportResult> {
@@ -102,6 +128,13 @@ export async function handleExportMod(payload: ExportModPayload): Promise<Export
     // (los proyectos nuevos no tienen un tag propio: los árboles van en `files`, uno por país)
     if (!payload.exportPath || !payload.modName) {
       return { success: false, error: 'Parámetros de exportación inválidos' }
+    }
+    if (isHoi4DocumentsFolder(payload.exportPath)) {
+      return {
+        success: false,
+        error:
+          'La app nunca escribe en la carpeta de mods del juego. Elige otra carpeta (por ejemplo en el Escritorio) y copia el mod a mano.'
+      }
     }
     if (isGameInstallFolder(payload.exportPath)) {
       return {
@@ -113,6 +146,17 @@ export async function handleExportMod(payload: ExportModPayload): Promise<Export
     const built = buildModFiles(payload)
     if ('error' in built) return { success: false, error: built.error }
     const modFolder = path.join(payload.exportPath, built.baseName)
+    const outerFile = path.join(payload.exportPath, `${built.baseName}.mod`)
+    if (exportPreviousExists(payload.exportPath, payload.modName)) {
+      if (!payload.replacePrevious)
+        return {
+          success: false,
+          error: 'Ya hay una exportación anterior de este mod en esa carpeta.'
+        }
+      // Solo dentro de la carpeta elegida: la carpeta del mod y su .mod, completos
+      fs.rmSync(modFolder, { recursive: true, force: true })
+      fs.rmSync(outerFile, { force: true })
+    }
     fs.mkdirSync(modFolder, { recursive: true })
     for (const e of built.entries) {
       const target = path.join(modFolder, ...e.rel.split('/'))
@@ -120,11 +164,7 @@ export async function handleExportMod(payload: ExportModPayload): Promise<Export
       fs.writeFileSync(target, e.bytes)
     }
     // NOMBRE.mod fuera de la carpeta, con la ruta absoluta (barras "/")
-    fs.writeFileSync(
-      path.join(payload.exportPath, `${built.baseName}.mod`),
-      built.outerMod,
-      'utf-8'
-    )
+    fs.writeFileSync(outerFile, built.outerMod, 'utf-8')
     return { success: true, modFolder }
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Error desconocido al exportar el mod'

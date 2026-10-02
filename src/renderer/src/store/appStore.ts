@@ -1,6 +1,7 @@
 // Store central de la app (sin librerías): el estado vive aquí y los
 // componentes de React se suscriben con useApp(). Blockly también lo lee
 // (por ejemplo, los menús de FieldCatalog consultan el proyecto actual).
+import type { ExportInfo } from '../../../preload/index.d'
 import { useSyncExternalStore } from 'react'
 import type { Project } from '../types'
 import { resetOwnerCounts } from '../map/mapOps'
@@ -190,6 +191,12 @@ export interface AppState {
   settingsDialog: boolean
   /** Pregunta con varios botones (guardar / no guardar / cancelar…) */
   ask: AskRequest | null
+  /** Diálogo "Exportar mod": elegir la carpeta destino (null = cancelado) */
+  exportDialog: {
+    info: ExportInfo
+    modName: string
+    resolve: (folder: string | null) => void
+  } | null
   /** Selector universal de país abierto */
   countryPicker: { title: string; resolve: (r: CountryPick | null) => void } | null
 }
@@ -238,6 +245,7 @@ let state: AppState = {
   wizardRequest: null,
   settingsDialog: false,
   ask: null,
+  exportDialog: null,
   countryPicker: null,
   toasts: []
 }
@@ -615,6 +623,16 @@ export const store = {
     const a = state.ask
     store.set({ ask: null })
     a?.resolve(value)
+  },
+
+  /** Diálogo de Exportar mod: devuelve la carpeta elegida o null si se cancela */
+  askExportFolder(info: ExportInfo, modName: string): Promise<string | null> {
+    return new Promise((resolve) => store.set({ exportDialog: { info, modName, resolve } }))
+  },
+  answerExportFolder(folder: string | null): void {
+    const d = state.exportDialog
+    store.set({ exportDialog: null })
+    d?.resolve(folder)
   },
 
   // ---- Diálogo de texto ----

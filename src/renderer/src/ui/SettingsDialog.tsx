@@ -27,8 +27,15 @@ export default function SettingsDialog({ onClose }: { onClose: () => void }): JS
   const detect = useApp((s) => s.gameDetect)
   const [msg, setMsg] = useState('')
   const [askSave, setAskSave] = useState(true)
+  const [supported, setSupported] = useState('')
   useEffect(() => {
-    void window.electronAPI?.getSettings().then((s) => setAskSave(s.askWhereToSave !== false))
+    void window.electronAPI?.getSettings().then((s) => {
+      setAskSave(s.askWhereToSave !== false)
+      setSupported(s.supportedVersion ?? '')
+    })
+    void window.electronAPI
+      ?.getExportInfo()
+      .then((i) => setSupported((v) => v || i.fallbackVersion))
   }, [])
 
   const choose = async (): Promise<void> => {
@@ -78,6 +85,23 @@ export default function SettingsDialog({ onClose }: { onClose: () => void }): JS
         />
         Preguntar siempre dónde guardar (Ctrl+S abre el diálogo con la ubicación actual)
       </label>
+      <label className="mb-1 block text-sm">
+        supported_version de reserva (al exportar, si no se puede leer la versión del juego)
+      </label>
+      <input
+        className="input mb-1 w-32 font-mono"
+        value={supported}
+        placeholder="1.19.*"
+        onChange={(e) => {
+          setSupported(e.target.value)
+          void window.electronAPI?.setSettings({ supportedVersion: e.target.value.trim() })
+        }}
+      />
+      {/* por verificar: en el juego, que desaparezca el aviso "Invalid supported_version" */}
+      <p className="mb-4 text-xs text-hoi-muted">
+        Formato mayor.menor.* (por ejemplo 1.19.*). Si el launcher muestra «Invalid
+        supported_version», cámbialo aquí.
+      </p>
       <h3 className="mb-2 font-semibold">Hearts of Iron IV</h3>
       {detect.searching ? (
         <p className="text-sm text-hoi-muted">Buscando HOI4…</p>

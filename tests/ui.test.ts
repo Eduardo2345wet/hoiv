@@ -546,19 +546,18 @@ async function withFakeApi(
         setSettings: rec('setSettings'),
         detectGame: async () => ({ gamePath: null, auto: false, via: null }),
         getProjectsDir: async () => '/docs/HOI4 Mod Studio/Proyectos',
-        getModDestination: async () => ({ docs: mr ? '/docs/hoi4' : null, modsRoot: mr }),
-        isHoi4Running: async () => false,
-        syncMod: async (...a: unknown[]) => {
-          calls.push(['syncMod', ...a])
-          return {
-            status: 'ok',
-            modFolder: mr + '/mi_mod',
-            written: [],
-            removed: [],
-            unchanged: 0,
-            unknown: [],
-            firstTime: true
-          }
+        getExportInfo: async () => ({
+          modsDir: mr ?? 'C:/Users/yo/Documents/Paradox Interactive/Hearts of Iron IV/mod',
+          docsFound: !!mr,
+          defaultDir: '/desk/HOI4 Mod Studio - Exportados',
+          lastDir: null,
+          installedVersion: '1.14.*',
+          fallbackVersion: '1.19.*'
+        }),
+        exportExists: async () => !!(window as unknown as Record<string, unknown>).__exists,
+        exportMod: async (...a: unknown[]) => {
+          calls.push(['exportMod', ...a])
+          return { success: true, modFolder: '/desk/HOI4 Mod Studio - Exportados/mi_mod' }
         },
         selectFolder: async () => null,
         saveProjectDialog: async (_j: string, def: string) => {
@@ -701,7 +700,7 @@ describe('guardar: elegir dónde y ver la ruta (parte 2)', () => {
   }, 60_000)
 })
 
-describe('mod sincronizado al guardar (parte 3)', () => {
+describe('guardar no toca el juego; exportar a mano (parte 3)', () => {
   const open = (page: Page, focuses: unknown[]): Promise<void> =>
     page.evaluate(
       ([f, country]) => {
@@ -759,47 +758,74 @@ describe('mod sincronizado al guardar (parte 3)', () => {
     scripts: { available: '', bypass: '', reward: '' }
   })
 
-  it('sin errores: guarda el proyecto y actualiza el mod; la primera vez avisa del launcher', async ({
+  it('Guardar solo guarda el proyecto: no hay mod sincronizado ni aviso del juego abierto', async ({
     skip
   }) => {
     if (!browser) skip()
     const page = await withFakeApi({ askWhereToSave: false }, '/docs/hoi4/mod')
-    await open(page, [focus('Uno')])
-    await page.keyboard.press('Control+s')
-    await page.waitForSelector('text=Activa este mod UNA vez en el launcher de HOI4')
-    await page.click('button:text-is("Entendido")')
-    await page.waitForSelector('text=Mod actualizado en el juego')
-    const c = await calls(page)
-    expect(c.some((x) => x[0] === 'saveToPath')).toBe(true)
-    const sync = c.find((x) => x[0] === 'syncMod')!
-    expect((sync[1] as { exportPath: string }).exportPath).toBe('/docs/hoi4/mod')
-    await page.close()
-  }, 60_000)
-
-  it('con errores del validador: el proyecto se guarda pero el mod NO se actualiza', async ({
-    skip
-  }) => {
-    if (!browser) skip()
-    const page = await withFakeApi({ askWhereToSave: false }, '/docs/hoi4/mod')
-    await open(page, [focus('')]) // foco sin nombre = error
-    await page.keyboard.press('Control+s')
-    await page.waitForSelector('text=/No se actualizó el mod: \\d+ error/')
-    const c = await calls(page)
-    expect(c.some((x) => x[0] === 'saveToPath')).toBe(true)
-    expect(c.some((x) => x[0] === 'syncMod')).toBe(false)
-    await page.click('button:text-is("Ver")')
-    await page.waitForSelector('text=/Hay \\d+ error/')
-    await page.close()
-  }, 60_000)
-
-  it('sin carpeta de mods del juego no se sincroniza (solo se guarda)', async ({ skip }) => {
-    if (!browser) skip()
-    const page = await withFakeApi({ askWhereToSave: false }, null)
     await open(page, [focus('Uno')])
     await page.keyboard.press('Control+s')
     await page.waitForSelector('text=Proyecto guardado en')
-    await page.waitForTimeout(400)
-    expect((await calls(page)).some((x) => x[0] === 'syncMod')).toBe(false)
+    await page.waitForTimeout(500)
+    const c = await calls(page)
+    expect(c.some((x) => x[0] === 'saveToPath')).toBe(true)
+    expect(c.some((x) => x[0] === 'exportMod')).toBe(false)
+    expect(await page.locator('text=Mod actualizado en el juego').count()).toBe(0)
+    expect(await page.locator('text=HOI4 está abierto').count()).toBe(0)
+    await page.close()
+  }, 60_000)
+
+  it('Ctrl+E abre el diálogo con la carpeta del Escritorio y exporta con la versión del juego', async ({
+    skip
+  }) => {
+    if (!browser) skip()
+    const page = await withFakeApi({ askWhereToSave: false }, '/docs/hoi4/mod')
+    await open(page, [focus('Uno')])
+    await page.keyboard.press('Control+e')
+    await page.click('button:text-is("Exportar de todos modos")') // avisos del validador
+    await page.waitForSelector('text=Carpeta de destino')
+    expect(await page.getByText('/desk/HOI4 Mod Studio - Exportados').count()).toBeGreaterThan(0)
+    expect(await page.getByText('/docs/hoi4/mod').count()).toBeGreaterThan(0)
+    await page.locator('button:text-is("Exportar")').last().click()
+    await page.waitForSelector('text=Mod exportado en')
+    const exp = (await calls(page)).find((x) => x[0] === 'exportMod')![1] as {
+      exportPath: string
+      gameModsDir: string
+      supportedVersion: string
+      replacePrevious: boolean
+    }
+    expect(exp.exportPath).toBe('/desk/HOI4 Mod Studio - Exportados')
+    expect(exp.gameModsDir).toBe('/docs/hoi4/mod')
+    expect(exp.supportedVersion).toBe('1.14.*')
+    expect(exp.replacePrevious).toBe(false)
+    const set = (await calls(page)).find(
+      (x) => x[0] === 'setSettings' && (x[1] as Record<string, unknown>).lastExportDir
+    )
+    expect(set).toBeTruthy()
+    await page.close()
+  }, 60_000)
+
+  it('si ya hay una exportación anterior pregunta si se reemplaza', async ({ skip }) => {
+    if (!browser) skip()
+    const page = await withFakeApi({ askWhereToSave: false }, '/docs/hoi4/mod')
+    await page.evaluate(() => ((window as unknown as Record<string, unknown>).__exists = true))
+    await open(page, [focus('Uno')])
+    await page.keyboard.press('Control+e')
+    await page.click('button:text-is("Exportar de todos modos")')
+    await page.locator('button:text-is("Exportar")').last().click()
+    await page.waitForSelector('text=¿Reemplazar la exportación anterior?')
+    await page.click('button:text-is("Cancelar")')
+    await page.waitForTimeout(300)
+    expect((await calls(page)).some((x) => x[0] === 'exportMod')).toBe(false)
+    await page.keyboard.press('Control+e')
+    await page.click('button:text-is("Exportar de todos modos")')
+    await page.locator('button:text-is("Exportar")').last().click()
+    await page.click('button:text-is("Reemplazar")')
+    await page.waitForSelector('text=Mod exportado en')
+    const exp = (await calls(page)).find((x) => x[0] === 'exportMod')![1] as {
+      replacePrevious: boolean
+    }
+    expect(exp.replacePrevious).toBe(true)
     await page.close()
   }, 60_000)
 })

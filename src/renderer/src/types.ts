@@ -239,11 +239,6 @@ export interface Project {
   version: number
   /** Plantilla de creación. Los proyectos viejos la toman de la base del mapa que tenían. */
   template?: TemplateId
-  /** Sincronizar el mod con la carpeta de mods del juego al guardar (por defecto sí si se detecta HOI4) */
-  modSync?: {
-    enabled: boolean
-    /** carpeta de mods; null = la de HOI4 en Documentos */ dest: string | null
-  }
   modName: string
   /** Tag con el que se creó el mod (compatibilidad); los países mandan */
   tag: string

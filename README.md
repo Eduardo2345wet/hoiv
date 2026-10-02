@@ -257,32 +257,59 @@ Nuevo proyecto, asistente, confirmaciones, selector de país…) se dibujan en u
 (`inert`) y al cerrar se devuelve el foco. La letra del toolbox de Blockly (14 px) y las capas de
 sus menús se definen junto a su tema (`ui/theme.ts`).
 
-## Guardar y mod sincronizado con el juego
+## Guardar y exportar (a mano)
+
+**La app NUNCA escribe en la carpeta del juego ni en la carpeta de mods de HOI4.**
 
 **Guardar:** la primera vez, **Guardar como…** (Ctrl+Shift+S) y, por defecto, también Ctrl+S abren
 el diálogo para elegir carpeta y nombre (por defecto `Documentos/HOI4 Mod Studio/Proyectos/<mod>`;
-con Ctrl+S ya trae la ubicación actual: con Enter se queda igual). En Ajustes → General se puede
-desactivar "Preguntar siempre dónde guardar". Después de guardar sale "Proyecto guardado en
-<ruta>" con **Abrir carpeta**; la ruta se ve en la barra de estado, en el tooltip de la pestaña y
-en Recientes. Archivo → **Abrir carpeta del proyecto** / **Abrir carpeta del mod**.
+con Ctrl+S ya trae la ubicación actual). En Ajustes → General se puede desactivar "Preguntar
+siempre dónde guardar". Guardar solo escribe `proyecto.json`; después sale "Proyecto guardado en
+<ruta>" con **Abrir carpeta**. Los proyectos viejos con `modSync` se abren sin problema (el campo
+se ignora y se quita al guardar).
 
-**Mod sincronizado (automático):** con HOI4 detectado (su carpeta de Documentos, con OneDrive), cada
-proyecto tiene un destino `…/Hearts of Iron IV/mod/<mod>/` y `…/mod/<mod>.mod` (se ve y se cambia
-en Archivo → Propiedades del proyecto). Con "Actualizar el mod del juego al guardar" (activado):
-guarda el proyecto → corre el validador → si NO hay errores actualiza el mod ("Mod actualizado en
-el juego"); con errores el proyecto SÍ se guarda pero el mod no cambia ("No se actualizó el mod: N
-errores", botón **Ver**).
-- Un manifiesto (`.hoi4modstudio.json`) guarda los archivos que generó la app y su hash: solo se
-  escriben los que cambiaron y se BORRAN los que ya no se generan (el `.dds` de un foco que
-  eliminaste, la bandera de un país borrado…). Lo que pongas a mano nunca se toca (se avisa una vez).
-- Se prepara en una carpeta temporal y luego se reemplaza; el `.mod` de afuera y `descriptor.mod`
-  (sin BOM) quedan siempre iguales (nombre, ruta absoluta, dependencies).
-- Si la carpeta ya existía, no es de la app y no está vacía, pregunta una vez.
-- Si HOI4 está abierto avisa: los cambios se verán al volver a cargar el juego.
-- La primera vez: **activa el mod UNA vez en el launcher (Playsets)**. La app no toca la base de
-  datos del launcher.
-- **Exportar a otra carpeta…** (Archivo / pestaña Exportar) sigue existiendo para compartir el
-  mod, con la misma auto-revisión.
+**Exportar mod (Ctrl+E):** primero corre el validador (con errores no exporta). Luego abre un
+diálogo para elegir la carpeta de destino (por defecto `<Escritorio>/HOI4 Mod Studio - Exportados`,
+con OneDrive; se recuerda la última). Ahí se crean EXACTAMENTE dos cosas: la carpeta `<mod>/` y el
+archivo `<mod>.mod`. Para jugar, **copia las dos a** `Documentos/Paradox Interactive/Hearts of Iron
+IV/mod/`.
+- El `path` del `.mod` apunta a donde quedará el mod después de copiarlo
+  (`<Documentos de HOI4>/mod/<mod>`, con `/`); `descriptor.mod` no lleva `path` y ninguno de los
+  dos lleva BOM. La detección de la carpeta de Documentos solo sirve para mostrar rutas.
+- `supported_version` sale de la versión del juego instalado (`launcher/launcher-settings.json`)
+  como `mayor.menor.*`; si no se puede leer, se usa una constante editable en Ajustes.
+- Si ya hay una exportación anterior del mismo mod en esa carpeta pregunta "¿Reemplazar la
+  exportación anterior?"; si aceptas, borra COMPLETAS su carpeta y su `.mod` (solo ahí) y escribe
+  de nuevo. Se niega a escribir dentro de Documentos/Paradox Interactive/Hearts of Iron IV o de la
+  instalación del juego.
+- Archivo → **Abrir carpeta de exportación**.
+
+## Bloque único «Foco» (Blockly)
+
+Cada foco tiene UN bloque raíz «🎯 Foco: <nombre>» con tres secciones: Requisitos (available),
+Saltar si (bypass) y Recompensa (completion_reward), cada una solo con condiciones o solo con
+efectos. Crece hacia abajo, así nada se superpone. No se puede borrar ni duplicar. Los bloques
+sueltos fuera de él se ven grises, no generan código y se ordenan en columna a su derecha al
+cargar y al soltar un bloque encima de otro. Los focos guardados con los tres bloques viejos se
+migran solos (formato de proyecto 7).
+
+## Capitales de países del juego
+
+- Se leen de `history/countries/<TAG> - <Nombre>.txt` con un lector con llaves (`capital = N` del
+  nivel superior; tolera BOM, sangría, comentarios y CRLF; ignora los bloques con fecha e if/limit).
+  **Causa del «sin capital» de la URSS:** esos archivos son UTF-8 con BOM y la capital va en la
+  primera línea; la expresión `^capital` no coincidía con el BOM delante, y además la tarjeta solo
+  miraba el país del proyecto, no el catálogo del juego.
+- Si pintas el estado de la capital de un país del juego para otro, el validador avisa (con **Ir**)
+  y la tarjeta dice «capital en territorio ajeno». Es lo que provoca el error del juego
+  «Attempting to set capital state #N … they dont own it!».
+- Con «Mover automáticamente las capitales perdidas» (activado, en el mapa), al exportar la
+  capital pasa al estado del país con más victory points (empate: más provincias; luego id menor)
+  y se exporta `history/countries/<archivo exacto>` con un parche mínimo byte a byte (solo cambian
+  las cifras de `capital =`). Si el país también se editó con el asistente, el archivo único lleva
+  ambos cambios. Si se queda sin estados no se toca. **Elegir otra capital…** (en la tarjeta) usa
+  el mapa; tu elección gana a la automática. Si el archivo no se puede localizar o parchar con
+  seguridad, es un ERROR y ese archivo no se exporta.
 
 ### Barras de desplazamiento de Blockly
 Las barras que Blockly oculta con el atributo `display="none"` quedaban visibles porque Tailwind

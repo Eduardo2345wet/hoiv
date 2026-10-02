@@ -3,10 +3,16 @@ import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import fs from 'fs'
 import path from 'path'
-import { handleExportMod, type ExportModPayload } from './export'
+import { exportPreviousExists, handleExportMod } from './export'
 import { saveImage } from './saveImage'
 import { readGameFlags } from './gameFlags'
-import { findHoi4Documents, hoi4DocumentsCandidates, isHoi4Running, syncMod } from './modSync'
+import { findHoi4Documents, hoi4DocumentsCandidates } from './hoi4Docs'
+import {
+  defaultExportDir,
+  hoi4ModsDir,
+  installedSupportedVersion,
+  DEFAULT_SUPPORTED_VERSION
+} from './exportInfo'
 import { createProjectFolder, readProjectFile } from './projectFiles'
 import { getJomini, loadRealMap } from './mapLoader'
 import { listInstalledMods, type ModLayer } from './mods'
@@ -83,33 +89,15 @@ app.whenReady().then(() => {
   })
 
   // IPC Handlers
-  ipcMain.handle('select-folder', async () => {
-    const defaultModDir = path.join(
-      app.getPath('documents'),
-      'Paradox Interactive',
-      'Hearts of Iron IV',
-      'mod'
-    )
-    const defaultPath = fs.existsSync(defaultModDir) ? defaultModDir : app.getPath('documents')
-
+  ipcMain.handle('select-folder', async (_, defaultPath?: string) => {
     const result = await dialog.showOpenDialog({
       properties: ['openDirectory', 'createDirectory'],
-      defaultPath
+      defaultPath: defaultPath && fs.existsSync(defaultPath) ? defaultPath : app.getPath('desktop')
     })
     if (!result.canceled && result.filePaths.length > 0) {
       return result.filePaths[0]
     }
     return null
-  })
-
-  ipcMain.handle('get-default-mod-path', async () => {
-    const defaultModDir = path.join(
-      app.getPath('documents'),
-      'Paradox Interactive',
-      'Hearts of Iron IV',
-      'mod'
-    )
-    return defaultModDir
   })
 
   ipcMain.handle(
@@ -150,19 +138,31 @@ app.whenReady().then(() => {
   )
   ipcMain.handle('open-project-path', async (_, file: string) => readProjectFile(file))
 
-  // Carpeta de mods de HOI4 (Documentos/Paradox Interactive/Hearts of Iron IV/mod, con OneDrive)
-  ipcMain.handle('get-mod-destination', async () => {
+  // Datos para "Exportar mod". La app NUNCA escribe en la carpeta de mods del juego: estas rutas
+  // solo se muestran y van en el .mod (donde el usuario copiará el mod a mano).
+  ipcMain.handle('get-export-info', async () => {
+    const st = loadSettings(settingsFile)
     const docs = findHoi4Documents(
       hoi4DocumentsCandidates(
         app.getPath('documents'),
         process.env as Record<string, string | undefined>
       )
     )
-    return { docs, modsRoot: docs ? path.join(docs, 'mod') : null }
+    const docsOrDefault =
+      docs ?? path.join(app.getPath('documents'), 'Paradox Interactive', 'Hearts of Iron IV')
+    return {
+      /** Carpeta de mods de HOI4 (con "/"), exista o no todavía */
+      modsDir: hoi4ModsDir(docsOrDefault),
+      docsFound: !!docs,
+      defaultDir: defaultExportDir(app.getPath('desktop')),
+      lastDir: st.lastExportDir ?? null,
+      /** Versión del juego instalado como "1.19.*", o null si no se pudo leer */
+      installedVersion: installedSupportedVersion(st.gamePath),
+      fallbackVersion: st.supportedVersion || DEFAULT_SUPPORTED_VERSION
+    }
   })
-  ipcMain.handle('is-hoi4-running', async () => isHoi4Running())
-  ipcMain.handle('sync-mod', async (_, payload: ExportModPayload, confirmForeign = false) =>
-    syncMod({ payload, confirmForeign })
+  ipcMain.handle('export-exists', async (_, folder: string, modName: string) =>
+    exportPreviousExists(folder, modName)
   )
 
   // Abre una carpeta (o muestra un archivo seleccionado) en el explorador del sistema

@@ -91,8 +91,7 @@ export function plannedPaths(project: Project, game: GameCatalog | null = null):
 }
 
 /**
- * Arma lo que se escribe en disco (con la auto-revisión de banderas). Lo usan "Exportar a otra
- * carpeta…" y la sincronización con el juego: los dos dejan exactamente lo mismo.
+ * Arma lo que se escribe en disco (con la auto-revisión de banderas) para "Exportar mod".
  */
 export async function buildModPayload(
   project: Project,
@@ -126,7 +125,11 @@ export async function buildModPayload(
   }
 }
 
-/** Exporta el mod; `extraFiles` = archivos ya preparados (estados parchados del mapa) */
+/**
+ * Exporta el mod a una carpeta que elige el usuario (por defecto en el Escritorio). Crea la
+ * carpeta del mod y su .mod; el usuario los copia a mano a la carpeta de mods de HOI4.
+ * `extraFiles` = archivos ya preparados (estados y capitales parchados del mapa).
+ */
 export async function exportMod(
   project: Project,
   extraFiles: ModFile[] = []
@@ -138,11 +141,36 @@ export async function exportMod(
       message: 'Esta función solo está disponible dentro de la app de escritorio.'
     }
 
-  const folder = await api.selectFolder()
+  const info = await api.getExportInfo()
+  const folder = await store.askExportFolder(info, project.modName)
   if (!folder) return { ok: false, message: 'Exportación cancelada.' }
+  let replacePrevious = false
+  if (await api.exportExists(folder, project.modName)) {
+    const a = await store.askUser({
+      title: '¿Reemplazar la exportación anterior?',
+      message: `Ya hay una exportación de "${project.modName}" en ${folder}. Se borrará por completo su carpeta y su .mod (solo ahí) y se escribirán de nuevo.`,
+      buttons: [
+        { label: 'Reemplazar', value: 'ok', primary: true },
+        { label: 'Cancelar', value: 'no' }
+      ]
+    })
+    if (a !== 'ok') return { ok: false, message: 'Exportación cancelada.' }
+    replacePrevious = true
+  }
   const built = await buildModPayload(project, folder, extraFiles)
   if (!built.ok) return built
-  const result = await api.exportMod(built.payload)
+  const result = await api.exportMod({
+    ...built.payload,
+    gameModsDir: info.modsDir,
+    // Versión del juego instalado; si no se puede leer, la constante editable de Ajustes
+    supportedVersion: info.installedVersion ?? info.fallbackVersion,
+    replacePrevious
+  })
   if (!result.success) return { ok: false, message: result.error ?? 'Error desconocido' }
+  void api.setSettings({ lastExportDir: folder })
+  const slug = safeFolderName(project.modName)
+  store.toast(`Mod exportado en ${folder}\nCopia ${slug}/ y ${slug}.mod a ${info.modsDir}`, {
+    action: { label: 'Abrir carpeta', run: () => void api.openFolder(folder) }
+  })
   return { ok: true, message: `Mod exportado en:\n${result.modFolder}` }
 }

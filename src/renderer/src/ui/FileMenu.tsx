@@ -59,9 +59,9 @@ export default function FileMenu({
       <div className="my-1 border-t border-hoi-border" />
       {item('Guardar', 'Ctrl+S', () => runCommand('fileSave'), !hasProject)}
       {item('Guardar como…', 'Ctrl+Shift+S', () => runCommand('fileSaveAs'), !hasProject)}
-      {item('Exportar a otra carpeta…', '', () => runCommand('exportMod'), !hasProject)}
+      {item('Exportar mod…', '', () => runCommand('exportMod'), !hasProject)}
       {item('Abrir carpeta del proyecto', '', () => runCommand('openProjectFolder'), !hasProject)}
-      {item('Abrir carpeta del mod', '', () => runCommand('openModFolder'), !hasProject)}
+      {item('Abrir carpeta de exportación', '', () => runCommand('openModFolder'), !hasProject)}
       <div className="my-1 border-t border-hoi-border" />
       {item('Propiedades del proyecto…', '', () => store.set({ propsDialog: true }), !hasProject)}
       {item(
