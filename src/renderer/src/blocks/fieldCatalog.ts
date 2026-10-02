@@ -12,6 +12,7 @@ import { store } from '../store/appStore'
 import { validateTag } from '../export/validator'
 import { createFocusBelow, createIdea } from '../ui/projectOps'
 import { chooseCountryTag } from '../ui/countryFlow'
+import { chooseState } from '../ui/stateFlow'
 import type { GameIdea } from '../../../shared/ideasParse'
 
 export const SPECIAL = {
@@ -64,8 +65,18 @@ export function buildMenu(kind: CatalogKind, current: string | null): Option[] {
 
   const menu: Option[] = []
   if (kind === 'focus') menu.push(['🎯 Elegir en el árbol…', SPECIAL.pickTree])
-  if (kind === 'state') menu.push(['🗺 Elegir en el mapa…', SPECIAL.pickMap])
-  if (current && !opts.some((o) => o.id === current)) {
+  if (kind === 'state' && current) {
+    // El campo muestra el nombre real; al hacer clic se abre el mini mapa (no hay desplegable largo)
+    const st = s.map?.states.find((x) => String(x.id) === current)
+    menu.push([
+      st
+        ? `📍 ${st.name} (${st.owner || '—'}) · ${st.id}`
+        : s.map
+          ? `⚠ Estado ${current} (no existe)`
+          : `📍 Estado ${current}`,
+      current
+    ])
+  } else if (current && !opts.some((o) => o.id === current)) {
     const why = kind === 'focus' || kind === 'idea' ? 'ya no existe' : 'no está en la lista'
     menu.push([`⚠ ${current} (${why})`, current])
   } else if (!current) {
@@ -121,6 +132,15 @@ export class FieldCatalog extends Blockly.FieldDropdown {
     }
   ): FieldCatalog {
     return new FieldCatalog(options.kind ?? 'focus', options.value)
+  }
+
+  /** Los campos de estado abren el mini mapa en vez de un desplegable */
+  protected override showEditor_(e?: MouseEvent): void {
+    if (this.kind === 'state') {
+      this.handleSpecial(SPECIAL.pickMap)
+      return
+    }
+    super.showEditor_(e)
   }
 
   /** Acepta cualquier id válido (o vacío), nunca una opción especial */
@@ -197,8 +217,9 @@ export class FieldCatalog extends Blockly.FieldDropdown {
     }
 
     if (v === SPECIAL.pickMap) {
-      // Abre la pestaña Mapa en modo selección y vuelve al terminar
-      store.startPick({ kind: 'state', exclude: [], onPick: (id) => set(id) })
+      void chooseState({ current: Number(this.getValue()) || null }).then(
+        (id) => id && set(String(id))
+      )
       return
     }
 

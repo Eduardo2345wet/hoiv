@@ -486,3 +486,20 @@ describe('lectura de la carpeta del juego', () => {
     expect(parseIdeaIds(ideas)).toEqual(['mi_idea', 'war_economy'])
   })
 })
+
+describe('campos de estado: sin desplegables largos', () => {
+  it('con 1000 estados en el juego, el menú de un campo de estado tiene menos de 20 opciones', async () => {
+    const { buildMenu } = await import('../src/renderer/src/blocks/fieldCatalog')
+    const { store } = await import('../src/renderer/src/store/appStore')
+    store.openProject(emptyProject(), null)
+    store.set({
+      game: {
+        countries: [],
+        ideas: [],
+        states: Array.from({ length: 1000 }, (_, i) => ({ id: i + 1, name: `E${i}`, owner: 'GER' }))
+      } as never
+    })
+    expect(buildMenu('state', '12').length).toBeLessThan(20)
+    expect(buildMenu('state', '').length).toBeLessThan(20)
+  })
+})

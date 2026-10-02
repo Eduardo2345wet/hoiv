@@ -15,6 +15,7 @@ import {
   planCapitalMoves
 } from '../../map/capitals'
 import { exportOwner } from '../../map/noNation'
+import { chooseState } from '../stateFlow'
 
 interface Props {
   project: Project
@@ -77,32 +78,21 @@ export default function CountryCard({ project, gameColors, onOpenWizard }: Props
     : undefined
   // País que existía al inicio y por mis cambios se quedó sin estados: devolverle uno
   const leaveOne = (): void => {
-    store.startPick({
-      kind: 'state',
-      exclude: [],
-      onPick: (id) => leaveState(activeTag, Number(id), store.get().map)
-    })
+    void chooseState({ current: null }).then(
+      (id) => id && leaveState(activeTag, id, store.get().map)
+    )
   }
   const pickCapital = (): void => {
-    store.startPick({
-      kind: 'state',
-      exclude: [],
-      onPick: (id) => {
-        const st = map?.states.find((x) => x.id === Number(id))
-        if (!st || exportOwner(st, store.get().project!) !== activeTag) {
-          store.toast(`Ese estado no es de ${activeTag}: elige uno de sus estados.`, {
-            kind: 'error'
-          })
-          return
+    // Solo entre los estados que le quedan al país
+    void chooseState({ current: capNum ?? null, onlyOwner: activeTag }).then((id) => {
+      if (!id) return
+      store.updateProject((p) => ({
+        ...p,
+        mapSettings: {
+          ...p.mapSettings,
+          capitalChoices: { ...p.mapSettings.capitalChoices, [activeTag]: id }
         }
-        store.updateProject((p) => ({
-          ...p,
-          mapSettings: {
-            ...p.mapSettings,
-            capitalChoices: { ...p.mapSettings.capitalChoices, [activeTag]: st.id }
-          }
-        }))
-      }
+      }))
     })
   }
   return (

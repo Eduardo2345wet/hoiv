@@ -171,3 +171,23 @@ describe('menú corto de Blockly', () => {
     expect(menu.some((m) => m[1] === p.ideas[0].id)).toBe(true)
   })
 })
+
+import { collectStateNames, listLocFiles } from '../src/main/stateNames'
+
+describe('nombres de estado en todos los .yml', () => {
+  it('encuentra STATE_N en replace/ y en carpetas de DLC; replace gana', () => {
+    const g = fs.mkdtempSync(path.join(os.tmpdir(), 'hoi-loc-'))
+    const w = (rel: string, body: string): void => {
+      fs.mkdirSync(path.dirname(path.join(g, rel)), { recursive: true })
+      fs.writeFileSync(path.join(g, rel), '\uFEFFl_english:\n' + body)
+    }
+    w('localisation/english/state_names_l_english.yml', ' STATE_1:0 "Corsica"\n STATE_2:0 "Viejo"\n')
+    w('localisation/english/replace/state_names_l_english.yml', ' STATE_2:0 "Nuevo"\n')
+    w('localisation/english/dlc/dlc01_l_english.yml', ' STATE_278:0 "Santa Fe"\n OTRA_CLAVE:0 "x"\n')
+    const names = collectStateNames(listLocFiles(g, null))
+    expect(names.get('STATE_1')).toBe('Corsica')
+    expect(names.get('STATE_2')).toBe('Nuevo')
+    expect(names.get('STATE_278')).toBe('Santa Fe')
+    expect(names.has('OTRA_CLAVE')).toBe(false)
+  })
+})

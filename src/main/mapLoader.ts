@@ -1,5 +1,6 @@
 // Carga del mapa REAL desde la carpeta del juego (en el proceso principal, por partes para
 // poder informar el progreso). Resultado en caché en la carpeta de datos de la app.
+import { collectStateNames, listLocFiles } from './stateNames'
 import fs from 'fs'
 import path from 'path'
 import crypto from 'crypto'
@@ -11,7 +12,6 @@ import { parseStateFile } from '../shared/map/stateFile'
 import { buildMapData } from '../shared/map/build'
 import { deserializeMap, serializeMap } from '../shared/map/serialize'
 import type { MapData, MapState } from '../shared/map/types'
-import { parseLocalisation } from './game'
 import { listGameDir, resolveGameFile, type ModLayer } from './mods'
 
 export type Progress = (pct: number, message: string) => void
@@ -49,17 +49,15 @@ export async function loadRealMap(
   const stateEntries = listGameDir(gamePath, mod, 'history/states', (f) => f.endsWith('.txt'))
   const stateFiles = stateEntries.map((e) => e.name)
   const statePath = new Map(stateEntries.map((e) => [e.name, e.abs]))
-  // por verificar: los nombres de estado están en localisation/english/*state_names*.yml
-  const locEntries = listGameDir(gamePath, mod, 'localisation/english', (f) =>
-    /state_names/.test(f)
-  )
-  const locFiles = locEntries.map((e) => e.abs)
+  // Nombres de estado: STATE_N en TODOS los .yml de localisation/english (incluidas las carpetas
+  // replace/ y las de DLC). por verificar: que los nombres de estado vivan en esas carpetas
+  const locFiles = listLocFiles(gamePath, mod)
 
   // ---- Caché: clave = rutas + tamaños + fechas de modificación ----
   progress(1, 'Revisando la caché…')
   const key = crypto
     .createHash('sha1')
-    .update(statFiles([bmpPath, csvPath, ...stateEntries.map((e) => e.abs), ...locFiles]))
+    .update(`v2|${statFiles([bmpPath, csvPath, ...stateEntries.map((e) => e.abs), ...locFiles])}`)
     .digest('hex')
   const cacheFile = path.join(cacheDir, `mapa-${key}.bin`)
   if (fs.existsSync(cacheFile)) {
@@ -114,10 +112,7 @@ export async function loadRealMap(
 
   // ---- Estados ----
   const jomini = await getJomini()
-  const loc = new Map<string, string>()
-  for (const f of locFiles)
-    for (const [k, v] of parseLocalisation(decodeGameText(new Uint8Array(fs.readFileSync(f)))))
-      loc.set(k, v)
+  const loc = collectStateNames(locFiles)
   const states: MapState[] = []
   for (let n = 0; n < stateFiles.length; n++) {
     const f = stateFiles[n]

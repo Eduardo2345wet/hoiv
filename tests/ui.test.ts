@@ -1515,3 +1515,81 @@ describe('elegir ideas del juego (parte D)', () => {
     await page.close()
   }, 60_000)
 })
+
+// ---------- Mini mapa para elegir estados (parte E) ----------
+describe('mini mapa "Elegir estado" (parte E)', () => {
+  it('abre rápido con el mapa cargado, elige con clic, busca, guarda recientes y casi no gasta memoria', async ({
+    skip
+  }) => {
+    if (!browser) skip()
+    const page = await fresh()
+    await focusEditor(page)
+    const demoUrl = '/@fs' + path.resolve('src/shared/map/demo.ts')
+    const info = await page.evaluate(async (url) => {
+      const { generateDemoMap } = await new Function('u', 'return import(u)')(url)
+      const map = generateDemoMap()
+      const st = (window as unknown as HoiWindow).__hoiStore as never as { set(p: unknown): void }
+      st.set({ map, mapKey: 'demo' })
+      const s = map.states[3]
+      const [lx, ly] = map.stateLabels[s.id]
+      return {
+        id: s.id,
+        name: s.name,
+        lx,
+        ly,
+        w: map.width,
+        h: map.height,
+        other: map.states[5].name,
+        otherId: map.states[5].id
+      }
+    }, demoUrl)
+    const heap = (): Promise<number> =>
+      page.evaluate(
+        () =>
+          (performance as unknown as { memory: { usedJSHeapSize: number } }).memory.usedJSHeapSize
+      )
+    const before = await heap()
+    const t0 = Date.now()
+    await page.evaluate(() => {
+      const w = window as unknown as Record<string, unknown>
+      ;(window as unknown as HoiWindow).__hoiStore.set({
+        statePicker: {
+          current: null,
+          onlyOwner: null,
+          resolve: (id: number | null) => (w.__picked = id)
+        }
+      })
+    })
+    await page.waitForSelector('canvas[data-state-map]')
+    expect(Date.now() - t0).toBeLessThan(300)
+    // Clic en el centro de un estado (vista inicial: mapa entero centrado)
+    const z = Math.min(860 / info.w, 380 / info.h)
+    const box = (await page.locator('canvas[data-state-map]').boundingBox())!
+    await page.mouse.move(
+      box.x + 430 + (info.lx - info.w / 2) * z,
+      box.y + 190 + (info.ly - info.h / 2) * z
+    )
+    await page.waitForSelector('[data-state-tooltip]') // tooltip con nombre, ID, dueño y cores
+    await page.mouse.down()
+    await page.mouse.up()
+    await page.waitForFunction(
+      (n) => document.querySelector('[data-state-selected]')?.textContent?.includes(n),
+      info.name
+    )
+    const mid = await heap()
+    expect(mid - before).toBeLessThan(100 * 1024 * 1024)
+    // Buscar por nombre centra y selecciona otro estado
+    await page.fill('input[placeholder^="Buscar"]', info.other)
+    await page.keyboard.press('Enter')
+    await page.waitForFunction(
+      (n) => document.querySelector('[data-state-selected]')?.textContent?.includes(n),
+      info.other
+    )
+    await page.click('button:text-is("Usar este estado")')
+    expect(await page.evaluate(() => (window as unknown as Record<string, unknown>).__picked)).toBe(
+      info.otherId
+    )
+    expect(await page.locator('canvas[data-state-map]').count()).toBe(0) // se libera al cerrar
+    await page.close()
+  }, 60_000)
+})

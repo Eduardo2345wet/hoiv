@@ -1,6 +1,7 @@
 // Ajustes de la app y lectura OPCIONAL del contenido del juego base.
 // Si no hay carpeta de HOI4, la interfaz usa una lista integrada corta.
 import type { ExportManifest } from './export'
+import { collectStateNames, listLocFiles } from './stateNames'
 import { readTopLevelCapital } from '../shared/countryHistory'
 import fs from 'fs'
 import path from 'path'
@@ -224,10 +225,15 @@ export function readGameCatalog(gamePath: string): GameCatalogResult | null {
     ...new Set(readDir(path.join(gamePath, 'common', 'ideas')).flatMap(parseIdeaIds))
   ].sort()
 
+  const stateNames = collectStateNames(listLocFiles(gamePath, null))
   const states = readDirNamed(path.join(gamePath, 'history', 'states'))
     .map(([, t]) => parseState(t))
     .filter((s): s is NonNullable<typeof s> => !!s)
-    .map((s) => ({ id: s.id, name: loc.get(s.nameKey) ?? s.nameKey, owner: s.owner }))
+    .map((s) => ({
+      id: s.id,
+      name: stateNames.get(s.nameKey) ?? loc.get(s.nameKey) ?? s.nameKey,
+      owner: s.owner
+    }))
     .sort((a, b) => a.id - b.id)
 
   const subideologies: Record<string, string[]> = {}

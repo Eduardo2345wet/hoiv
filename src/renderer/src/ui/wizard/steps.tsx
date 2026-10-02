@@ -1,5 +1,6 @@
 // Formularios de cada paso del asistente "Crear país".
 // Los mismos formularios se usan en "Editar país" (como pestañas).
+import { chooseState } from '../stateFlow'
 import { useState } from 'react'
 import { Download, Plus, Trash2, Upload, X } from 'lucide-react'
 import {
@@ -11,7 +12,7 @@ import {
   type Project
 } from '../../types'
 import type { GameCatalog } from '../../catalog/catalog'
-import { store, useApp } from '../../store/appStore'
+import { useApp } from '../../store/appStore'
 import { applyParsedHistory, parseHistory } from '../../countries/history'
 import { getCatalogOptions } from '../../catalog/catalog'
 import {
@@ -529,14 +530,10 @@ export function CapitalStep({ draft, set, game }: StepProps): JSX.Element {
           className="btn ml-2 text-xs"
           title="Abre la pestaña Mapa: haz clic en el estado y vuelves aquí"
           onClick={() =>
-            store.startPick({
-              kind: 'state',
-              exclude: [],
-              onPick: (id) => set({ capital: Number(id) })
-            })
+            void chooseState({ current: draft.capital }).then((id) => id && set({ capital: id }))
           }
         >
-          🗺 Elegir en el mapa…
+          🗺 Elegir en el mini mapa…
         </button>
         <datalist id="estados-juego">
           {game?.states?.slice(0, 2000).map((s) => (

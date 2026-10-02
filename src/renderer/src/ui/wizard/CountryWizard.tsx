@@ -95,7 +95,9 @@ export default function CountryWizard({
   const save = (): void => {
     if (allErrors.length) return
     store.updateProject((p) => {
-      let next = editing ? replaceCountry(p, { ...draft, light: false }) : addCountry(p, { ...draft, focusTreeId: null })
+      let next = editing
+        ? replaceCountry(p, { ...draft, light: false })
+        : addCountry(p, { ...draft, focusTreeId: null })
       if (treeChoice === 'new') next = createTreeForCountry(next, draft.uid).project
       else next = assignTree(next, draft.uid, treeChoice === 'none' ? null : treeChoice)
       return next

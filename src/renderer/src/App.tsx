@@ -13,6 +13,7 @@ import SettingsDialog from './ui/SettingsDialog'
 import AskDialog from './ui/AskDialog'
 import ExportDialog from './ui/ExportDialog'
 import IdeaPicker from './ui/IdeaPicker'
+import StatePicker from './ui/StatePicker'
 import IdeaCopyDialog from './ui/IdeaCopyDialog'
 import InstalledReviewDialog from './ui/InstalledReviewDialog'
 import CountryPicker from './ui/CountryPicker'
@@ -169,6 +170,7 @@ export default function App(): JSX.Element {
       {propsDialog && <ProjectPropsDialog />}
       <ExportDialog />
       <IdeaPicker />
+      <StatePicker />
       <IdeaCopyDialog />
       <InstalledReviewDialog />
       {settingsDialog && <SettingsDialog onClose={() => store.set({ settingsDialog: false })} />}

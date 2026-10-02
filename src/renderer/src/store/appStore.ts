@@ -211,6 +211,12 @@ export interface AppState {
   } | null
   /** "Crear a partir de uno del juego" */
   ideaCopy: { src: GameIdea; onCreated: (id: string, uid: string) => void } | null
+  /** Mini mapa "Elegir estado" */
+  statePicker: {
+    current: number | null
+    onlyOwner: string | null
+    resolve: (id: number | null) => void
+  } | null
   /** Espíritu a seleccionar al abrir la pestaña Espíritus */
   ideaToSelect: string | null
   /** Últimos espíritus del juego usados (Recientes de Blockly) y últimos estados elegidos */
@@ -267,6 +273,7 @@ let state: AppState = {
   ask: null,
   exportDialog: null,
   ideaPicker: null,
+  statePicker: null,
   ideaCopy: null,
   ideaToSelect: null,
   recentIdeas: [],
