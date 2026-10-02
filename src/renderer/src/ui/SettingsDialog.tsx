@@ -28,8 +28,11 @@ export default function SettingsDialog({ onClose }: { onClose: () => void }): JS
   const [msg, setMsg] = useState('')
   const [askSave, setAskSave] = useState(true)
   const [supported, setSupported] = useState('')
+  const light = useApp((s) => s.lightMode)
+  const [cache, setCache] = useState<{ bytes: number; files: number } | null>(null)
   const [detected, setDetected] = useState<string | null>(null)
   useEffect(() => {
+    void window.electronAPI?.cacheInfo?.().then(setCache)
     void window.electronAPI?.getSettings().then((s) => {
       setAskSave(s.askWhereToSave !== false)
       setSupported(s.supportedVersion ?? '')
@@ -94,6 +97,29 @@ export default function SettingsDialog({ onClose }: { onClose: () => void }): JS
         ) : (
           <span className="text-yellow-300">no detectada (se usa la de reserva)</span>
         )}
+      </p>
+      <label className="mb-1 flex items-center gap-2 text-sm">
+        <input
+          type="checkbox"
+          checked={light}
+          onChange={(e) => {
+            store.set({ lightMode: e.target.checked })
+            void window.electronAPI?.setSettings({ lightMode: e.target.checked })
+          }}
+        />
+        Modo ligero (texturas del mapa a la mitad, sin animaciones y libera el mapa al minimizar)
+      </label>
+      <p className="mb-4 flex items-center gap-2 text-sm">
+        Caché en disco:{' '}
+        <span className="font-mono">
+          {cache ? `${(cache.bytes / 1048576).toFixed(1)} MB en ${cache.files} archivo(s)` : '—'}
+        </span>
+        <button
+          className="btn text-xs"
+          onClick={() => void window.electronAPI?.clearCache().then(setCache)}
+        >
+          Limpiar caché
+        </button>
       </p>
       <label className="mb-1 block text-sm">
         supported_version de reserva (al exportar, si no se puede leer la versión del juego)

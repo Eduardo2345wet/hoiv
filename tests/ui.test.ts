@@ -1593,3 +1593,55 @@ describe('mini mapa "Elegir estado" (parte E)', () => {
     await page.close()
   }, 60_000)
 })
+
+// ---------- Memoria: texturas del mapa (parte F) ----------
+describe('memoria del mapa (parte F)', () => {
+  it('las texturas grandes se liberan al salir de la pestaña Mapa y se restauran al volver', async ({
+    skip
+  }) => {
+    if (!browser) skip()
+    const page = await fresh()
+    await focusEditor(page)
+    const demoUrl = '/@fs' + path.resolve('src/shared/map/demo.ts')
+    await page.evaluate(async (url) => {
+      const { generateDemoMap } = await new Function('u', 'return import(u)')(url)
+      const st = (window as unknown as HoiWindow).__hoiStore as never as {
+        set(p: unknown): void
+        setUi(p: unknown): void
+      }
+      ;(st as never as { updateProject(f: (p: object) => object): void }).updateProject((p) => ({
+        ...p,
+        countries: []
+      }))
+      st.set({ map: generateDemoMap(), mapKey: 'demo' })
+      st.setUi({ ribbon: 'mapa' })
+    }, demoUrl)
+    const mem = (): Promise<{ textureBytes: number; released: boolean }> =>
+      page.evaluate(
+        () =>
+          (window as unknown as { __hoiMapMem: { textureBytes: number; released: boolean } })
+            .__hoiMapMem
+      )
+    await page.waitForFunction(
+      () =>
+        (window as unknown as { __hoiMapMem: { textureBytes: number } }).__hoiMapMem.textureBytes >
+        0
+    )
+    const full = (await mem()).textureBytes
+    await page.evaluate(() =>
+      (window as unknown as HoiWindow).__hoiStore.setUi({ ribbon: 'focos' })
+    )
+    await page.waitForFunction(
+      () => (window as unknown as { __hoiMapMem: { released: boolean } }).__hoiMapMem.released
+    )
+    expect((await mem()).textureBytes).toBe(0)
+    await page.evaluate(() => (window as unknown as HoiWindow).__hoiStore.setUi({ ribbon: 'mapa' }))
+    await page.waitForFunction(
+      () =>
+        (window as unknown as { __hoiMapMem: { textureBytes: number } }).__hoiMapMem.textureBytes >
+        0
+    )
+    expect((await mem()).textureBytes).toBe(full)
+    await page.close()
+  }, 60_000)
+})

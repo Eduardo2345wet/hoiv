@@ -9,6 +9,7 @@ import {
   renderToCanvas,
   type ExportSize
 } from '../../src/renderer/src/map/exportImage'
+import { createWebGLRenderer } from '../../src/renderer/src/map/webglRenderer'
 import { canvasMeasure } from '../../src/renderer/src/map/labelLayout'
 
 /** Mapa de control: dos estados (A | B) partidos en x = width/2 y mar arriba (filas 0–3) */
@@ -99,6 +100,51 @@ const api = {
       width: canvas.width,
       height: canvas.height
     }
+  },
+
+  /** Texturas grandes: liberar y restaurar sin releer nada; modo ligero = la mitad */
+  memCycle(): {
+    bytes: number
+    released: number
+    restored: number
+    lightBytes: number
+    before: number[]
+    after: number[]
+  } {
+    const map = controlMap(256, 128)
+    const draw = (
+      light: boolean
+    ): { r: ReturnType<typeof createWebGLRenderer>; c: HTMLCanvasElement } => {
+      const c = document.createElement('canvas')
+      c.width = 256
+      c.height = 128
+      const r = createWebGLRenderer(c, map, { light, preserveDrawingBuffer: true })!
+      r.setPalette(
+        pal(
+          [1, 2],
+          [
+            [200, 30, 30],
+            [30, 200, 30]
+          ]
+        )
+      )
+      return { r, c }
+    }
+    const opts = { hoverStateId: 0, provinceBorders: false, activeContour: false, dpr: 1 }
+    const view = { scale: 1, x: 0, y: 0 }
+    const full = draw(false)
+    full.r.render(view, 256, 128, opts)
+    const before = readPixels(full.c, 40, 60, 1, 1).concat(readPixels(full.c, 200, 60, 1, 1))
+    const bytes = full.r.textureBytes
+    full.r.release()
+    const released = full.r.textureBytes
+    full.r.render(view, 256, 128, opts) // sin texturas no dibuja ni falla
+    full.r.restore()
+    const restored = full.r.textureBytes
+    full.r.render(view, 256, 128, opts)
+    const after = readPixels(full.c, 40, 60, 1, 1).concat(readPixels(full.c, 200, 60, 1, 1))
+    const light = draw(true)
+    return { bytes, released, restored, lightBytes: light.r.textureBytes, before, after }
   },
 
   /** Columna de píxeles a través de la costa (mar arriba, tierra abajo) */

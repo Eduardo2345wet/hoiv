@@ -82,6 +82,9 @@ export function createCanvasRenderer(
       const hover = opts.hoverStateId ? (slotOfState.get(opts.hoverStateId) ?? 0) : 0
       if (hover) strokeBorders(ctx, map, pal, slotOfState, 'hover', hover, unit)
     },
+    textureBytes: 0,
+    release() {},
+    restore() {},
     destroy() {}
   }
 }

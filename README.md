@@ -444,3 +444,62 @@ PNG de 5632×2048, ancho de línea con DPR 1, 2 y 3) y de la interfaz en un nave
   `controller`, `add_core_of`, `remove_core_of` y `transfer_state` (con su `TAG = { }`) dentro de
   bloques con fecha, también dentro de `if`; si un `if` o un `TAG = { }` queda vacío se quita,
   sin tocar el resto byte a byte. El aviso de «cambios con fecha» detecta este patrón.
+
+## Nombres seguros (proyecto y mod)
+Un proyecto llamado "." se aceptaba porque el diálogo solo comprobaba que el nombre no estuviera
+vacío; ese nombre acabó en el `descriptor.mod` y en la ruta. Ahora «Nuevo proyecto», «Guardar como»
+y Propiedades rechazan vacío, ".", "..", `\ / : * ? " < > |` y nombres reservados de Windows (el
+botón se deshabilita y explica por qué); un proyecto viejo con nombre inválido se ve como «Sin
+título» y al guardar pide uno válido. El slug del mod (`modSlug`) solo tiene minúsculas, números,
+`_` y `-`, con al menos una letra o número; si no hay slug válido es un ERROR del validador. La
+exportación normaliza con `path.resolve` y nunca escribe ni borra fuera de
+`<carpeta elegida>/<slug>` y `<slug>.mod`. «Revisar mod instalado» avisa (sin borrar) si hay
+carpetas sueltas `common/gfx/interface/localisation/history` o `.mod` sin nombre en la carpeta de
+mods del juego.
+
+## Árbol de focos
+- Un clic en un foco lo selecciona con cualquier herramienta. **Prerrequisito**: 1.er clic = padre
+  (ámbar), 2.º = hijo; **Excluyente**: igual. Clic en el mismo foco, en el fondo o Esc cancelan la
+  conexión pendiente; ciclos, repetidas y a sí mismo avisan y no se crean. Esc sin nada pendiente →
+  Mover. Doble clic → cursor en «Nombre». Supr actúa sobre lo seleccionado, pero no mientras se
+  escribe en un campo.
+- Asas al pasar el mouse: ● abajo (clic = añadir hijo; arrastrar a otro foco = prerrequisito) y ✕
+  roja al lado (arrastrar = exclusión), con línea provisional y destino verde/rojo. Las líneas se
+  seleccionan con clic y se borran con Supr.
+- **Cuadrícula entera** (x, y = columna y fila; proporción de `focus_spacing` de
+  `interface/nationalfocusview.gui`, por verificar el valor real): al arrastrar, una sombra marca la
+  casilla; casilla ocupada = intercambio; un foco no baja de la fila de sus prerrequisitos (sombra
+  roja → primera fila válida); se mueve su RAMA (Alt = solo ese; Shift+clic o recuadro = varios).
+- **Ordenar árbol** (y «Orden automático» al crear/conectar, activado): capas con baricentro,
+  excluyentes juntos en la misma fila, ramas lado a lado con 2 columnas, mínimo x = y = 0, 📌 fijar
+  posición, 200 ms de animación, un paso de deshacer. Líneas en ángulo recto (la bajada larga busca
+  una columna libre). Exportación: x e y enteros; opción avanzada `relative_position_id` (Propiedades
+  del proyecto) con las mismas posiciones finales. No implementado: línea punteada para «un bloque
+  prerequisite con varios focos» (el modelo solo tiene prerrequisitos que se requieren TODOS).
+
+## Espíritus nacionales
+Los campos de espíritu en Blockly muestran solo los del mod, «Recientes» (8) y «🔍 Elegir del
+juego…», «+ Crear nuevo…», «+ Crear a partir de uno del juego…» y «Escribir otro ID…»: nunca cargan
+las miles de ideas del juego (abre en <100 ms). «Elegir del juego» es una ventana con pestañas
+(Espíritus nacionales / Leyes / Asesores y diseñadores / Otros), buscador sin acentos, lista
+virtualizada, flechas/Enter/Esc y vista previa. El catálogo se lee una vez y se guarda en memoria y
+en disco (invalidado por las huellas de `common/ideas` y la localización). «Crear a partir de»
+copia nombre, descripción y modificadores (editables); lo no soportado va en «Avanzado (texto)» de
+solo lectura y se exporta tal cual; el ícono es el `picture` del original (no se copia ningún
+archivo). También en Espíritus → «Nuevo a partir del juego…».
+
+## Mini mapa «Elegir estado»
+Los campos de estado de los bloques, la capital del asistente, «Elegir otra capital…» y «Dejarle un
+estado» abren un mini mapa con los colores de MI mapa (zoom, arrastre, tooltip con nombre/ID/
+dueño/cores, buscador, filtro por país del árbol, 8 recientes; doble clic o Enter confirman). Dibuja
+solo lo visible en un canvas 2D pequeño leyendo el mismo `MapData` (sin otro contexto WebGL ni copias).
+Los nombres `STATE_N` se buscan en TODOS los `.yml` de `localisation/english` (incluida `replace/`
+y DLC).
+
+## Memoria
+F3 en el mapa muestra la memoria de la app (principal + interfaz + GPU), el heap JS y los bytes de
+texturas WebGL. Con la pestaña Mapa oculta se liberan las dos texturas grandes (≈ 35 MB en el mapa
+real) y se suben otra vez desde el `MapData` en memoria al volver. Hay un solo `MapData` compartido.
+La caché de banderas conserva solo las 2 más recientes; Ajustes muestra cuánto ocupa la caché y
+tiene «Limpiar caché». **Modo ligero** (Ajustes, apagado por defecto): texturas a la mitad (≈ 9 MB),
+zoom sin animación ni inercia y liberar las texturas al minimizar.

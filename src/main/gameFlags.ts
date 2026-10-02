@@ -2,6 +2,7 @@
 // <TAG>_democratic / _fascism / _communism / _neutrality. Se leen de la instalación del usuario
 // (y de la capa de un mod, que tiene prioridad), se decodifican UNA vez y se guardan como
 // miniaturas PNG en la caché (userData): nunca dentro del repositorio.
+import { pruneByPrefix } from './cacheTools'
 import fs from 'fs'
 import path from 'path'
 import crypto from 'crypto'
@@ -56,6 +57,8 @@ export function readGameFlags(
   try {
     fs.mkdirSync(cacheDir, { recursive: true })
     fs.writeFileSync(cacheFile, JSON.stringify(out))
+    // Solo las 2 más recientes: las de versiones viejas del juego o de otros mods base se borran
+    pruneByPrefix(cacheDir, 'banderas-', 2)
   } catch {
     // sin caché: no pasa nada
   }

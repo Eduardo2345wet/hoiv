@@ -6,6 +6,7 @@ import path from 'path'
 import { exportPreviousExists, handleExportMod } from './export'
 import { findInvalidLeftovers, reviewInstalled } from './reviewInstalled'
 import { readIdeasCatalog } from './ideasCatalog'
+import { cacheInfo, clearCache } from './cacheTools'
 import { safeFolderName } from '../shared/names'
 import { saveImage } from './saveImage'
 import { readGameFlags } from './gameFlags'
@@ -171,6 +172,23 @@ app.whenReady().then(() => {
   ipcMain.handle('read-ideas-catalog', async (_, gamePath: string) =>
     readIdeasCatalog(gamePath, path.join(app.getPath('userData'), 'cache'))
   )
+  // Memoria de la app (proceso principal + interfaz + GPU) y caché en disco
+  ipcMain.handle('get-memory', async () => {
+    const m = app.getAppMetrics()
+    const kb = (f: (x: Electron.ProcessMetric) => number): number =>
+      m.reduce((a, x) => a + f(x), 0) * 1024
+    return {
+      main: process.memoryUsage().rss,
+      total: kb((x) => x.memory.workingSetSize),
+      processes: m.map((x) => ({ type: x.type, bytes: x.memory.workingSetSize * 1024 }))
+    }
+  })
+  const cacheDirPath = (): string => path.join(app.getPath('userData'), 'cache')
+  ipcMain.handle('cache-info', async () => cacheInfo(cacheDirPath()))
+  ipcMain.handle('clear-cache', async () => {
+    clearCache(cacheDirPath())
+    return cacheInfo(cacheDirPath())
+  })
   ipcMain.handle('export-exists', async (_, folder: string, modName: string) =>
     exportPreviousExists(folder, modName)
   )

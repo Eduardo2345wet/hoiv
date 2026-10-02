@@ -222,6 +222,8 @@ export interface AppState {
   /** Últimos espíritus del juego usados (Recientes de Blockly) y últimos estados elegidos */
   recentIdeas: string[]
   recentStates: number[]
+  /** Modo ligero (ajuste) */
+  lightMode: boolean
   /** Selector universal de país abierto */
   countryPicker: { title: string; resolve: (r: CountryPick | null) => void } | null
 }
@@ -278,6 +280,7 @@ let state: AppState = {
   ideaToSelect: null,
   recentIdeas: [],
   recentStates: [],
+  lightMode: false,
   reviewDialog: null,
   countryPicker: null,
   toasts: []

@@ -24,6 +24,8 @@ export interface RenderOptions {
 export interface RendererOptions {
   /** Conservar la imagen tras dibujar (exportar a PNG) */
   preserveDrawingBuffer?: boolean
+  /** Modo ligero: texturas a la mitad de resolución */
+  light?: boolean
 }
 
 /** Datos del último cuadro (overlay F3) */
@@ -36,6 +38,12 @@ export interface RenderStats {
 export interface MapRenderer {
   readonly kind: 'webgl2' | 'canvas2d'
   readonly stats: RenderStats
+  /** Bytes de las texturas grandes en la GPU (0 si están liberadas) */
+  readonly textureBytes: number
+  /** Libera las texturas grandes (el mapa no se ve) */
+  release(): void
+  /** Vuelve a subirlas desde el MapData en memoria */
+  restore(): void
   setPalette(p: Palette): void
   /** `width` y `height` en píxeles del DISPOSITIVO (tamaño real del canvas) */
   render(view: View, width: number, height: number, opts: RenderOptions): void

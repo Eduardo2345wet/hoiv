@@ -25,6 +25,8 @@ export interface Settings {
   /** supported_version de reserva si no se puede leer la versión del juego (editable en Ajustes) */
   supportedVersion?: string
   recentIdeas?: string[]
+  /** Modo ligero: texturas a la mitad, sin animaciones y libera el mapa al minimizar */
+  lightMode?: boolean
   recentStates?: number[]
   /** Última exportación de cada mod (slug → archivos y hashes) para "Revisar mod instalado" */
   lastExports?: Record<string, ExportManifest>

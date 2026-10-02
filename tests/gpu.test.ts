@@ -119,6 +119,26 @@ const rowAt = (o: Partial<RowOpts>): Promise<RowResult> =>
   })
 
 describe('motor WebGL2 en Chromium (partes 5 y 7)', () => {
+  it('las texturas grandes se liberan fuera del mapa y se restauran idénticas; el modo ligero usa la mitad', async ({
+    skip
+  }) => {
+    if (!page) skip()
+    const r = await call<{
+      bytes: number
+      released: number
+      restored: number
+      lightBytes: number
+      before: number[]
+      after: number[]
+    }>('memCycle')
+    expect(r.bytes).toBe(256 * 128 * 3) // R16UI + R8
+    expect(r.released).toBe(0)
+    expect(r.restored).toBe(r.bytes)
+    expect(r.after).toEqual(r.before)
+    expect(r.before[0]).toBeGreaterThan(100) // dibuja de verdad (estado A rojizo)
+    expect(r.lightBytes).toBeLessThanOrEqual(r.bytes / 3)
+  })
+
   it('hay motor WebGL2', async ({ skip }) => {
     if (!page) skip()
     expect((await rowAt({})).engine).toBe('webgl2')

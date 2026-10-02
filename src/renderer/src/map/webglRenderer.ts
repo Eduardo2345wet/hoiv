@@ -34,6 +34,7 @@ uniform usampler2D uProvSlot;  // provincia → posición de estado + 1 (0 = mar
 uniform sampler2D uPal;        // estado → color (rgb) + banderas (a)
 uniform sampler2D uMask;       // 1 = tierra, 0 = mar / lago (filtro lineal: costa suave)
 uniform vec2 uMapSize;
+uniform int uProvShift;       // 1 = textura de provincias a la mitad (modo ligero)
 uniform vec2 uCanvas;          // píxeles del dispositivo
 uniform vec3 uView;            // escala, x, y (píxeles del dispositivo)
 uniform float uDpr;
@@ -51,7 +52,7 @@ const float STRIPE_DARKEN = ${MAP_THEME.stripe.darken.toFixed(3)};
 
 uint provAt(ivec2 p) {
   p = clamp(p, ivec2(0), ivec2(uMapSize) - 1);
-  return texelFetch(uProv, p, 0).r;
+  return texelFetch(uProv, p >> uProvShift, 0).r;
 }
 uint slotOf(uint prov) { return texelFetch(uProvSlot, row(prov), 0).r; }
 uint slotAt(ivec2 p) { return slotOf(provAt(p)); }
@@ -282,40 +283,57 @@ export function createWebGLRenderer(
   gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1)
 
   // ---- Texturas (compartidas por las dos pasadas) ----
-  const provTex = gl.createTexture()!
-  gl.activeTexture(gl.TEXTURE0)
-  gl.bindTexture(gl.TEXTURE_2D, provTex)
-  gl.texImage2D(
-    gl.TEXTURE_2D,
-    0,
-    gl.R16UI,
-    map.width,
-    map.height,
-    0,
-    gl.RED_INTEGER,
-    gl.UNSIGNED_SHORT,
-    map.provinceIndex
-  )
-  for (const p of [gl.TEXTURE_MIN_FILTER, gl.TEXTURE_MAG_FILTER])
-    gl.texParameteri(gl.TEXTURE_2D, p, gl.NEAREST)
-
   // provincia → posición de estado + 1
   const slotOfState = new Map(map.states.map((s, i) => [s.id, i + 1]))
   const provSlot = new Uint16Array(map.provinceToState.length)
   map.provinceToState.forEach((st, prov) => (provSlot[prov] = st ? (slotOfState.get(st) ?? 0) : 0))
   gl.activeTexture(gl.TEXTURE1)
   uintTexture(gl, provSlot)
-  // Máscara tierra/mar (R8, filtro lineal): la costa suave sale de UNA lectura filtrada
-  gl.activeTexture(gl.TEXTURE2)
-  const maskTex = gl.createTexture()!
-  gl.bindTexture(gl.TEXTURE_2D, maskTex)
-  const mask = new Uint8Array(map.width * map.height)
-  for (let i = 0; i < mask.length; i++) mask[i] = provSlot[map.provinceIndex[i]] ? 255 : 0
-  gl.texImage2D(gl.TEXTURE_2D, 0, gl.R8, map.width, map.height, 0, gl.RED, gl.UNSIGNED_BYTE, mask)
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR)
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR)
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE)
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE)
+
+  // Las dos texturas GRANDES (ID de provincia y máscara tierra/mar) se pueden liberar cuando el
+  // mapa no se ve y volver a subir desde la memoria (sin releer archivos). Modo ligero: la mitad
+  // de resolución (la costa es filtrada y las fronteras son vectoriales, casi no se nota).
+  const shift = options.light ? 1 : 0
+  let provTex: WebGLTexture | null = null
+  let maskTex: WebGLTexture | null = null
+  let textureBytes = 0
+  const uploadBig = (): void => {
+    const tw = Math.max(1, map.width >> shift)
+    const th = Math.max(1, map.height >> shift)
+    let prov = map.provinceIndex
+    if (shift) {
+      prov = new Uint16Array(tw * th)
+      for (let y = 0; y < th; y++)
+        for (let x = 0; x < tw; x++)
+          prov[y * tw + x] = map.provinceIndex[(y << 1) * map.width + (x << 1)]
+    }
+    provTex = gl.createTexture()!
+    gl.activeTexture(gl.TEXTURE0)
+    gl.bindTexture(gl.TEXTURE_2D, provTex)
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.R16UI, tw, th, 0, gl.RED_INTEGER, gl.UNSIGNED_SHORT, prov)
+    for (const p of [gl.TEXTURE_MIN_FILTER, gl.TEXTURE_MAG_FILTER])
+      gl.texParameteri(gl.TEXTURE_2D, p, gl.NEAREST)
+    // Máscara tierra/mar (R8, filtro lineal): la costa suave sale de UNA lectura filtrada
+    gl.activeTexture(gl.TEXTURE2)
+    maskTex = gl.createTexture()!
+    gl.bindTexture(gl.TEXTURE_2D, maskTex)
+    const mask = new Uint8Array(tw * th)
+    for (let i = 0; i < mask.length; i++) mask[i] = provSlot[prov[i]] ? 255 : 0
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.R8, tw, th, 0, gl.RED, gl.UNSIGNED_BYTE, mask)
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR)
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR)
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE)
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE)
+    textureBytes = tw * th * 2 + tw * th
+  }
+  const freeBig = (): void => {
+    if (provTex) gl.deleteTexture(provTex)
+    if (maskTex) gl.deleteTexture(maskTex)
+    provTex = null
+    maskTex = null
+    textureBytes = 0
+  }
+  uploadBig()
 
   const palRows = Math.max(1, Math.ceil(map.states.length / ROW))
   gl.activeTexture(gl.TEXTURE3)
@@ -364,6 +382,7 @@ export function createWebGLRenderer(
   gl.uniform1i(uni(fillProg, 'uMask'), 2)
   gl.uniform1i(uni(fillProg, 'uPal'), 3)
   gl.uniform2f(uni(fillProg, 'uMapSize'), map.width, map.height)
+  gl.uniform1i(uni(fillProg, 'uProvShift'), shift)
   const f = {
     canvas: uni(fillProg, 'uCanvas'),
     view: uni(fillProg, 'uView'),
@@ -397,6 +416,7 @@ export function createWebGLRenderer(
       ownerTex = uintTexture(gl, p.owners)
     },
     render(view: View, width: number, height: number, opts: RenderOptions) {
+      if (!provTex) return // texturas liberadas (el mapa no se ve)
       const dpr = opts.dpr || 1
       const scale = view.scale * dpr
       const vx = view.x * dpr
@@ -445,6 +465,15 @@ export function createWebGLRenderer(
         }
       }
       gl.disable(gl.BLEND)
+    },
+    get textureBytes() {
+      return textureBytes
+    },
+    release() {
+      freeBig()
+    },
+    restore() {
+      if (!provTex) uploadBig()
     },
     destroy() {
       gl.getExtension('WEBGL_lose_context')?.loseContext()

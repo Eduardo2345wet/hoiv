@@ -120,11 +120,13 @@ export default function App(): JSX.Element {
 
   // Recientes de ideas y estados (guardados en los ajustes)
   useEffect(() => {
-    void window.electronAPI
-      ?.getSettings()
-      .then((st) =>
-        store.set({ recentIdeas: st.recentIdeas ?? [], recentStates: st.recentStates ?? [] })
-      )
+    void window.electronAPI?.getSettings().then((st) =>
+      store.set({
+        recentIdeas: st.recentIdeas ?? [],
+        recentStates: st.recentStates ?? [],
+        lightMode: !!st.lightMode
+      })
+    )
   }, [])
 
   // Atajos de archivo y de pestañas

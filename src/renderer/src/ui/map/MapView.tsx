@@ -1,6 +1,7 @@
 // Vista del mapa: render (WebGL2 o Canvas 2D), zoom con la rueda centrado en el cursor,
 // desplazamiento con botón central o espacio + arrastre, doble clic = zoom, clic O(1)
 // (píxel → provincia → estado), tooltip, estrellas de capital, minimapa e imagen de referencia.
+import { store, useApp } from '../../store/appStore'
 import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react'
 import type { MapData } from '../../../../shared/map/types'
 import type { Project } from '../../types'
@@ -8,6 +9,7 @@ import type { GameCatalog } from '../../catalog/catalog'
 import { buildPalette, type PaletteOptions } from '../../map/colors'
 import type { MapRenderer, View } from '../../map/renderer'
 import { createWebGLRenderer } from '../../map/webglRenderer'
+import { mapMem } from '../../map/memStats'
 import { createCanvasRenderer } from '../../map/canvasRenderer'
 import { MAP_THEME } from '../../../../shared/map/theme'
 import { effectiveCores, effectiveOwner, lookup } from '../../map/mapOps'
@@ -90,6 +92,10 @@ interface Props {
   onRendererKind?: (k: string) => void
 }
 
+const mb = (n: number): string => `${(n / 1048576).toFixed(0)} MB`
+const jsHeap = (): number =>
+  (performance as unknown as { memory?: { usedJSHeapSize: number } }).memory?.usedJSHeapSize ?? 0
+
 export default forwardRef<MapViewHandle, Props>(function MapView(props, ref) {
   const { map, project, game, paletteOptions } = props
   const activeTag = paletteOptions.activeTag
@@ -98,6 +104,7 @@ export default forwardRef<MapViewHandle, Props>(function MapView(props, ref) {
   const overlayRef = useRef<HTMLCanvasElement>(null)
   const miniRef = useRef<HTMLCanvasElement>(null)
   const rendererRef = useRef<MapRenderer | null>(null)
+  const light = useApp((s) => s.lightMode)
   const [view, setView] = useState<View>({ scale: 1, x: 0, y: 0 })
   const viewRef = useRef(view)
   viewRef.current = view
@@ -145,6 +152,15 @@ export default forwardRef<MapViewHandle, Props>(function MapView(props, ref) {
   useEffect(() => {
     if (!showStats) return
     const t = setInterval(() => setStatsTick((n) => n + 1), 250)
+    return () => clearInterval(t)
+  }, [showStats])
+  // Memoria de la app (proceso principal + interfaz + GPU), cada segundo mientras F3 está visible
+  const [mem, setMem] = useState<{ main: number; total: number } | null>(null)
+  useEffect(() => {
+    if (!showStats) return
+    const read = (): void => void window.electronAPI?.getMemory().then(setMem)
+    read()
+    const t = setInterval(read, 1000)
     return () => clearInterval(t)
   }, [showStats])
   const zoomAnim = useRef<ZoomAnim | null>(null)
@@ -207,6 +223,8 @@ export default forwardRef<MapViewHandle, Props>(function MapView(props, ref) {
     )
     if (!a) return
     zoomAnim.current = a
+    // Modo ligero: sin animación (el zoom salta directamente a su destino)
+    if (store.get().lightMode) a.dur = 1
     kick()
   }
 
@@ -249,9 +267,12 @@ export default forwardRef<MapViewHandle, Props>(function MapView(props, ref) {
       ;(canvasRef as { current: HTMLCanvasElement }).current = c
       return c
     }
-    let r = createWebGLRenderer(fresh(), map)
+    let r = createWebGLRenderer(fresh(), map, { light: store.get().lightMode })
     if (!r) r = createCanvasRenderer(fresh(), map)
     rendererRef.current = r
+    mapMem.renderers++
+    mapMem.textureBytes = r?.textureBytes ?? 0
+    mapMem.released = false
     // Paleta actual al renderizador nuevo (el efecto de la paleta ya pudo haber corrido)
     r?.setPalette(paletteRef.current)
     props.onRendererKind?.(r?.kind ?? 'ninguno')
@@ -259,9 +280,50 @@ export default forwardRef<MapViewHandle, Props>(function MapView(props, ref) {
     return () => {
       r?.destroy()
       rendererRef.current = null
+      mapMem.renderers--
+      mapMem.textureBytes = 0
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [map])
+  }, [map, light])
+
+  // Fuera de la pestaña Mapa (o con la ventana minimizada en modo ligero) las texturas grandes de
+  // la GPU se liberan; al volver se suben otra vez desde el MapData en memoria (sin releer nada).
+  const [restoreTick, setRestoreTick] = useState(0)
+  useEffect(() => {
+    const el = boxRef.current
+    if (!el) return
+    let shown = true
+    let focused = true
+    const apply = (): void => {
+      const r = rendererRef.current
+      if (!r) return
+      const want = shown && focused
+      if (!want && r.textureBytes) {
+        r.release()
+        mapMem.released = true
+      } else if (want && !r.textureBytes) {
+        r.restore()
+        mapMem.released = false
+        setRestoreTick((n) => n + 1)
+      }
+      mapMem.textureBytes = r.textureBytes
+    }
+    const io = new IntersectionObserver(([e]) => {
+      shown = e.isIntersecting
+      apply()
+    })
+    io.observe(el)
+    const onVis = (): void => {
+      // Modo ligero: al minimizar también se libera
+      focused = !(store.get().lightMode && document.hidden)
+      apply()
+    }
+    document.addEventListener('visibilitychange', onVis)
+    return () => {
+      io.disconnect()
+      document.removeEventListener('visibilitychange', onVis)
+    }
+  }, [map, light])
 
   // ---- Tamaño ----
   useEffect(() => {
@@ -285,6 +347,7 @@ export default forwardRef<MapViewHandle, Props>(function MapView(props, ref) {
     const id = requestAnimationFrame(() => {
       const c = canvasRef.current
       if (!c || !rendererRef.current) return
+      void restoreTick
       // Canvas con la resolución real de la pantalla (devicePixelRatio): los trazos siguen
       // midiendo 1 px CSS aunque cada píxel CSS sean 2 o 3 del dispositivo
       const dpr = window.devicePixelRatio || 1
@@ -459,7 +522,7 @@ export default forwardRef<MapViewHandle, Props>(function MapView(props, ref) {
     if (drag.current?.kind === 'pan') {
       // Inercia ligera: sigue un momento con la velocidad con que se soltó
       const v = releaseVelocity(panSamples.current)
-      if (v) {
+      if (v && !store.get().lightMode) {
         inertia.current = { ...v, last: performance.now() }
         kick()
       }
@@ -549,6 +612,11 @@ export default forwardRef<MapViewHandle, Props>(function MapView(props, ref) {
                   Fronteras: {r?.stats.segmentsDrawn.toLocaleString('es')} /{' '}
                   {r?.stats.segmentsTotal.toLocaleString('es')} segmentos ·{' '}
                   {(bytes / 1024).toFixed(0)} KB en la caché
+                </div>
+                <div>
+                  Memoria: app {mem ? `${mb(mem.total)} (principal ${mb(mem.main)})` : '—'} ·
+                  interfaz (JS) {mb(jsHeap())} · texturas WebGL {mb(r?.textureBytes ?? 0)}
+                  {r && !r.textureBytes ? ' (liberadas)' : ''}
                 </div>
                 <div>
                   Vectorizar: {b.ms.toFixed(0)} ms · rectángulos de etiquetas:{' '}
