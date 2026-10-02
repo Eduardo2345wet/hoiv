@@ -73,7 +73,8 @@ export function migrateProject(raw: any): Project {
   p.template = p.template ?? templateOf(p)
   // v6 → v7: los tres bloques sueltos (requisitos, saltar si, recompensa) pasan a UN bloque
   // "Foco" con tres secciones, sin perder su contenido. Y se quita la sincronización con el juego.
-  if (version < 7) {
+  // v7 → v8: el bloque raíz se redibuja (título arriba y boca debajo); mismas entradas, no se pierde nada
+  if (version < 8) {
     p.focuses = p.focuses.map((f: any) =>
       f.blocks ? { ...f, blocks: migrateFocusBlocks(f.blocks) } : f
     )

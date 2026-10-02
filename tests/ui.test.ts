@@ -985,3 +985,102 @@ describe('capital de un país del juego en la tarjeta', () => {
     await page.close()
   }, 60_000)
 })
+
+// ---------- Bloque Foco: dibujo tipo Scratch, bocas con los bloques DENTRO ----------
+describe('bloque Foco dibujado como Scratch', () => {
+  it('los hijos quedan dentro del bloque raíz, a la izquierda de su boca; soltar en Recompensa conecta y exporta', async ({
+    skip
+  }) => {
+    if (!browser) skip()
+    const page = await fresh()
+    await focusEditor(page)
+    await page.waitForFunction(
+      () => !!(window as never as { __hoiBlockly: { ws?: unknown } }).__hoiBlockly.ws
+    )
+    // 1. Conexión por API en las tres secciones
+    await page.evaluate(async () => {
+      const ws = (window as never as { __hoiBlockly: { ws: any } }).__hoiBlockly.ws // eslint-disable-line @typescript-eslint/no-explicit-any
+      const root = ws.getBlocksByType('focus_root', false)[0]
+      const add = (input: string, type: string): void => {
+        const b = ws.newBlock(type)
+        b.initSvg()
+        b.render()
+        root.getInput(input).connection.connect(b.previousConnection)
+      }
+      add('AVAILABLE', 'cond_has_war')
+      add('BYPASS', 'cond_has_war')
+      add('REWARD', 'eff_add_stability')
+      await new Promise((r) => setTimeout(r, 300))
+    })
+    const geo = await page.evaluate(() => {
+      const ws = (window as never as { __hoiBlockly: { ws: any } }).__hoiBlockly.ws // eslint-disable-line @typescript-eslint/no-explicit-any
+      const root = ws.getBlocksByType('focus_root', false)[0]
+      const rect = (b: any) => b.getSvgRoot().getBoundingClientRect() // eslint-disable-line @typescript-eslint/no-explicit-any
+      const r = rect(root)
+      return ['AVAILABLE', 'BYPASS', 'REWARD'].map((n) => {
+        const child = root.getInputTargetBlock(n)
+        const c = rect(child)
+        // el rótulo de la sección (texto) para comprobar que la boca queda DEBAJO
+        return {
+          n,
+          connected: !!child,
+          insideX: c.left >= r.left && c.right <= r.right + 1,
+          insideY: c.top >= r.top && c.bottom <= r.bottom + 1,
+          leftGap: c.left - r.left,
+          rootW: r.width
+        }
+      })
+    })
+    for (const g of geo) {
+      expect(g.connected, g.n).toBe(true)
+      expect(g.insideX, `${g.n} dentro (x)`).toBe(true)
+      expect(g.insideY, `${g.n} dentro (y)`).toBe(true)
+      // empieza cerca del borde izquierdo (sangría de la boca), no a la derecha del rótulo
+      expect(g.leftGap, `${g.n} a la izquierda`).toBeLessThan(g.rootW / 3)
+    }
+    // 2. Se guardó y el generador lo lee: la recompensa NO está vacía
+    const reward = await page.evaluate(
+      () =>
+        (window as unknown as HoiWindow).__hoiStore.get() as unknown as {
+          project: { focuses: { scripts: { reward: string } }[] }
+        }
+    )
+    expect(reward.project.focuses[0].scripts.reward).toContain('add_stability')
+    // 3. Soltar con el mouse un bloque de la caja en Recompensa lo conecta
+    await page.evaluate(() => {
+      const ws = (window as never as { __hoiBlockly: { ws: any } }).__hoiBlockly.ws // eslint-disable-line @typescript-eslint/no-explicit-any
+      const root = ws.getBlocksByType('focus_root', false)[0]
+      root.getInputTargetBlock('REWARD').dispose(true)
+    })
+    await page.locator('.blocklyToolboxCategory', { hasText: 'Efectos' }).first().click()
+    await page.waitForSelector('.blocklyFlyout .blocklyDraggable')
+    const from = await page.locator('.blocklyFlyout .blocklyDraggable').first().boundingBox()
+    // La boca de Recompensa está justo debajo de su título
+    const mouth = await page.evaluate(() => {
+      const t = [...document.querySelectorAll('.blocklyText')].find((e) =>
+        (e.textContent ?? '').includes('Recompensa')
+      )!
+      const r = t.getBoundingClientRect()
+      return { x: r.left + 10, y: r.bottom + 10 }
+    })
+    await page.mouse.move(from!.x + 12, from!.y + 12)
+    await page.mouse.down()
+    await page.mouse.move(mouth.x, mouth.y, { steps: 12 })
+    await page.mouse.up()
+    await page.waitForTimeout(400)
+    const after = await page.evaluate(() => {
+      const ws = (window as never as { __hoiBlockly: { ws: any } }).__hoiBlockly.ws // eslint-disable-line @typescript-eslint/no-explicit-any
+      const root = ws.getBlocksByType('focus_root', false)[0]
+      const st = (window as unknown as HoiWindow).__hoiStore.get() as unknown as {
+        project: { focuses: { scripts: { reward: string } }[] }
+      }
+      return {
+        connected: !!root.getInputTargetBlock('REWARD'),
+        reward: st.project.focuses[0].scripts.reward
+      }
+    })
+    expect(after.connected).toBe(true)
+    expect(after.reward.trim().length).toBeGreaterThan(0)
+    await page.close()
+  }, 90_000)
+})

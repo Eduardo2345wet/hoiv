@@ -297,7 +297,7 @@ describe('migración a la versión 6 (partes 2 y 4)', () => {
 
   it('un proyecto de la versión 1 abre y una plantilla ya guardada se respeta', () => {
     const p = migrateProject({ version: 1, tag: 'MEX', modName: 'Viejo', focuses: [] })
-    expect(p.version).toBe(7)
+    expect(p.version).toBe(8)
     expect(p.template).toBeDefined()
     expect(migrateProject(old({ template: 'blank', mapSettings: ms('game') })).template).toBe(
       'blank'

@@ -457,7 +457,7 @@ describe('migración de proyecto.json', () => {
       ]
     }
     const p = migrateProject(v1)
-    expect(p.version).toBe(7)
+    expect(p.version).toBe(8)
     expect(p.stateEdits).toEqual({})
     expect(p.countries).toHaveLength(1)
     expect(p.countries[0]).toMatchObject({ tag: 'GER', mode: 'existente', focusTreeId: 'arbol_1' })

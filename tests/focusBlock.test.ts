@@ -132,12 +132,42 @@ describe('bloque único Foco', () => {
     }
     const m = migrateProject(raw)
     expect(m.version).toBe(PROJECT_VERSION)
-    expect(PROJECT_VERSION).toBeGreaterThanOrEqual(7)
+    expect(PROJECT_VERSION).toBeGreaterThanOrEqual(8)
     const tipos = (
       m.focuses[0].blocks as { blocks: { blocks: { type: string }[] } }
     ).blocks.blocks.map((b) => b.type)
     expect(tipos).toContain(FOCUS_ROOT)
     expect(tipos.some((t) => t.startsWith('slot_'))).toBe(false)
     expect('modSync' in m).toBe(false)
+  })
+})
+
+import { validateProject } from '../src/renderer/src/export/validator'
+import { createFocus } from '../src/renderer/src/ui/projectOps'
+
+describe('bloque Foco: migración v7 y validador', () => {
+  it('el bloque raíz de la versión anterior (mismas entradas) se conserva conectado', () => {
+    const v7 = {
+      blocks: {
+        languageVersion: 0,
+        blocks: [{ type: FOCUS_ROOT, x: 20, y: 20, inputs: { REWARD: reward, AVAILABLE: notWar } }]
+      }
+    }
+    const ws = load(migrateFocusBlocks(v7))
+    const t = generateSlots(ws)
+    expect(t.reward).toContain('add_stability')
+    expect(t.available).toContain('NOT = {')
+    expect(ws.getBlocksByType(FOCUS_ROOT, false)).toHaveLength(1)
+  })
+  it('"no tiene recompensa" solo sale si la sección Recompensa está vacía', () => {
+    let p = createFocus(emptyProject(), 0, 0, 'Uno').project
+    const has = (): boolean =>
+      validateProject(p).some((i) => i.message.includes('no tiene recompensa'))
+    expect(has()).toBe(true)
+    const ws = load({
+      blocks: { languageVersion: 0, blocks: [{ type: FOCUS_ROOT, inputs: { REWARD: reward } }] }
+    })
+    p = { ...p, focuses: p.focuses.map((f) => ({ ...f, scripts: generateSlots(ws) })) }
+    expect(has()).toBe(false)
   })
 })

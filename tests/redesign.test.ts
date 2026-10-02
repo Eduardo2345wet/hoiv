@@ -461,7 +461,7 @@ describe('migración v4 → v5', () => {
     >
     delete v4.mapSettings
     const m = migrateProject(v4)
-    expect(m.version).toBe(7)
+    expect(m.version).toBe(8)
     expect(m.mapSettings).toEqual({
       base: 'game',
       mod: null,
