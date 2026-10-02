@@ -83,28 +83,77 @@ export interface SuperEvent {
   queue: boolean
 }
 
+/** Categoría de decisiones (common/decisions/categories) */
 export interface DecisionCategory {
   uid: string
   id: string
   name: string
   description: string
+  /** Ícono (se antepone GFX_decision_category_) */
   icon: IconRef | null
+  /** Imagen grande de la categoría: solo se ve si la categoría tiene descripción */
+  picture: IconRef | null
   priority: number
+  visibleWhenEmpty: boolean
+  /** Estados que se resaltan en el mapa al abrir la categoría (highlight_states) */
+  highlightStates: number[]
+  /** Centro del mapa al abrir la categoría (on_map_area); null = no se mueve */
+  mapArea: { x: number; y: number; zoom: number } | null
+}
+
+export type DecisionKind = 'normal' | 'mission' | 'target-country' | 'target-state'
+
+export interface DecisionCost {
+  mode: 'none' | 'pp' | 'custom'
+  /** Poder político (cost) */
+  pp: number
+  /** custom_cost_trigger: no cobra nada, hay que restarlo en complete_effect */
+  customTrigger: BlockScript
+  customText: string
+  /** ai_hint_pp_cost */
+  aiHintPp: number
 }
 
 export interface Decision {
   uid: string
   id: string
   categoryUid: string | null
-  kind: 'normal' | 'mission' | 'target-country' | 'target-state'
+  kind: DecisionKind
   name: string
   description: string
   icon: IconRef | null
+  priority: number
+  /** Países a los que aplica (genera allowed con tag); vacío = cualquiera */
   countries: string[]
   visible: BlockScript
   available: BlockScript
   complete: BlockScript
-  cost: number
+  remove: BlockScript
+  timeout: BlockScript
+  cancel: BlockScript
+  cancelTrigger: BlockScript
+  cost: DecisionCost
+  daysReEnable: number
+  fireOnlyOnce: boolean
+  /** days_remove: duración del temporizador (0 = sin temporizador) */
+  daysRemove: number
+  /** Modificador (clave de modificador de país + valor) mientras corre el temporizador */
+  modifiers: { key: string; value: number }[]
+  /** Peso base de la IA y modificadores; 0 base = la IA nunca la elige */
+  aiBase: number
+  aiModifiers: { factor: number; trigger: BlockScript }[]
+  /** Misiones */
+  missionTimeoutDays: number
+  selectableMission: boolean
+  isGood: boolean
+  activation: BlockScript
+  /** Con objetivo */
+  targetCountries: string[]
+  targetStates: number[]
+  targetTrigger: BlockScript
+  onMapMode: string
+  warWithOnComplete: string
+  warWithOnRemove: string
 }
 
 export type CharacterRole =

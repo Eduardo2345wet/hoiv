@@ -108,6 +108,8 @@ export interface GameCatalogData {
   focusTreeTags?: Record<string, number>
   goalsShineShape?: string
   eventPictures?: string[]
+  decisionIcons?: string[]
+  decisionCategoryIcons?: string[]
   /** Cuadrícula del árbol de focos leída del juego (focus_spacing, link_offsets, link_spacing) */
   focusGrid?: {
     spacing: { x: number; y: number }

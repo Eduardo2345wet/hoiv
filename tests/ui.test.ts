@@ -1655,7 +1655,6 @@ describe('pestañas de secciones nuevas (B0)', () => {
     const page = await fresh()
     await focusEditor(page)
     for (const [tab, texto, crear] of [
-      ['Decisiones', 'Aún no hay decisiones', 'Crear decisión'],
       ['Personajes', 'Aún no hay personajes', 'Crear personaje'],
       ['Ejército', 'Aún no hay ejército', 'Crear plantilla de división'],
       ['Tecnologías', 'Aún no hay tecnologías', 'Crear tecnología'],
@@ -1710,6 +1709,45 @@ describe('eventos (S1)', () => {
     expect(await page.locator('li:has-text("Mi evento")').count()).toBeGreaterThan(0)
     await page.locator('button:has-text("Cadena de eventos")').first().click()
     await page.waitForSelector('text=Volver al editor')
+    await page.close()
+  }, 60_000)
+})
+
+describe('decisiones (S3)', () => {
+  it('crear una misión desde la plantilla, ver su script y la lista por categoría', async ({
+    skip
+  }) => {
+    if (!browser) skip()
+    const page = await fresh()
+    await focusEditor(page)
+    await page.evaluate(() => {
+      const st = (window as unknown as HoiWindow).__hoiStore as never as {
+        updateProject(f: (p: object) => object): void
+      }
+      st.updateProject((p) => ({
+        ...p,
+        countries: [],
+        events: [],
+        superEvents: [],
+        decisionCategories: [],
+        decisions: [],
+        characters: [],
+        countryStart: [],
+        oobs: [],
+        technologies: [],
+        ideologies: [],
+        bookmarks: [],
+        music: [],
+        loadingScreens: [],
+        languages: [{ code: 'english' }]
+      }))
+    })
+    await page.locator('button:text-is("Decisiones")').first().click()
+    await page.waitForSelector('text=Aún no hay decisiones')
+    await page.locator('button:has-text("Misión con temporizador")').first().click()
+    await page.waitForSelector('text=days_mission_timeout = 60')
+    // se creó una categoría y la misión dentro de ella
+    expect(await page.locator('li:has-text("▸")').count()).toBe(1)
     await page.close()
   }, 60_000)
 })

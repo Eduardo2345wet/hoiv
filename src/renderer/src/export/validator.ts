@@ -10,6 +10,7 @@ import { modSlug } from '../../../shared/names'
 import { plannedPaths } from './exportMod'
 import { pathProblems } from './registry'
 import { validateEvents } from '../sections/events'
+import { validateDecisions } from '../sections/decisions'
 import { validateSuperEvents } from '../sections/superEvents'
 import { sectionFiles } from '../sections/generators'
 import { treeCountry } from '../countries/countryOps'
@@ -394,6 +395,25 @@ export function validateProject(
   ]
   for (const i of validateSuperEvents(project, allScripts))
     issues.push({ severity: i.severity, kind: 'Súper eventos', message: i.message })
+
+  // ---- Decisiones y misiones ----
+  for (const i of validateDecisions(
+    project,
+    [
+      ...allScripts,
+      ...(project.decisions ?? []).flatMap((d) => [
+        d.complete.code,
+        d.remove.code,
+        d.timeout.code,
+        d.cancel.code
+      ])
+    ],
+    {
+      icons: game?.decisionIcons ? new Set(game.decisionIcons) : undefined,
+      categoryIcons: game?.decisionCategoryIcons ? new Set(game.decisionCategoryIcons) : undefined
+    }
+  ))
+    issues.push({ severity: i.severity, kind: 'Decisiones', message: i.message })
 
   // ---- Seguridad de rutas: lista negra, carpetas permitidas y archivos del juego ----
   const regCtx = { gameFiles: opts.gameFiles }

@@ -555,3 +555,9 @@ bandera esté activa; la cola respeta el orden de la lista y, sin cola, el nuevo
 planeado: no hay `scripted_localisation` porque cada ventana usa sus propias claves. Por verificar en
 el juego: posiciones y tamaños de la ventana, los nombres `<botón>_click_enabled` / `_click` del
 scripted GUI y la sintaxis del efecto de sonido (`SOUND_EFFECT`; el validador avisa).
+
+## Decisiones y misiones (S3)
+
+Pestaña **Decisiones**: categorías y decisiones normales, misiones (con temporizador y `activate_mission`) y decisiones con objetivo (países o estados). Editor con General · Condiciones · Efectos · Costo y tiempo · IA · Objetivos. Exporta `common/decisions/categories/<mod>_categories.txt`, `common/decisions/<mod>_decisions.txt`, `interface/<mod>_decisions.gfx`, `gfx/interface/decisions/*.dds` y la localización. El validador avisa de misiones con `visible`, costos personalizados sin restar, decisiones sin `ai_will_do`, imágenes de categoría sin descripción y misiones que nadie activa.
+
+Por verificar (constantes marcadas en `sections/decisions.ts`): tamaño de íconos de decisión (66×66) y de imagen de categoría (460×150), nombre completo en `picture` de la categoría, y que `highlight_states`/`on_map_area` lleven la forma usada.

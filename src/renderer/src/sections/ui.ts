@@ -109,6 +109,8 @@ export interface SectionScreen {
   renderEditor?: (project: Project, selected: string | null) => ReactNode
   renderPreview?: (project: Project, selected: string | null) => ReactNode
   label?: (item: Record<string, unknown>) => string
+  /** Lista del panel izquierdo si no es la colección principal (p. ej. categorías + decisiones) */
+  items?: (project: Project) => Record<string, unknown>[]
 }
 const screens = new Map<string, SectionScreen>()
 export function registerSectionScreen(id: SectionDef['id'], s: SectionScreen): void {

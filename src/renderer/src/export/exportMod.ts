@@ -20,6 +20,10 @@ import { store } from '../store/appStore'
 import { sectionFiles } from '../sections/generators'
 import { SUPER_IMAGE_SIZE, superImagePath, superImagePaths } from '../sections/superEvents'
 import { EVENT_PICTURE_SIZE, eventImagePath, eventImagePaths, eventPng } from '../sections/events'
+import {
+  decisionImagePaths,
+  decisionImages
+} from '../sections/decisions'
 import { baseMod } from './statesExport'
 import { withTechnicalCapital } from '../map/noNation'
 import { withMovedCapitals } from '../map/capitals'
@@ -83,6 +87,11 @@ export async function buildExtraFiles(
         data: writeDDS(img.width, img.height, img.rgba)
       })
     }
+    // Íconos propios de decisiones y categorías
+    for (const i of decisionImages(project)) {
+      const img = await read(i.png, i.w, i.h)
+      files.push({ path: i.path, data: writeDDS(img.width, img.height, img.rgba) })
+    }
     // Imágenes de los súper eventos
     for (const s of project.superEvents ?? []) {
       const png = eventPng(project, s.image)
@@ -116,6 +125,7 @@ export function plannedPaths(project: Project, game: GameCatalog | null = null):
   paths.push(...countryImagePaths(project))
   paths.push(...eventImagePaths(project))
   paths.push(...superImagePaths(project))
+  paths.push(...decisionImagePaths(project))
   return paths
 }
 

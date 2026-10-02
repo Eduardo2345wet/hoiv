@@ -56,6 +56,13 @@ export const effectBlocks = [
     ...base
   },
   {
+    type: 'eff_activate_mission',
+    message0: 'Activar misión %1',
+    args0: [{ type: 'field_catalog', name: 'MISSION', kind: 'decision', value: '' }],
+    tooltip: 'Empieza el temporizador de una misión (activate_mission)',
+    ...base
+  },
+  {
     type: 'eff_fire_event',
     message0: 'Lanzar evento %1 %2 en %3 días (+ %4 aleatorios) para %5',
     args0: [

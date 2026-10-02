@@ -15,7 +15,9 @@ export default function SectionScreen({
 }): JSX.Element {
   const screen = screenOf(def.id)
   const [selected, setSelected] = useState<string | null>(null)
-  const items = (project[def.collection] ?? []) as unknown as Record<string, unknown>[]
+  const items = (screen?.items?.(project) ??
+    project[def.collection] ??
+    []) as unknown as Record<string, unknown>[]
   const labelOf = (i: Record<string, unknown>): string =>
     screen?.label?.(i) ?? String(i.name ?? i.title ?? i.id ?? i.country ?? i.code ?? '')
   const create = screen?.create
@@ -63,6 +65,18 @@ export default function SectionScreen({
               >
                 {def.createLabel}
               </button>
+              {screen?.templates?.map((t) => (
+                <button
+                  key={t.id}
+                  className="mt-1 w-full text-left text-xs text-hoi-muted underline hover:text-hoi-accent"
+                  onClick={() => {
+                    const uid = t.create()
+                    if (uid) setSelected(uid)
+                  }}
+                >
+                  + {t.label}
+                </button>
+              ))}
             </div>
           }
         />

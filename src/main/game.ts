@@ -189,6 +189,9 @@ export interface GameCatalogResult {
   goalsShineShape?: string
   /** Nombres GFX_report_event_* de interface/eventpictures.gfx */
   eventPictures?: string[]
+  /** Nombres GFX_decision_* (sin categorías) y GFX_decision_category_* de interface/*decision*.gfx */
+  decisionIcons?: string[]
+  decisionCategoryIcons?: string[]
   /** Cuadrícula del árbol de focos (interface/nationalfocusview.gui) */
   focusGrid?: FocusGrid
 }
@@ -344,7 +347,26 @@ export function readGameCatalog(gamePath: string): GameCatalogResult | null {
     // sin el archivo: solo se ofrecen las propias
   }
 
+  let decisionIcons: string[] | undefined
+  let decisionCategoryIcons: string[] | undefined
+  try {
+    const names = new Set<string>()
+    for (const f of fs.readdirSync(path.join(gamePath, 'interface')))
+      if (/decision.*\.gfx$/i.test(f))
+        for (const m of fs
+          .readFileSync(path.join(gamePath, 'interface', f), 'utf-8')
+          .matchAll(/name\s*=\s*"?(GFX_decision_[A-Za-z0-9_]+)"?/g))
+          names.add(m[1])
+    const all = [...names].sort()
+    decisionCategoryIcons = all.filter((n) => n.startsWith('GFX_decision_category_'))
+    decisionIcons = all.filter((n) => !n.startsWith('GFX_decision_category_'))
+  } catch {
+    // sin la carpeta: solo se ofrecen las propias
+  }
+
   const result: GameCatalogResult = {
+    decisionIcons,
+    decisionCategoryIcons,
     eventPictures,
     focusGrid,
     focusIds: [...focusIds],
