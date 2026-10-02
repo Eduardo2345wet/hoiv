@@ -28,14 +28,16 @@ export default function SettingsDialog({ onClose }: { onClose: () => void }): JS
   const [msg, setMsg] = useState('')
   const [askSave, setAskSave] = useState(true)
   const [supported, setSupported] = useState('')
+  const [detected, setDetected] = useState<string | null>(null)
   useEffect(() => {
     void window.electronAPI?.getSettings().then((s) => {
       setAskSave(s.askWhereToSave !== false)
       setSupported(s.supportedVersion ?? '')
     })
-    void window.electronAPI
-      ?.getExportInfo()
-      .then((i) => setSupported((v) => v || i.fallbackVersion))
+    void window.electronAPI?.getExportInfo().then((i) => {
+      setDetected(i.installedVersion)
+      setSupported((v) => v || i.fallbackVersion)
+    })
   }, [])
 
   const choose = async (): Promise<void> => {
@@ -85,6 +87,14 @@ export default function SettingsDialog({ onClose }: { onClose: () => void }): JS
         />
         Preguntar siempre dónde guardar (Ctrl+S abre el diálogo con la ubicación actual)
       </label>
+      <p className="mb-2 text-sm">
+        Versión del juego detectada:{' '}
+        {detected ? (
+          <span className="font-mono">{detected} (se usa como supported_version)</span>
+        ) : (
+          <span className="text-yellow-300">no detectada (se usa la de reserva)</span>
+        )}
+      </p>
       <label className="mb-1 block text-sm">
         supported_version de reserva (al exportar, si no se puede leer la versión del juego)
       </label>

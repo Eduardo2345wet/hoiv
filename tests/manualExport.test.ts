@@ -116,3 +116,40 @@ describe('borrar un foco con ícono propio', () => {
     expect(dds(deleteFocus(p, p.focuses[0].uid)).length).toBe(1)
   })
 })
+
+import { installedSupportedVersion } from '../src/main/exportInfo'
+
+describe('versión del juego (launcher-settings.json real de 1.19.3)', () => {
+  const real = (raw: boolean): string =>
+    JSON.stringify({
+      version: 'Operation Postern v1.19.3.0.c01a (5632)',
+      ...(raw ? { rawVersion: '1.19.3.0' } : {})
+    })
+  const game = (file: string, text: string): string => {
+    const g = tmp()
+    fs.mkdirSync(path.dirname(path.join(g, file)), { recursive: true })
+    fs.writeFileSync(path.join(g, file), text)
+    return g
+  }
+  it('rawVersion en la RAÍZ da 1.19.*', () => {
+    expect(installedSupportedVersion(game('launcher-settings.json', real(true)))).toBe('1.19.*')
+  })
+  it('sin rawVersion se extrae X.Y de "version"', () => {
+    expect(installedSupportedVersion(game('launcher-settings.json', real(false)))).toBe('1.19.*')
+  })
+  it('respaldo: launcher/launcher-settings.json', () => {
+    expect(installedSupportedVersion(game('launcher/launcher-settings.json', real(true)))).toBe(
+      '1.19.*'
+    )
+  })
+  it('la raíz gana sobre launcher/ y sin archivo da null', () => {
+    const g = game('launcher-settings.json', JSON.stringify({ rawVersion: '1.19.3.0' }))
+    fs.mkdirSync(path.join(g, 'launcher'))
+    fs.writeFileSync(
+      path.join(g, 'launcher', 'launcher-settings.json'),
+      '{"rawVersion":"1.10.0.0"}'
+    )
+    expect(installedSupportedVersion(g)).toBe('1.19.*')
+    expect(installedSupportedVersion(tmp())).toBeNull()
+  })
+})
