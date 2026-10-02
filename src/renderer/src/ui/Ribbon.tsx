@@ -53,6 +53,7 @@ export const RIBBON_TABS: [RibbonId, string][] = [
   ['paises', 'Países'],
   ['ideas', 'Espíritus'],
   ['eventos', 'Eventos'],
+  ['supereventos', 'Súper eventos'],
   ['decisiones', 'Decisiones'],
   ['personajes', 'Personajes'],
   ['ejercito', 'Ejército'],
@@ -215,11 +216,12 @@ export default function Ribbon(): JSX.Element {
   )
   const content: Record<RibbonId, JSX.Element> = {
     eventos: sectionTab(SECTIONS[0]),
-    decisiones: sectionTab(SECTIONS[1]),
-    personajes: sectionTab(SECTIONS[2]),
-    ejercito: sectionTab(SECTIONS[3]),
-    tecnologias: sectionTab(SECTIONS[4]),
-    extras: sectionTab(SECTIONS[5]),
+    supereventos: sectionTab(SECTIONS[1]),
+    decisiones: sectionTab(SECTIONS[2]),
+    personajes: sectionTab(SECTIONS[3]),
+    ejercito: sectionTab(SECTIONS[4]),
+    tecnologias: sectionTab(SECTIONS[5]),
+    extras: sectionTab(SECTIONS[6]),
     inicio: (
       <>
         <Group title="Proyecto">

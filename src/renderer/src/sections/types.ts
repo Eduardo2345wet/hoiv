@@ -59,15 +59,28 @@ export interface GameEvent {
   }
 }
 
+/** Sonido (.wav) subido: bytes en base64 */
+export interface SoundFile {
+  name: string
+  base64: string
+}
+
+/** Ventana grande propia (scripted GUI) con imagen, cita y sonido */
 export interface SuperEvent {
   uid: string
+  /** id con el prefijo del mod (por ejemplo mimod_caida); el efecto es <id>_show */
   id: string
   title: string
   quote: string
   author: string
   button: string
-  image: IconRef | null
-  sound: string | null
+  image: EventPicture | null
+  sound: SoundFile | null
+  /** Quién la ve: todos los humanos, solo el país que la dispara o una lista */
+  audience: 'all' | 'self' | 'list'
+  countries: string[]
+  /** true = si ya hay una abierta, la nueva espera su turno; false = la reemplaza */
+  queue: boolean
 }
 
 export interface DecisionCategory {

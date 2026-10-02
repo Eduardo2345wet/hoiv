@@ -18,6 +18,7 @@ import {
 import type { GameCatalog } from '../catalog/catalog'
 import { store } from '../store/appStore'
 import { sectionFiles } from '../sections/generators'
+import { SUPER_IMAGE_SIZE, superImagePath, superImagePaths } from '../sections/superEvents'
 import { EVENT_PICTURE_SIZE, eventImagePath, eventImagePaths, eventPng } from '../sections/events'
 import { baseMod } from './statesExport'
 import { withTechnicalCapital } from '../map/noNation'
@@ -82,6 +83,13 @@ export async function buildExtraFiles(
         data: writeDDS(img.width, img.height, img.rgba)
       })
     }
+    // Imágenes de los súper eventos
+    for (const s of project.superEvents ?? []) {
+      const png = eventPng(project, s.image)
+      if (!png) continue
+      const img = await read(png, SUPER_IMAGE_SIZE.w, SUPER_IMAGE_SIZE.h)
+      files.push({ path: superImagePath(s), data: writeDDS(img.width, img.height, img.rgba) })
+    }
   }
   return files
 }
@@ -107,6 +115,7 @@ export function plannedPaths(project: Project, game: GameCatalog | null = null):
   paths.push(...sectionFiles(project).files.map((f) => f.path))
   paths.push(...countryImagePaths(project))
   paths.push(...eventImagePaths(project))
+  paths.push(...superImagePaths(project))
   return paths
 }
 

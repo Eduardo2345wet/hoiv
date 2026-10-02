@@ -8,7 +8,7 @@ import type { SectionData } from './types'
 export interface SectionDef {
   id: Extract<
     RibbonId,
-    'eventos' | 'decisiones' | 'personajes' | 'ejercito' | 'tecnologias' | 'extras'
+    'eventos' | 'supereventos' | 'decisiones' | 'personajes' | 'ejercito' | 'tecnologias' | 'extras'
   >
   label: string
   /** Colección principal que lista el panel izquierdo */

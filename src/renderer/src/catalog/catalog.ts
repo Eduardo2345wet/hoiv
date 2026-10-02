@@ -3,7 +3,8 @@
 import type { Project } from '../types'
 import { BUILTIN_COUNTRIES, BUILTIN_IDEAS } from './builtin'
 
-export type CatalogKind = 'focus' | 'idea' | 'countryFlag' | 'country' | 'state' | 'event'
+export type CatalogKind =
+  'focus' | 'idea' | 'countryFlag' | 'country' | 'state' | 'event' | 'superEvent'
 
 export interface CatalogOption {
   id: string
@@ -93,6 +94,10 @@ export function getCatalogOptions(
             origen: 'mod',
             uid: e.uid
           })
+        break
+      case 'superEvent':
+        for (const e of project.superEvents ?? [])
+          mod.push({ id: e.id, etiqueta: e.title || e.id, origen: 'mod', uid: e.uid })
         break
       case 'countryFlag':
         for (const fl of projectFlags(project)) mod.push({ id: fl, etiqueta: fl, origen: 'mod' })

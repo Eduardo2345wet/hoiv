@@ -543,3 +543,15 @@ is_triggered_only, evento automático sin país, al menos una opción sin condic
 «Copiar comando de consola» (`event <id>`) sirve para probarlo con `-debug`. No hecho: arrastrar
 desde una opción hasta un evento en la cadena (se usa el selector «Enlazar a otro evento»).
 Constante por verificar: tamaño de las imágenes de evento (210×176).
+
+## Súper eventos
+Pestaña **Súper eventos**: ventana grande propia (sistema generado, nada copiado de otros mods) con
+imagen, título, cita con autor, botón y sonido `.wav` (con aviso si no es PCM y botón para
+reproducirlo). El bloque «Mostrar súper evento» (focos, eventos y decisiones) llama a `<id>_show`.
+Exporta `common/scripted_effects`, `common/scripted_guis` (uno por súper evento, visible mientras su
+bandera esté activa; la cola respeta el orden de la lista y, sin cola, el nuevo reemplaza al abierto),
+`interface/<mod>_super_events.gui` y `.gfx`, `gfx/super_events/*.dds`, `sound/<mod>_super_events.asset`
++ los `.wav`, y la localización. Todo es solo para humanos (`is_ai = no`). Diferencia con lo
+planeado: no hay `scripted_localisation` porque cada ventana usa sus propias claves. Por verificar en
+el juego: posiciones y tamaños de la ventana, los nombres `<botón>_click_enabled` / `_click` del
+scripted GUI y la sintaxis del efecto de sonido (`SOUND_EFFECT`; el validador avisa).

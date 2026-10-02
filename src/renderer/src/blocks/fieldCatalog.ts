@@ -12,6 +12,7 @@ import { store } from '../store/appStore'
 import { validateTag } from '../export/validator'
 import { createFocusBelow, createIdea } from '../ui/projectOps'
 import { createEvent, eventId } from '../sections/events'
+import { createSuperEvent } from '../sections/superEvents'
 import { chooseCountryTag } from '../ui/countryFlow'
 import { chooseState } from '../ui/stateFlow'
 import type { GameIdea } from '../../../shared/ideasParse'
@@ -269,6 +270,22 @@ export class FieldCatalog extends Blockly.FieldDropdown {
           store.updateProject((p) => {
             const r = createIdea(p, t.trim())
             newId = r.idea.id
+            return r.project
+          })
+          set(newId)
+        }
+      })
+    } else if (this.kind === 'superEvent') {
+      store.openPrompt({
+        message: 'Título del nuevo súper evento:',
+        defaultValue: '',
+        validate: (t) => (t.trim() ? null : 'Escribe un título'),
+        callback: (t) => {
+          if (!t) return
+          let newId: string | null = null
+          store.updateProject((p) => {
+            const r = createSuperEvent(p, { title: t.trim() })
+            newId = r.superEvent.id
             return r.project
           })
           set(newId)

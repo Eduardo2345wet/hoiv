@@ -49,6 +49,13 @@ export const EVENT_TYPES: [string, string][] = [
 
 export const effectBlocks = [
   {
+    type: 'eff_show_super_event',
+    message0: 'Mostrar súper evento %1',
+    args0: [{ type: 'field_catalog', name: 'SUPER', kind: 'superEvent', value: '' }],
+    tooltip: 'Abre la ventana grande con imagen, cita y sonido (solo jugadores humanos)',
+    ...base
+  },
+  {
     type: 'eff_fire_event',
     message0: 'Lanzar evento %1 %2 en %3 días (+ %4 aleatorios) para %5',
     args0: [

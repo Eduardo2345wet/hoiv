@@ -92,6 +92,7 @@ g['eff_fire_event'] = (b) => {
   const target = id(b, 'TARGET')
   return target ? `${target} = {\n\t${body}\n}\n` : `${body}\n`
 }
+g['eff_show_super_event'] = (b) => `${id(b, 'SUPER')}_show = yes\n`
 g['eff_set_country_flag'] = (b) => `set_country_flag = ${id(b, 'FLAG')}\n`
 g['eff_if'] = (b) => {
   const limit = pdxGenerator.statementToCode(b, 'LIMIT')

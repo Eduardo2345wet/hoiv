@@ -73,6 +73,7 @@ export type RibbonId =
   | 'iconos'
   | 'exportar'
   | 'eventos'
+  | 'supereventos'
   | 'decisiones'
   | 'personajes'
   | 'ejercito'
