@@ -1156,7 +1156,11 @@ describe('focos: herramientas, asas y líneas (parte B)', () => {
         const st = (window as unknown as HoiWindow).__hoiStore as never as {
           updateProject(f: (p: { focuses: unknown[] }) => unknown): void
         }
-        st.updateProject((p) => ({ ...p, focuses: [a, b, c] }))
+        st.updateProject((p) => ({
+          ...p,
+          treeSettings: { autoArrange: false, relativePositions: false },
+          focuses: [a, b, c]
+        }))
       },
       [focusAt('f1', 'Uno', 0, 0), focusAt('f2', 'Dos', 2, 0), focusAt('f3', 'Tres', 4, 0)] as const
     )
@@ -1269,6 +1273,140 @@ describe('focos: herramientas, asas y líneas (parte B)', () => {
     await page.mouse.up()
     f = await focuses(page)
     expect(f.find((x2) => x2.uid === 'f3')!.mutuallyExclusive).toEqual(['f2'])
+    await page.close()
+  }, 60_000)
+
+  const setTree = (page: Page, list: unknown[]): Promise<void> =>
+    page.evaluate((l) => {
+      const st = (window as unknown as HoiWindow).__hoiStore as never as {
+        updateProject(f: (p: { focuses: unknown[] }) => unknown): void
+      }
+      st.updateProject((p) => ({ ...p, focuses: l }))
+    }, list)
+  const dragNode = async (
+    page: Page,
+    name: string,
+    dx: number,
+    dy: number,
+    alt = false
+  ): Promise<void> => {
+    const b = (await node(page, name).boundingBox())!
+    await page.mouse.move(b.x + b.width / 2, b.y + b.height / 2 - 10)
+    if (alt) await page.keyboard.down('Alt')
+    await page.mouse.down()
+    await page.mouse.move(b.x + b.width / 2 + dx / 2, b.y + b.height / 2 - 10 + dy / 2, {
+      steps: 4
+    })
+    await page.mouse.move(b.x + b.width / 2 + dx, b.y + b.height / 2 - 10 + dy, { steps: 4 })
+  }
+  const pos = async (page: Page, uid: string): Promise<[number, number]> => {
+    const f = (await page.evaluate(
+      () =>
+        (
+          (window as unknown as HoiWindow).__hoiStore.get() as unknown as {
+            project: { focuses: { uid: string; x: number; y: number }[] }
+          }
+        ).project.focuses
+    )) as { uid: string; x: number; y: number }[]
+    const g = f.find((x) => x.uid === uid)!
+    return [g.x, g.y]
+  }
+
+  it('arrastrar: sombra en la casilla destino; casilla ocupada intercambia; un paso de deshacer', async ({
+    skip
+  }) => {
+    if (!browser) skip()
+    const page = await treePage() // Uno (0,0) Dos (2,0) Tres (4,0)
+    await dragNode(page, 'Dos', 240, 0) // sobre Tres
+    expect(await page.locator('[data-shadow="ok"]').count()).toBe(1)
+    await page.mouse.up()
+    expect(await pos(page, 'f2')).toEqual([4, 0])
+    expect(await pos(page, 'f3')).toEqual([2, 0]) // intercambiaron lugar
+    await page.keyboard.press('Control+z')
+    expect(await pos(page, 'f2')).toEqual([2, 0])
+    expect(await pos(page, 'f3')).toEqual([4, 0])
+    await page.close()
+  }, 60_000)
+
+  it('un foco no baja de su fila: sombra roja y al soltar queda en la primera fila válida', async ({
+    skip
+  }) => {
+    if (!browser) skip()
+    const page = await treePage()
+    await setTree(page, [
+      focusAt('f1', 'Uno', 0, 0),
+      focusAt('f2', 'Dos', 0, 1, ['f1']),
+      focusAt('f3', 'Tres', 4, 0)
+    ])
+    await dragNode(page, 'Dos', 240, -140) // hacia la fila 0 (la de su padre)
+    expect(await page.locator('[data-shadow="bad"]').count()).toBe(1)
+    await page.mouse.up()
+    const [x, y] = await pos(page, 'f2')
+    expect(y).toBe(1)
+    expect(x).toBe(2)
+    await page.close()
+  }, 60_000)
+
+  it('arrastrar una raíz mueve su rama; con Alt solo ese foco', async ({ skip }) => {
+    if (!browser) skip()
+    const page = await treePage()
+    await setTree(page, [
+      focusAt('f1', 'Uno', 0, 0),
+      focusAt('f2', 'Dos', 0, 1, ['f1']),
+      focusAt('f3', 'Tres', 4, 0)
+    ])
+    await dragNode(page, 'Uno', 240, 0)
+    await page.mouse.up()
+    // Uno cae sobre (2,0): Dos (su rama) lo acompaña a (2,1)
+    expect(await pos(page, 'f1')).toEqual([2, 0])
+    expect(await pos(page, 'f2')).toEqual([2, 1])
+    await page.keyboard.press('Control+z')
+    await dragNode(page, 'Uno', 240, 0, true)
+    await page.mouse.up()
+    await page.keyboard.up('Alt')
+    expect(await pos(page, 'f1')).toEqual([2, 0])
+    expect(await pos(page, 'f2')).toEqual([0, 1])
+    await page.close()
+  }, 60_000)
+
+  it('Ordenar árbol: cascada, un paso de deshacer; el interruptor ordena al conectar', async ({
+    skip
+  }) => {
+    if (!browser) skip()
+    const page = await treePage()
+    await setTree(page, [
+      focusAt('f1', 'Uno', 5, 5),
+      focusAt('f2', 'Dos', 0, 0, ['f1']),
+      focusAt('f3', 'Tres', 9, 1, ['f2'])
+    ])
+    await page.locator('button:has-text("Ordenar árbol")').first().click()
+    expect(await pos(page, 'f1')).toEqual([0, 0])
+    expect(await pos(page, 'f2')).toEqual([0, 1])
+    expect(await pos(page, 'f3')).toEqual([0, 2])
+    await page.keyboard.press('Control+z')
+    expect(await pos(page, 'f1')).toEqual([5, 5])
+    // Con el orden automático activado, conectar ordena en el mismo paso
+    await setTree(page, [
+      focusAt('f1', 'Uno', 0, 0),
+      focusAt('f2', 'Dos', 2, 0),
+      focusAt('f3', 'Tres', 4, 0)
+    ])
+    await page.evaluate(() => {
+      const st = (window as unknown as HoiWindow).__hoiStore as never as {
+        updateProject(f: (p: { treeSettings: unknown }) => unknown): void
+      }
+      st.updateProject((p) => ({
+        ...p,
+        treeSettings: { autoArrange: true, relativePositions: false }
+      }))
+    })
+    await page.locator('button:has-text("Prerrequisito")').first().click()
+    await node(page, 'Uno').click()
+    await node(page, 'Dos').click()
+    await page.waitForTimeout(400)
+    const [, y1] = await pos(page, 'f1')
+    const [, y2] = await pos(page, 'f2')
+    expect(y2).toBeGreaterThan(y1)
     await page.close()
   }, 60_000)
 

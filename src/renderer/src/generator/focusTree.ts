@@ -19,12 +19,25 @@ function section(key: string, body: string): string {
   return `${key} = {\n${indent(clean.replace(/^\t/gm, ''), 1)}\n}\n`
 }
 
-function focusToScript(focus: Focus, byUid: Map<string, Focus>, icon: string): string {
+function focusToScript(
+  focus: Focus,
+  byUid: Map<string, Focus>,
+  icon: string,
+  relative = false
+): string {
   const lines: string[] = []
   lines.push(`id = ${focus.id}`)
   lines.push(`icon = ${icon}`)
-  lines.push(`x = ${focus.x}`)
-  lines.push(`y = ${focus.y}`)
+  // Opción avanzada: posición relativa a su primer prerrequisito (mismo resultado visual)
+  const rel = relative ? byUid.get(focus.prerequisites[0]) : undefined
+  if (rel && rel.treeId === focus.treeId) {
+    lines.push(`x = ${focus.x - rel.x}`)
+    lines.push(`y = ${focus.y - rel.y}`)
+    lines.push(`relative_position_id = ${rel.id}`)
+  } else {
+    lines.push(`x = ${focus.x}`)
+    lines.push(`y = ${focus.y}`)
+  }
   lines.push(`cost = ${focus.cost}`)
   // Cada prerrequisito va en su propio bloque: hay que completarlos TODOS
   for (const uid of focus.prerequisites) {
@@ -84,7 +97,14 @@ export function generateFocusTree(project: Project, treeId?: string): string {
   ].join('\n')
   const plan = planIconExport(project)
   const focuses = treeFocuses
-    .map((f) => focusToScript(f, byUid, plan.focusIcon.get(f.uid) ?? 'GFX_goal_unknown'))
+    .map((f) =>
+      focusToScript(
+        f,
+        byUid,
+        plan.focusIcon.get(f.uid) ?? 'GFX_goal_unknown',
+        !!project.treeSettings?.relativePositions
+      )
+    )
     .join('\n\n')
   return `focus_tree = {\n${indent(header, 1)}\n\n${indent(focuses, 1)}\n}\n`
 }

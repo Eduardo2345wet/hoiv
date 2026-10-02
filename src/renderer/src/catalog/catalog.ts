@@ -38,6 +38,12 @@ export interface GameCatalog {
   countryRuling?: Record<string, string>
   /** Forma de una entrada real de interface/goals_shine.gfx del juego */
   goalsShineShape?: string
+  /** Cuadrícula del árbol de focos leída del juego (focus_spacing, link_offsets, link_spacing) */
+  focusGrid?: {
+    spacing: { x: number; y: number }
+    linkOffsets?: { x: number; y: number }
+    linkSpacing?: { x: number; y: number }
+  }
 }
 
 /** Marcas usadas en cualquier set_country_flag del proyecto + las creadas a mano */

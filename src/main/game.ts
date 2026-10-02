@@ -182,6 +182,27 @@ export interface GameCatalogResult {
   countryRuling: Record<string, string>
   /** Forma (claves en orden) de una entrada real de interface/goals_shine.gfx */
   goalsShineShape?: string
+  /** Cuadrícula del árbol de focos (interface/nationalfocusview.gui) */
+  focusGrid?: FocusGrid
+}
+
+export interface FocusGrid {
+  spacing: { x: number; y: number }
+  linkOffsets?: { x: number; y: number }
+  linkSpacing?: { x: number; y: number }
+}
+
+/** Lee focus_spacing / link_offsets / link_spacing de nationalfocusview.gui (null si no está) */
+export function parseFocusGrid(gui: string): FocusGrid | null {
+  const pair = (key: string): { x: number; y: number } | undefined => {
+    const m = new RegExp(
+      `${key}\\s*=\\s*\\{[^}]*?\\bx\\s*=\\s*(-?\\d+)[^}]*?\\by\\s*=\\s*(-?\\d+)`
+    ).exec(gui)
+    return m ? { x: Number(m[1]), y: Number(m[2]) } : undefined
+  }
+  const spacing = pair('focus_spacing')
+  if (!spacing || spacing.x <= 0 || spacing.y <= 0) return null
+  return { spacing, linkOffsets: pair('link_offsets'), linkSpacing: pair('link_spacing') }
 }
 
 const cache = new Map<string, GameCatalogResult>()
@@ -289,7 +310,18 @@ export function readGameCatalog(gamePath: string): GameCatalogResult | null {
     Object.assign(focusTreeTags, f.treeTags)
   }
 
+  let focusGrid: FocusGrid | undefined
+  try {
+    focusGrid =
+      parseFocusGrid(
+        fs.readFileSync(path.join(gamePath, 'interface', 'nationalfocusview.gui'), 'utf-8')
+      ) ?? undefined
+  } catch {
+    // sin el archivo: se usan las constantes por verificar
+  }
+
   const result: GameCatalogResult = {
+    focusGrid,
     focusIds: [...focusIds],
     focusTreeTags,
     goalsShineShape,

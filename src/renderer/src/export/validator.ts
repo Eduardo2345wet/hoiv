@@ -210,6 +210,17 @@ export function validateProject(
       })
     else positions.set(pos, label)
 
+    // Excluyentes separados: en el juego se ven mejor en la misma fila y juntos
+    for (const o of f.mutuallyExclusive) {
+      const other = project.focuses.find((x) => x.uid === o)
+      if (other && f.uid < other.uid && (other.y !== f.y || Math.abs(other.x - f.x) > 2))
+        issues.push({
+          severity: 'aviso',
+          kind: 'Focos',
+          message: `Los focos excluyentes "${label}" y "${other.name || other.id}" están separados; se ven mejor en la misma fila y juntos ("Ordenar árbol" lo arregla).`,
+          focusUid: f.uid
+        })
+    }
     if (!f.scripts.reward.trim())
       issues.push({
         severity: 'aviso',

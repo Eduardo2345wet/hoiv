@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react'
 import { store, useApp } from '../store/appStore'
 import { TEMPLATES, templateInfo, templateOf } from '../templates'
 import { paintedCount, resetMapWithTemplate } from '../map/resetMap'
-import type { MapModRef, TemplateId } from '../types'
+import { DEFAULT_TREE_SETTINGS, type MapModRef, type TemplateId } from '../types'
 import Modal from './Modal'
 import { validateProjectName } from '../../../shared/names'
 
@@ -68,6 +68,23 @@ export default function ProjectPropsDialog(): JSX.Element | null {
         <dt className="text-hoi-muted">Estados pintados</dt>
         <dd>{n}</dd>
       </dl>
+      <label className="mt-3 flex items-center gap-2 text-sm">
+        <input
+          type="checkbox"
+          checked={!!project.treeSettings?.relativePositions}
+          onChange={(e) =>
+            store.updateProject((p) => ({
+              ...p,
+              treeSettings: {
+                ...DEFAULT_TREE_SETTINGS,
+                ...p.treeSettings,
+                relativePositions: e.target.checked
+              }
+            }))
+          }
+        />
+        Exportar ramas con relative_position_id (avanzado; mismas posiciones finales)
+      </label>
       <p className="mt-3 text-xs text-hoi-muted">
         La plantilla se elige al crear el proyecto y queda fija. Para usar otra plantilla sin tocar
         este proyecto, usa Mapa → "Nuevo proyecto con otra plantilla…".

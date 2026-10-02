@@ -4,12 +4,16 @@ import { useEffect, useRef, useState } from 'react'
 import type { Focus, Project } from '../types'
 import { store, useApp } from '../store/appStore'
 import IconThumb from './IconThumb'
+import { dropInfo } from '../focus/layout'
+import { routeEdge } from '../focus/routes'
 
-// Tamaño de una casilla de la cuadrícula en píxeles (x=1 en el juego = 1 casilla)
-export const CELL_W = 120
-export const CELL_H = 140
-const NODE_W = 104
+// Tamaño de una casilla: x e y son columnas y filas ENTERAS. La proporción sale de focus_spacing
+// de interface/nationalfocusview.gui (si hay carpeta del juego); si no, estas constantes.
+// por verificar: el valor real de focus_spacing de HOI4 1.19.3
+export const DEFAULT_SPACING = { x: 120, y: 140 }
+const CELL_H = 140
 const NODE_H = 96
+const ANIM_MS = 200
 
 export type Tool = 'select' | 'prereq' | 'exclusive'
 export type LinkKind = 'prereq' | 'excl'
@@ -23,7 +27,16 @@ interface Props {
   selected: string | null
   tool: Tool
   onSelect: (uid: string | null) => void
-  onMove: (uid: string, x: number, y: number) => void
+  /** Suelta uno o varios focos en una casilla (un solo paso de deshacer) */
+  onPlace: (
+    uid: string,
+    gx: number,
+    gy: number,
+    opts: { branch?: boolean; also?: string[] }
+  ) => void
+  onTogglePin: (uid: string) => void
+  /** true durante ~200 ms tras ordenar: los focos se deslizan a su casilla */
+  animate?: boolean
   /** Conecta (kind prereq: from = padre; excl: exclusión). Devuelve el motivo si no se pudo */
   onLink: (kind: LinkKind, from: string, to: string) => string | null
   /** Por qué NO se puede conectar (null si se puede): colorea el destino al arrastrar */
@@ -36,12 +49,14 @@ interface Props {
   onDelete: (uid: string) => void
 }
 
-/** Centro (en píxeles del lienzo) de la casilla x,y */
-const cx = (x: number): number => x * CELL_W + CELL_W / 2
-const cy = (y: number): number => y * CELL_H + CELL_H / 2
-
 export default function FocusCanvas(props: Props): JSX.Element {
   const { focuses, selected, tool } = props
+  const game = useApp(() => store.catalogGame())
+  const sp = game?.focusGrid?.spacing ?? DEFAULT_SPACING
+  const CELL_W = Math.max(90, Math.min(170, Math.round((CELL_H * sp.x) / sp.y)))
+  const NODE_W = Math.min(104, CELL_W - 12)
+  const cx = (x: number): number => x * CELL_W + CELL_W / 2
+  const cy = (y: number): number => y * CELL_H + CELL_H / 2
   const [pan, setPan] = useState({ x: 40, y: 40 })
   const [zoom, setZoom] = useState(1)
   const [linkFrom, setLinkFrom] = useState<string | null>(null)
@@ -57,6 +72,19 @@ export default function FocusCanvas(props: Props): JSX.Element {
     target: string | null
     valid: boolean
   } | null>(null)
+  // Selección múltiple (Shift+clic o recuadro) y arrastre de focos con sombra de destino
+  const [multi, setMulti] = useState<Set<string>>(new Set())
+  const [dragging, setDragging] = useState<{
+    uid: string
+    moved: string[]
+    dx: number
+    dy: number
+    gx: number
+    gy: number
+    valid: boolean
+    swapWith: string | null
+  } | null>(null)
+  const [box, setBox] = useState<{ x1: number; y1: number; x2: number; y2: number } | null>(null)
   const latest = useRef(props)
   latest.current = props
   const ghostTarget = useRef<string | null>(null)
@@ -79,7 +107,17 @@ export default function FocusCanvas(props: Props): JSX.Element {
   // Qué se está arrastrando ahora mismo
   const drag = useRef<
     | { kind: 'pan'; sx: number; sy: number; px: number; py: number }
-    | { kind: 'node'; uid: string; offX: number; offY: number }
+    | {
+        kind: 'node'
+        uid: string
+        offX: number
+        offY: number
+        sx: number
+        sy: number
+        moved: boolean
+        opts: { branch?: boolean; also?: string[] }
+      }
+    | { kind: 'box'; sx: number; sy: number }
     | { kind: 'handle'; link: LinkKind; uid: string; sx: number; sy: number; moved: boolean }
     | null
   >(null)
@@ -121,8 +159,16 @@ export default function FocusCanvas(props: Props): JSX.Element {
       drag.current = null
       return
     }
+    if (e.button === 0 && e.shiftKey) {
+      // Shift + arrastrar el fondo: recuadro de selección
+      const w = toWorld(e.clientX, e.clientY)
+      drag.current = { kind: 'box', sx: w.x, sy: w.y }
+      setBox({ x1: w.x, y1: w.y, x2: w.x, y2: w.y })
+      return
+    }
     if (e.button === 0) {
       setSelLine(null)
+      setMulti(new Set())
       // Con una conexión pendiente, el clic en el fondo solo la cancela (el foco sigue seleccionado)
       if (linkFrom) setLinkFrom(null)
       else props.onSelect(null)
@@ -153,14 +199,34 @@ export default function FocusCanvas(props: Props): JSX.Element {
       }
       return
     }
-    props.onSelect(f.uid)
+    if (e.shiftKey) {
+      // Shift+clic: suma o quita de la selección múltiple
+      setMulti((m) => {
+        const n = new Set(m.size ? m : selected ? [selected] : [])
+        if (n.has(f.uid)) n.delete(f.uid)
+        else n.add(f.uid)
+        return n
+      })
+      props.onSelect(f.uid)
+      return
+    }
+    const inMulti = multi.has(f.uid) && multi.size > 1
+    if (!inMulti) {
+      setMulti(new Set())
+      props.onSelect(f.uid)
+    }
     const w = toWorld(e.clientX, e.clientY)
     ;(e.currentTarget as Element).setPointerCapture(e.pointerId)
     drag.current = {
       kind: 'node',
       uid: f.uid,
       offX: w.x - cx(f.x),
-      offY: w.y - cy(f.y)
+      offY: w.y - cy(f.y),
+      sx: e.clientX,
+      sy: e.clientY,
+      moved: false,
+      // Alt = solo ese foco; con varios seleccionados se mueven esos; si no, su rama
+      opts: inMulti ? { also: [...multi].filter((u) => u !== f.uid) } : { branch: !e.altKey }
     }
   }
 
@@ -198,13 +264,28 @@ export default function FocusCanvas(props: Props): JSX.Element {
         target: target?.uid ?? null,
         valid: !!target && !props.canLink(d.link, d.uid, target.uid)
       })
-    } else {
+    } else if (d.kind === 'box') {
       const w = toWorld(e.clientX, e.clientY)
-      // Ajuste a la cuadrícula
+      setBox({ x1: d.sx, y1: d.sy, x2: w.x, y2: w.y })
+    } else {
+      if (!d.moved && Math.hypot(e.clientX - d.sx, e.clientY - d.sy) < 4) return
+      d.moved = true
+      const w = toWorld(e.clientX, e.clientY)
+      // Casilla destino (la sombra); el foco sigue al mouse mientras tanto
       const gx = Math.max(0, Math.round((w.x - d.offX - CELL_W / 2) / CELL_W))
       const gy = Math.max(0, Math.round((w.y - d.offY - CELL_H / 2) / CELL_H))
-      const f = focuses.find((x) => x.uid === d.uid)
-      if (f && (f.x !== gx || f.y !== gy)) props.onMove(d.uid, gx, gy)
+      const info = dropInfo(props.project, d.uid, gx, gy, d.opts)
+      const f = focuses.find((x) => x.uid === d.uid)!
+      setDragging({
+        uid: d.uid,
+        moved: info.moved,
+        dx: w.x - d.offX - cx(f.x),
+        dy: w.y - d.offY - cy(f.y),
+        gx: info.cell.x,
+        gy: info.cell.y,
+        valid: info.valid,
+        swapWith: info.swapWith
+      })
     }
   }
 
@@ -245,6 +326,7 @@ export default function FocusCanvas(props: Props): JSX.Element {
   }, [])
 
   const byUid = new Map(focuses.map((f) => [f.uid, f]))
+  const occupied = new Set(focuses.map((f) => `${f.x},${f.y}`))
   // Mensaje de la conexión pendiente (también en la barra de estado)
   const hint =
     tool === 'select'
@@ -293,8 +375,25 @@ export default function FocusCanvas(props: Props): JSX.Element {
       onPointerMove={onPointerMove}
       onPointerUp={() => {
         const d = drag.current
-        // Soltar un foco cierra el paso de deshacer del arrastre
-        if (d?.kind === 'node') store.endGroup()
+        if (d?.kind === 'node' && d.moved && dragging)
+          props.onPlace(d.uid, dragging.gx, dragging.gy, d.opts)
+        if (d?.kind === 'node') setDragging(null)
+        if (d?.kind === 'box' && box) {
+          const [x1, x2] = [Math.min(box.x1, box.x2), Math.max(box.x1, box.x2)]
+          const [y1, y2] = [Math.min(box.y1, box.y2), Math.max(box.y1, box.y2)]
+          const inside = focuses
+            .filter(
+              (f) =>
+                cx(f.x) + NODE_W / 2 >= x1 &&
+                cx(f.x) - NODE_W / 2 <= x2 &&
+                cy(f.y) + NODE_H / 2 >= y1 &&
+                cy(f.y) - NODE_H / 2 <= y2
+            )
+            .map((f) => f.uid)
+          setMulti(new Set(inside))
+          if (inside.length) props.onSelect(inside[0])
+          setBox(null)
+        }
         if (d?.kind === 'handle') {
           if (!d.moved) props.onAddChild(d.uid)
           else if (ghostTarget.current) {
@@ -322,12 +421,12 @@ export default function FocusCanvas(props: Props): JSX.Element {
             child.prerequisites.map((pu) => {
               const parent = byUid.get(pu)
               if (!parent) return null
-              const x1 = cx(parent.x)
-              const y1 = cy(parent.y) + NODE_H / 2
-              const x2 = cx(child.x)
-              const y2 = cy(child.y) - NODE_H / 2
-              const my = (y1 + y2) / 2
-              const d = `M ${x1} ${y1} V ${my} H ${x2} V ${y2}`
+              const pts = routeEdge(parent, child, occupied, {
+                cellW: CELL_W,
+                cellH: CELL_H,
+                nodeH: NODE_H
+              })
+              const d = pts.map((q, i) => `${i ? 'L' : 'M'} ${q[0]} ${q[1]}`).join(' ')
               return (
                 <g
                   key={`p-${pu}-${child.uid}`}
@@ -355,41 +454,46 @@ export default function FocusCanvas(props: Props): JSX.Element {
               )
             })
           )}
-          {exclusivePairs.map(([a, b]) => (
-            <g
-              key={`x-${a.uid}-${b.uid}`}
-              data-line="excl"
-              className="cursor-pointer"
-              onPointerDown={(e) => {
-                e.stopPropagation()
-                boxRef.current?.focus({ preventScroll: true })
-                setSelLine({ kind: 'excl', a: a.uid, b: b.uid })
-              }}
-            >
-              <title>Mutuamente excluyente (clic para seleccionarla, Supr para borrarla)</title>
-              <line
-                x1={cx(a.x)}
-                y1={cy(a.y)}
-                x2={cx(b.x)}
-                y2={cy(b.y)}
-                stroke="transparent"
-                strokeWidth={12}
-              />
-              <line
-                x1={cx(a.x)}
-                y1={cy(a.y)}
-                x2={cx(b.x)}
-                y2={cy(b.y)}
-                stroke={
-                  selLine?.kind === 'excl' && selLine.a === a.uid && selLine.b === b.uid
-                    ? '#f97316'
-                    : '#ef4444'
-                }
-                strokeWidth={3}
-                strokeDasharray="8 4"
-              />
-            </g>
-          ))}
+          {exclusivePairs.map(([a, b]) => {
+            // Línea roja horizontal con ✕ en medio (junto al borde de cada foco)
+            const [l, r] = a.x <= b.x ? [a, b] : [b, a]
+            const same = l.y === r.y
+            const x1 = same ? cx(l.x) + NODE_W / 2 : cx(l.x)
+            const x2 = same ? cx(r.x) - NODE_W / 2 : cx(r.x)
+            const y1 = cy(l.y)
+            const y2 = cy(r.y)
+            const sel = selLine?.kind === 'excl' && selLine.a === a.uid && selLine.b === b.uid
+            const color = sel ? '#f97316' : '#ef4444'
+            return (
+              <g
+                key={`x-${a.uid}-${b.uid}`}
+                data-line="excl"
+                className="cursor-pointer"
+                onPointerDown={(e) => {
+                  e.stopPropagation()
+                  boxRef.current?.focus({ preventScroll: true })
+                  setSelLine({ kind: 'excl', a: a.uid, b: b.uid })
+                }}
+              >
+                <title>Mutuamente excluyente (clic para seleccionarla, Supr para borrarla)</title>
+                <line x1={x1} y1={y1} x2={x2} y2={y2} stroke="transparent" strokeWidth={12} />
+                <line x1={x1} y1={y1} x2={x2} y2={y2} stroke={color} strokeWidth={3} />
+                <text
+                  x={(x1 + x2) / 2}
+                  y={(y1 + y2) / 2 + 6}
+                  textAnchor="middle"
+                  fontSize={18}
+                  fontWeight="bold"
+                  fill={color}
+                  stroke="#141417"
+                  strokeWidth={4}
+                  paintOrder="stroke"
+                >
+                  ✕
+                </text>
+              </g>
+            )
+          })}
           {ghost && (
             <line
               x1={cx(byUid.get(ghost.from)!.x)}
@@ -408,6 +512,33 @@ export default function FocusCanvas(props: Props): JSX.Element {
           )}
         </svg>
 
+        {/* Sombra de la casilla destino al arrastrar (roja = fila no válida) */}
+        {dragging && (
+          <div
+            data-shadow={dragging.valid ? 'ok' : 'bad'}
+            className={`pointer-events-none absolute rounded-md border-2 border-dashed ${
+              dragging.valid ? 'border-green-400 bg-green-400/10' : 'border-red-500 bg-red-500/20'
+            }`}
+            style={{
+              left: cx(dragging.gx) - NODE_W / 2,
+              top: cy(dragging.gy) - NODE_H / 2,
+              width: NODE_W,
+              height: NODE_H
+            }}
+          />
+        )}
+        {box && (
+          <div
+            className="pointer-events-none absolute border border-sky-400 bg-sky-400/10"
+            style={{
+              left: Math.min(box.x1, box.x2),
+              top: Math.min(box.y1, box.y2),
+              width: Math.abs(box.x2 - box.x1),
+              height: Math.abs(box.y2 - box.y1)
+            }}
+          />
+        )}
+
         {/* Cajas de los focos */}
         {focuses.map((f) => {
           const isSel = f.uid === selected
@@ -416,19 +547,23 @@ export default function FocusCanvas(props: Props): JSX.Element {
           const pickHover = !!pick && !excluded && hover === f.uid
           const isFrom = linkFrom === f.uid
           const isGhostTarget = ghost?.target === f.uid
-          const border = isGhostTarget
-            ? ghost?.valid
-              ? 'border-green-500 bg-green-500/20'
-              : 'border-red-500 bg-red-500/20'
-            : isFrom
-              ? 'border-amber-400 bg-amber-500/20'
-              : pickHover
-                ? 'border-amber-400 bg-amber-500/20'
-                : isLink
-                  ? 'border-sky-400'
-                  : isSel && !pick
-                    ? 'border-hoi-accent'
-                    : 'border-hoi-border'
+          const inMulti = multi.has(f.uid)
+          const border =
+            inMulti && !pick
+              ? 'border-sky-400'
+              : isGhostTarget
+                ? ghost?.valid
+                  ? 'border-green-500 bg-green-500/20'
+                  : 'border-red-500 bg-red-500/20'
+                : isFrom
+                  ? 'border-amber-400 bg-amber-500/20'
+                  : pickHover
+                    ? 'border-amber-400 bg-amber-500/20'
+                    : isLink
+                      ? 'border-sky-400'
+                      : isSel && !pick
+                        ? 'border-hoi-accent'
+                        : 'border-hoi-border'
           return (
             <div
               key={f.uid}
@@ -450,8 +585,11 @@ export default function FocusCanvas(props: Props): JSX.Element {
                 excluded ? 'opacity-30' : ''
               }`}
               style={{
-                left: cx(f.x) - NODE_W / 2,
-                top: cy(f.y) - NODE_H / 2,
+                left: cx(f.x) - NODE_W / 2 + (dragging?.moved.includes(f.uid) ? dragging.dx : 0),
+                top: cy(f.y) - NODE_H / 2 + (dragging?.moved.includes(f.uid) ? dragging.dy : 0),
+                zIndex: dragging?.moved.includes(f.uid) ? 20 : undefined,
+                transition:
+                  props.animate && !dragging ? `left ${ANIM_MS}ms, top ${ANIM_MS}ms` : undefined,
                 width: NODE_W,
                 height: NODE_H,
                 cursor: pick
@@ -468,6 +606,21 @@ export default function FocusCanvas(props: Props): JSX.Element {
                 {f.name || <span className="text-red-400">sin nombre</span>}
               </div>
               <div className="text-[10px] text-hoi-muted">{f.cost} sem.</div>
+              {(f.pinned || hover === f.uid) && !pick && (
+                <button
+                  data-pin={f.pinned ? 'on' : 'off'}
+                  title={
+                    f.pinned ? 'Fijado: Ordenar no lo mueve (clic para soltarlo)' : 'Fijar posición'
+                  }
+                  className={`absolute left-0.5 top-0.5 text-[11px] leading-none ${f.pinned ? '' : 'opacity-50'}`}
+                  onPointerDown={(e) => {
+                    e.stopPropagation()
+                    props.onTogglePin(f.uid)
+                  }}
+                >
+                  📌
+                </button>
+              )}
               {hover === f.uid && !pick && (
                 <>
                   <button

@@ -38,6 +38,14 @@ export interface IconAsset {
 /** A qué apunta el ícono de un foco o espíritu */
 export type IconRef = { kind: 'game'; gfx: string } | { kind: 'asset'; assetId: string }
 
+export interface TreeSettings {
+  /** Ordenar automáticamente al crear y conectar focos (por defecto sí) */
+  autoArrange: boolean
+  /** Exportar las ramas con relative_position_id (mismo resultado visual; por defecto no) */
+  relativePositions: boolean
+}
+export const DEFAULT_TREE_SETTINGS: TreeSettings = { autoArrange: true, relativePositions: false }
+
 export interface Focus {
   /** Identificador interno estable (no cambia aunque cambies el id) */
   uid: string
@@ -59,6 +67,8 @@ export interface Focus {
   prerequisites: string[]
   /** uids de los focos mutuamente excluyentes (línea roja) */
   mutuallyExclusive: string[]
+  /** Fijado: "Ordenar árbol" no lo mueve */
+  pinned?: boolean
   /** Estado guardado del espacio de trabajo de Blockly */
   blocks: unknown | null
   /** Script generado de cada ranura (cache para vista previa y exportación) */
@@ -237,6 +247,8 @@ export type TemplateId = 'blank' | 'blankNoNation' | 'game' | 'mod' | 'content'
 
 export interface Project {
   version: number
+  /** Ajustes de los árboles de focos */
+  treeSettings?: TreeSettings
   /** Avisos que el usuario decidió ignorar (clave estable de cada aviso) */
   ignoredIssues?: string[]
   /** Plantilla de creación. Los proyectos viejos la toman de la base del mapa que tenían. */

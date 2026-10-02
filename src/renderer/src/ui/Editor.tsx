@@ -18,6 +18,7 @@ import Navigator from './Navigator'
 import Overlay from './Overlay'
 import { Z } from './layers'
 import { registerCommands } from './commands'
+import { autoLayout, dropFocus, repairTree } from '../focus/layout'
 import { validateProject, type Issue } from '../export/validator'
 import { exportMod } from '../export/exportMod'
 import { moveReport } from '../map/capitals'
@@ -200,7 +201,7 @@ export default function Editor(): JSX.Element {
     change((p) => {
       const r = createFocusBelow(p, selected, undefined, tree ?? undefined)
       uid = r.focus.uid
-      return r.project
+      return r.focus.treeId ? repairTree(r.project, r.focus.treeId) : r.project
     })
     setSelected(uid)
     setTab('focos')
@@ -211,6 +212,21 @@ export default function Editor(): JSX.Element {
     change((p) => deleteFocus(p, uid))
     setSelected(null)
   }
+  // Orden automático al crear y conectar (activado por defecto): dentro del mismo paso de deshacer
+  const [animating, setAnimating] = useState(false)
+  const arrange = (p: Project, treeId: string | undefined): Project => {
+    if (!treeId || p.treeSettings?.autoArrange === false) return p
+    setAnimating(true)
+    setTimeout(() => setAnimating(false), 300)
+    return autoLayout(p, treeId)
+  }
+  const arrangeNow = (): void => {
+    const t = activeTree ?? store.get().project?.focusTrees[0]?.id
+    if (!t) return
+    setAnimating(true)
+    setTimeout(() => setAnimating(false), 300)
+    change((p) => autoLayout(p, t))
+  }
   /** Conecta con un solo paso de deshacer; si no se puede, un aviso explica por qué */
   const onLink = (kind: 'prereq' | 'excl', from: string, to: string): string | null => {
     const cur = store.get().project!
@@ -220,7 +236,7 @@ export default function Editor(): JSX.Element {
       store.toast(r, { kind: 'error' })
       return r
     }
-    change(() => r)
+    change(() => arrange(r, store.get().project!.focuses.find((f) => f.uid === from)?.treeId))
     return null
   }
   const canLink = (kind: 'prereq' | 'excl', from: string, to: string): string | null =>
@@ -233,7 +249,7 @@ export default function Editor(): JSX.Element {
       const r = createFocusBelow(p, uid)
       created = r.focus.uid
       const linked = connectPrerequisite(r.project, uid, created)
-      return typeof linked === 'string' ? r.project : linked
+      return arrange(typeof linked === 'string' ? r.project : linked, r.focus.treeId)
     })
     setSelected(created)
   }
@@ -244,14 +260,15 @@ export default function Editor(): JSX.Element {
   )
 
   // ---- Comandos de la cinta ----
-  const latest = useRef({ startExport, addFocus })
-  latest.current = { startExport, addFocus }
+  const latest = useRef({ startExport, addFocus, arrangeNow })
+  latest.current = { startExport, addFocus, arrangeNow }
   useEffect(
     () =>
       registerCommands({
         exportMod: () => void latest.current.startExport(),
         validate: () => void latest.current.startExport(true),
         focusAdd: () => void latest.current.addFocus(),
+        focusArrange: () => latest.current.arrangeNow(),
         countryNew: () => setWizard({}),
         countryQuick: () =>
           store.openPrompt({
@@ -337,9 +354,13 @@ export default function Editor(): JSX.Element {
                 selected={selected}
                 tool={tool}
                 onSelect={setSelected}
-                onMove={(uid, x, y) =>
-                  change((p) => updateFocus(p, uid, { x, y }), { group: `drag:${uid}` })
+                onPlace={(uid, gx, gy, opts) => change((p) => dropFocus(p, uid, gx, gy, opts))}
+                onTogglePin={(uid) =>
+                  change((p) =>
+                    updateFocus(p, uid, { pinned: !p.focuses.find((f) => f.uid === uid)?.pinned })
+                  )
                 }
+                animate={animating}
                 onLink={onLink}
                 canLink={canLink}
                 onAddChild={addChildOf}

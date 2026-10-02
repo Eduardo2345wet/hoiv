@@ -10,6 +10,7 @@ import {
   FolderOpen,
   GitBranch,
   Image as ImageIcon,
+  LayoutGrid,
   Maximize,
   Plus,
   Redo2,
@@ -24,6 +25,7 @@ import {
   ZoomOut
 } from 'lucide-react'
 import { store, useApp, type RibbonId } from '../store/appStore'
+import { DEFAULT_TREE_SETTINGS } from '../types'
 import { VIEW_MODES, type ViewMode } from '../map/colors'
 import { LABEL_MODES, type LabelMode } from '../map/labelLayout'
 import { TOOLS } from './map/MapTab'
@@ -332,6 +334,30 @@ export default function Ribbon(): JSX.Element {
             label="Añadir foco"
             disabled={off}
             onClick={() => runCommand('focusAdd')}
+          />
+          <RBtn
+            icon={<LayoutGrid size={20} />}
+            label="Ordenar árbol"
+            disabled={off}
+            onClick={() => runCommand('focusArrange')}
+            title="Ordena el árbol por capas, como en el juego (un paso de deshacer)"
+          />
+          <RBtn
+            icon={<LayoutGrid size={20} />}
+            label="Orden automático"
+            disabled={off}
+            active={on && project?.treeSettings?.autoArrange !== false}
+            onClick={() =>
+              store.updateProject((p) => ({
+                ...p,
+                treeSettings: {
+                  ...DEFAULT_TREE_SETTINGS,
+                  ...p.treeSettings,
+                  autoArrange: p.treeSettings?.autoArrange === false
+                }
+              }))
+            }
+            title="Ordenar automáticamente al crear y conectar focos"
           />
         </Group>
         <Group title="Herramientas">
