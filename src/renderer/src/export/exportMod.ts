@@ -73,7 +73,7 @@ export async function buildExtraFiles(
   if (read) {
     files.push(...(await countryImageFiles(project, read)))
     // Imágenes de eventos (subidas o de la biblioteca): DDS al tamaño de las del juego
-    for (const e of project.events) {
+    for (const e of project.events ?? []) {
       const png = eventPng(project, e.picture)
       if (!png) continue
       const img = await read(png, EVENT_PICTURE_SIZE.w, EVENT_PICTURE_SIZE.h)

@@ -293,11 +293,11 @@ export function eventLoc(p: Project): ModFile[] {
 
 /** Rutas de las imágenes DDS (para planificar y para generarlas con el lector de imágenes) */
 export const eventImagePaths = (p: Project): string[] =>
-  p.events.filter((e) => eventPng(p, e.picture)).map((e) => eventImagePath(p, e))
+  (p.events ?? []).filter((e) => eventPng(p, e.picture)).map((e) => eventImagePath(p, e))
 
 registerSectionGenerator({
   id: 'eventos',
-  generate: (p) => (p.events.length ? [...eventFiles(p), ...eventGfx(p), ...eventLoc(p)] : [])
+  generate: (p) => (p.events?.length ? [...eventFiles(p), ...eventGfx(p), ...eventLoc(p)] : [])
 })
 
 // ---------------------------------------------------------------- validación
@@ -311,7 +311,7 @@ export interface EventIssue {
 export function validateEvents(p: Project, knownPictures?: Set<string>): EventIssue[] {
   const out: EventIssue[] = []
   const seen = new Map<string, string>()
-  for (const e of p.events) {
+  for (const e of p.events ?? []) {
     const id = eventId(e)
     const at = (severity: EventIssue['severity'], message: string): number =>
       out.push({ severity, message: `Evento ${id}: ${message}`, uid: e.uid })
