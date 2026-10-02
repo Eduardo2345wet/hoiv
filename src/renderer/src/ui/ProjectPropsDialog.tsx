@@ -7,6 +7,7 @@ import { TEMPLATES, templateInfo, templateOf } from '../templates'
 import { paintedCount, resetMapWithTemplate } from '../map/resetMap'
 import type { MapModRef, TemplateId } from '../types'
 import Modal from './Modal'
+import { validateProjectName } from '../../../shared/names'
 
 interface InstalledMod extends MapModRef {
   source: string
@@ -43,7 +44,20 @@ export default function ProjectPropsDialog(): JSX.Element | null {
     >
       <dl className="grid grid-cols-[130px_1fr] gap-y-1 text-sm">
         <dt className="text-hoi-muted">Nombre</dt>
-        <dd>{project.modName}</dd>
+        <dd>
+          <input
+            className="input w-full"
+            value={project.modName}
+            onChange={(e) =>
+              store.updateProject((p) => ({ ...p, modName: e.target.value }), {
+                group: 'field:modName'
+              })
+            }
+          />
+          {validateProjectName(project.modName) && (
+            <span className="text-xs text-red-400">{validateProjectName(project.modName)}</span>
+          )}
+        </dd>
         <dt className="text-hoi-muted">Plantilla</dt>
         <dd>
           {t.name}

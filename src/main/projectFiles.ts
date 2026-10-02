@@ -3,6 +3,7 @@
 import fs from 'fs'
 import path from 'path'
 import { isGameInstallFolder } from './export'
+import { validateProjectName } from '../shared/names'
 
 /** Nombre de carpeta seguro: sin caracteres que Windows no permite */
 export function safeFolderName(name: string): string {
@@ -18,11 +19,14 @@ export type CreateResult = { ok: true; path: string; folder: string } | { ok: fa
 
 /** Crea <parent>/<nombre>/ y escribe proyecto.json dentro. */
 export function createProjectFolder(parent: string, name: string, json: string): CreateResult {
-  if (!name.trim()) return { ok: false, error: 'Escribe un nombre para el proyecto.' }
+  const bad = validateProjectName(name)
+  if (bad) return { ok: false, error: bad }
   if (!parent.trim()) return { ok: false, error: 'Elige una carpeta.' }
   if (isGameInstallFolder(parent))
     return { ok: false, error: 'No se crean proyectos dentro de la carpeta del juego.' }
-  const folder = path.join(parent, safeFolderName(name))
+  const folder = path.resolve(parent, safeFolderName(name))
+  if (path.dirname(folder) !== path.resolve(parent))
+    return { ok: false, error: 'El nombre no es válido.' }
   try {
     if (fs.existsSync(folder) && fs.readdirSync(folder).length > 0)
       return { ok: false, error: `Ya existe la carpeta "${folder}" y no está vacía.` }

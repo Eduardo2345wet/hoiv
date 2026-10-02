@@ -1,5 +1,6 @@
 // Archivo → Nuevo proyecto (como Archivo → Nuevo de NX): categorías y tarjetas con miniatura,
 // vista previa y detalles a la derecha; abajo el nombre y la carpeta.
+import { validateProjectName } from '../../../shared/names'
 import { useEffect, useMemo, useState } from 'react'
 import { store, useApp } from '../store/appStore'
 import {
@@ -66,7 +67,8 @@ export default function NewProjectDialog({ initialName }: { initialName: string 
   )
 
   const accept = async (): Promise<void> => {
-    if (!name.trim()) return setError('Escribe un nombre para el proyecto.')
+    const bad = validateProjectName(name)
+    if (bad) return setError(bad)
     if (selected === 'mod' && !mod) return setError('Elige el mod que usarás como base del mapa.')
     setBusy(true)
     setError(null)
@@ -100,7 +102,8 @@ export default function NewProjectDialog({ initialName }: { initialName: string 
           </button>
           <button
             className="btn-primary disabled:opacity-40"
-            disabled={busy}
+            disabled={busy || !!validateProjectName(name)}
+            title={validateProjectName(name) ?? undefined}
             onClick={() => void accept()}
           >
             Aceptar
@@ -222,6 +225,9 @@ export default function NewProjectDialog({ initialName }: { initialName: string 
           placeholder="Mi mod de México"
           onChange={(e) => setName(e.target.value)}
         />
+        {name.length > 0 && validateProjectName(name) && (
+          <p className="col-span-2 text-xs text-red-400">{validateProjectName(name)}</p>
+        )}
         <label className="text-sm">Carpeta</label>
         <div className="flex gap-2">
           <input

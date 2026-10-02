@@ -4,7 +4,7 @@ import type { Project } from '../types'
 import { store } from '../store/appStore'
 import { migrateProject } from '../migrate'
 import { templateOf } from '../templates'
-import { safeFolderName } from '../../../shared/names'
+import { safeFolderName, validateProjectName } from '../../../shared/names'
 
 const RECENT_MAX = 12
 export interface RecentEntry {
@@ -45,7 +45,24 @@ export async function saveActive(saveAs = false): Promise<boolean> {
     store.toast('Guardar solo funciona en la app de escritorio.', { kind: 'error' })
     return false
   }
-  const json = JSON.stringify(s.project, null, 2)
+  // Nombre inválido (por ejemplo "."): pide uno válido antes de guardar. "Guardar como" siempre
+  // confirma el nombre del proyecto.
+  if (saveAs || validateProjectName(s.project.modName)) {
+    const name = await new Promise<string | null>((resolve) =>
+      store.openPrompt({
+        message: validateProjectName(s.project!.modName)
+          ? 'El nombre del proyecto no es válido. Escribe uno nuevo:'
+          : 'Nombre del proyecto:',
+        defaultValue: validateProjectName(s.project!.modName) ? '' : s.project!.modName,
+        validate: validateProjectName,
+        callback: resolve
+      })
+    )
+    if (name === null) return false
+    if (name.trim() !== s.project.modName)
+      store.updateProject((p) => ({ ...p, modName: name.trim() }))
+  }
+  const json = JSON.stringify(store.get().project, null, 2)
   const settings = await api.getSettings()
   const ask = saveAs || !s.filePath || settings.askWhereToSave !== false
   let target = s.filePath
@@ -60,7 +77,7 @@ export async function saveActive(saveAs = false): Promise<boolean> {
   } else await api.saveProjectToPath(target!, json)
   store.set({ dirty: false })
   const fp = store.get().filePath!
-  void rememberRecent(s.project, fp)
+  void rememberRecent(store.get().project!, fp)
   store.toast(`Proyecto guardado en ${fp}`, {
     action: { label: 'Abrir carpeta', run: () => void api.openFolder(dirOf(fp)) }
   })

@@ -6,7 +6,7 @@ import { store, useApp } from '../store/appStore'
 import { safeFolderName } from '../../../shared/names'
 import Modal from './Modal'
 
-type Loaded = { result: ReviewData; modsDir: string; slug: string }
+type Loaded = { result: ReviewData; modsDir: string; slug: string; leftovers: string[] }
 
 function List({ title, items }: { title: string; items: string[] }): JSX.Element | null {
   if (!items.length) return null
@@ -86,6 +86,25 @@ export default function InstalledReviewDialog(): JSX.Element | null {
               {m}
             </p>
           ))}
+        </div>
+      )}
+      {data && (data.leftovers?.length ?? 0) > 0 && (
+        <div className="mb-3 rounded border border-yellow-500/60 p-3 text-sm text-yellow-300">
+          <p className="font-semibold">
+            Hay restos de un mod inválido en la carpeta de mods del juego
+          </p>
+          <ul className="mt-1 list-disc pl-5 font-mono text-xs">
+            {data.leftovers!.map((f) => (
+              <li key={f}>{f}</li>
+            ))}
+          </ul>
+          <p className="mt-1 text-xs">Bórralos a mano (la app no borra nada ahí).</p>
+          <button
+            className="btn mt-2 text-xs"
+            onClick={() => void window.electronAPI?.openFolder(data.modsDir)}
+          >
+            Abrir carpeta de mods
+          </button>
         </div>
       )}
       <div className="rounded border border-hoi-border p-3 text-sm">

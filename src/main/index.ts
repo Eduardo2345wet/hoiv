@@ -4,7 +4,7 @@ import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import fs from 'fs'
 import path from 'path'
 import { exportPreviousExists, handleExportMod } from './export'
-import { reviewInstalled } from './reviewInstalled'
+import { findInvalidLeftovers, reviewInstalled } from './reviewInstalled'
 import { safeFolderName } from '../shared/names'
 import { saveImage } from './saveImage'
 import { readGameFlags } from './gameFlags'
@@ -298,8 +298,9 @@ app.whenReady().then(() => {
     const slug = safeFolderName(modName)
     const manifest = loadSettings(settingsFile).lastExports?.[slug]
     const { modsDir } = hoi4Docs()
-    if (!manifest) return { result: { status: 'no-export' }, modsDir, slug }
-    return { result: reviewInstalled(modsDir, manifest), modsDir, slug }
+    const leftovers = findInvalidLeftovers(modsDir)
+    if (!manifest) return { result: { status: 'no-export' }, modsDir, slug, leftovers }
+    return { result: reviewInstalled(modsDir, manifest), modsDir, slug, leftovers }
   })
 
   createWindow()

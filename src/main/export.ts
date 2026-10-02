@@ -3,7 +3,7 @@ import fs from 'fs'
 import path from 'path'
 import os from 'os'
 import crypto from 'crypto'
-import { safeFolderName } from '../shared/names'
+import { modSlug, safeFolderName } from '../shared/names'
 import { DEFAULT_SUPPORTED_VERSION, hoi4ModsDir } from './exportInfo'
 
 export interface ExportModPayload {
@@ -47,6 +47,9 @@ export const modValue = (text: string, key: string): string =>
 
 export { safeFolderName }
 
+export const INVALID_NAME =
+  'El nombre del mod no es válido; cámbialo en Archivo → Propiedades del proyecto'
+
 /** ¿La carpeta es (o está dentro de) Documentos/Paradox Interactive/Hearts of Iron IV? */
 export function isHoi4DocumentsFolder(folder: string): boolean {
   return /\/paradox interactive\/hearts of iron iv(\/|$)/i.test(folder.replace(/\\/g, '/'))
@@ -54,7 +57,8 @@ export function isHoi4DocumentsFolder(folder: string): boolean {
 
 /** ¿Ya hay una exportación de este mod en la carpeta (la carpeta del mod o su .mod)? */
 export function exportPreviousExists(exportPath: string, modName: string): boolean {
-  const base = safeFolderName(modName)
+  const base = modSlug(modName)
+  if (!base) return false
   return (
     fs.existsSync(path.join(exportPath, base)) ||
     fs.existsSync(path.join(exportPath, `${base}.mod`))
@@ -100,7 +104,8 @@ export interface BuiltMod {
  */
 export function buildModFiles(payload: ExportModPayload): BuiltMod | { error: string } {
   const { modName, tag, focusTreeScript, locYaml } = payload
-  const baseName = safeFolderName(modName)
+  const baseName = modSlug(modName)
+  if (!baseName) return { error: INVALID_NAME }
   const tags = `tags={\n\t"Alternative History"\n\t"National Focuses"\n}`
   // Base de mapa de otro mod: el nuestro depende de él (debe cargarse antes)
   // por verificar: el launcher de HOI4 respeta dependencies = { "Nombre" } para el orden de carga
@@ -162,8 +167,17 @@ export async function handleExportMod(payload: ExportModPayload): Promise<Export
     }
     const built = buildModFiles(payload)
     if ('error' in built) return { success: false, error: built.error }
-    const modFolder = path.join(payload.exportPath, built.baseName)
-    const outerFile = path.join(payload.exportPath, `${built.baseName}.mod`)
+    // Todo se normaliza con path.resolve: el mod es SIEMPRE una subcarpeta nueva de la carpeta
+    // elegida, y nada se escribe ni se borra fuera de ella (ni de su .mod)
+    const root = path.resolve(payload.exportPath)
+    const modFolder = path.resolve(root, built.baseName)
+    const outerFile = path.resolve(root, `${built.baseName}.mod`)
+    if (
+      path.dirname(modFolder) !== root ||
+      path.basename(modFolder) !== built.baseName ||
+      path.dirname(outerFile) !== root
+    )
+      return { success: false, error: INVALID_NAME }
     if (exportPreviousExists(payload.exportPath, payload.modName)) {
       if (!payload.replacePrevious)
         return {
@@ -176,7 +190,8 @@ export async function handleExportMod(payload: ExportModPayload): Promise<Export
     }
     fs.mkdirSync(modFolder, { recursive: true })
     for (const e of built.entries) {
-      const target = path.join(modFolder, ...e.rel.split('/'))
+      const target = path.resolve(modFolder, ...e.rel.split('/'))
+      if (!target.startsWith(modFolder + path.sep)) throw new Error(`Ruta no permitida: ${e.rel}`)
       fs.mkdirSync(path.dirname(target), { recursive: true })
       fs.writeFileSync(target, e.bytes)
     }

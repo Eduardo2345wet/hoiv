@@ -79,3 +79,23 @@ export function reviewInstalled(modsDir: string, manifest: ExportManifest): Revi
   if (!missing.length && !extra.length && !different.length && modOk) return { status: 'ok' }
   return { status: 'diff', missing, extra, different, mod }
 }
+
+/**
+ * Restos de un mod inválido en la carpeta de mods del juego: carpetas sueltas del contenido de un
+ * mod (common, gfx, interface, localisation, history) o archivos .mod sin nombre ("." / ".." / "").
+ * SOLO LEE: nunca borra nada.
+ */
+export function findInvalidLeftovers(modsDir: string): string[] {
+  const loose = new Set(['common', 'gfx', 'interface', 'localisation', 'history'])
+  const out: string[] = []
+  try {
+    for (const it of fs.readdirSync(modsDir, { withFileTypes: true })) {
+      if (it.isDirectory() && loose.has(it.name.toLowerCase())) out.push(it.name)
+      else if (it.isFile() && /^\.*\.mod$/i.test(it.name) && /^\.*$/.test(it.name.slice(0, -4)))
+        out.push(it.name)
+    }
+  } catch {
+    // sin carpeta de mods
+  }
+  return out
+}

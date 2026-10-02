@@ -1,6 +1,7 @@
 // Store central de la app (sin librerías): el estado vive aquí y los
 // componentes de React se suscriben con useApp(). Blockly también lo lee
 // (por ejemplo, los menús de FieldCatalog consultan el proyecto actual).
+import { validateProjectName } from '../../../shared/names'
 import type { ExportInfo } from '../../../preload/index.d'
 import { useSyncExternalStore } from 'react'
 import type { Project } from '../types'
@@ -451,7 +452,11 @@ export const store = {
       const src = live ? state : t.snap
       return {
         id: t.id,
-        name: src.project?.modName ?? '—',
+        // Un nombre inválido (por ejemplo ".") se muestra como "Sin título"
+        name:
+          src.project && !validateProjectName(src.project.modName)
+            ? src.project.modName
+            : 'Sin título',
         dirty: src.dirty,
         filePath: src.filePath,
         active: live

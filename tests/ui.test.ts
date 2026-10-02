@@ -650,6 +650,8 @@ describe('guardar: elegir dónde y ver la ruta (parte 2)', () => {
     expect(c2.some((x) => x[0] === 'saveToPath')).toBe(true)
     // Guardar como: SIEMPRE pregunta
     await page.keyboard.press('Control+Shift+s')
+    await page.waitForSelector('text=Nombre del proyecto:') // confirma el nombre antes del diálogo
+    await page.locator('button.btn-primary').last().click()
     await page.waitForTimeout(300)
     expect((await calls(page)).filter((x) => x[0] === 'dialog').length).toBe(2)
     await page.close()

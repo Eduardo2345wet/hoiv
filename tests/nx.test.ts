@@ -186,15 +186,16 @@ describe('plantillas y nuevo proyecto (partes 3 y 4)', () => {
 
   it('crea la carpeta y el proyecto.json (y no pisa una carpeta con cosas)', () => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'hoi-proy-'))
-    const p = emptyProjectFor('Mi mod: prueba?', 'game')
-    const r = createProjectFolder(dir, 'Mi mod: prueba?', JSON.stringify(p))
+    const p = emptyProjectFor('Mi mod prueba', 'game')
+    const r = createProjectFolder(dir, 'Mi mod prueba', JSON.stringify(p))
     expect(r.ok).toBe(true)
     if (!r.ok) return
-    expect(path.basename(r.folder)).toBe('Mi mod_ prueba_')
+    expect(path.basename(r.folder)).toBe('Mi mod prueba')
     expect(JSON.parse(fs.readFileSync(r.path, 'utf-8')).template).toBe('game')
-    const again = createProjectFolder(dir, 'Mi mod: prueba?', '{}')
+    const again = createProjectFolder(dir, 'Mi mod prueba', '{}')
     expect(again.ok).toBe(false)
     expect(createProjectFolder(dir, '  ', '{}').ok).toBe(false)
+    expect(createProjectFolder(dir, 'Mi mod: prueba?', '{}').ok).toBe(false)
   })
 
   it('"Nuevo proyecto con otra plantilla" abre una pestaña NUEVA y limpia (nunca copia lo pintado)', () => {

@@ -125,7 +125,7 @@ export interface ElectronAPI {
   /** SOLO LECTURA: compara la copia instalada en el juego con la última exportación */
   reviewInstalled: (
     modName: string
-  ) => Promise<{ result: ReviewData; modsDir: string; slug: string }>
+  ) => Promise<{ result: ReviewData; modsDir: string; slug: string; leftovers: string[] }>
   /** Abre una carpeta (o muestra un archivo) en el explorador */
   openFolder: (p: string) => Promise<boolean>
   /** Documentos/HOI4 Mod Studio/Proyectos */

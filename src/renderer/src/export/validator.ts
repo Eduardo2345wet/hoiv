@@ -6,6 +6,7 @@ import { isKnownId, projectFlags, type GameCatalog } from '../catalog/catalog'
 import { planIconExport } from './gfx'
 import { SHINE_TEMPLATE, shineShape } from '../../../shared/shine'
 import { validateCountry } from '../countries/validateCountry'
+import { modSlug } from '../../../shared/names'
 import { plannedPaths } from './exportMod'
 import { treeCountry } from '../countries/countryOps'
 import { validateMap } from '../map/validateMap'
@@ -90,6 +91,12 @@ export function validateProject(
   // (los tags de los países se validan en countries/validateCountries.ts)
   if (!project.modName.trim())
     issues.push({ severity: 'error', message: 'El mod no tiene nombre.' })
+  else if (!modSlug(project.modName))
+    issues.push({
+      severity: 'error',
+      message:
+        'El nombre del mod no es válido; cámbialo en Archivo → Propiedades del proyecto (necesita al menos una letra o un número).'
+    })
   // Un mod solo de mapa (sin árboles) puede no tener focos; con árboles, cada uno necesita alguno
   if (project.focuses.length === 0 && project.focusTrees.length > 0)
     issues.push({
