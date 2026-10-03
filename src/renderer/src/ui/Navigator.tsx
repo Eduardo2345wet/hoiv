@@ -198,22 +198,6 @@ export default function Navigator({ project }: { project: Project }): JSX.Elemen
             )
           )}
         </Section>
-        <Section
-          title="Espíritus nacionales"
-          count={project.ideas.length}
-          open={open.ideas}
-          onToggle={() => toggle('ideas')}
-        >
-          {project.ideas.map((i) =>
-            row(
-              i.uid,
-              false,
-              () => store.setUi({ ribbon: 'ideas' }),
-              null,
-              <span className="truncate">{i.name}</span>
-            )
-          )}
-        </Section>
         {/* Secciones nuevas: cada una abre su pestaña (la lista completa está allí) */}
         {SECTIONS.map((d) => (
           <Section

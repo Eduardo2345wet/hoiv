@@ -8,7 +8,6 @@ import FocusPanel from './FocusPanel'
 import BlocklyEditor from './BlocklyEditor'
 import PreviewPanel from './PreviewPanel'
 import ValidationDialog from './ValidationDialog'
-import IdeasTab from './IdeasTab'
 import CountriesTab from './CountriesTab'
 import TreeSelector from './TreeSelector'
 import MapTab from './map/MapTab'
@@ -25,6 +24,8 @@ import './DecisionsScreen'
 import './OobScreen'
 import './ExtrasScreen'
 import './TechnologiesScreen'
+import './IdeologiesScreen'
+import './IdeasScreen'
 import './CharactersScreen'
 import { sectionById } from '../sections/ui'
 import { autoLayout, dropFocus, repairTree } from '../focus/layout'
@@ -53,7 +54,7 @@ import {
   updateFocus
 } from './projectOps'
 
-type Tab = 'focos' | 'mapa' | 'paises' | 'ideas' | 'iconos'
+type Tab = 'focos' | 'mapa' | 'paises' | 'iconos'
 
 export default function Editor(): JSX.Element {
   const project = useApp((s) => s.project) as Project
@@ -63,7 +64,7 @@ export default function Editor(): JSX.Element {
   const ribbon = useApp((s) => s.ui.ribbon)
   const lastView = useRef<Tab>('focos')
   const sectionDef = sectionById(ribbon)
-  const tab: Tab = (['mapa', 'focos', 'paises', 'ideas', 'iconos'] as string[]).includes(ribbon)
+  const tab: Tab = (['mapa', 'focos', 'paises', 'iconos'] as string[]).includes(ribbon)
     ? (ribbon as Tab)
     : lastView.current
   lastView.current = tab
@@ -306,7 +307,7 @@ export default function Editor(): JSX.Element {
           }),
         ideaNew: () => {
           change((p) => createIdea(p).project)
-          setTab('ideas')
+          store.setUi({ ribbon: 'ideas' })
         }
       }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -332,7 +333,7 @@ export default function Editor(): JSX.Element {
             <MapTab
               project={project}
               onOpenWizard={(uid, step) => setWizard({ uid, step })}
-              onGoTab={setTab}
+              onGoTab={(t) => store.setUi({ ribbon: t })}
               lastValidatorMessage={lastValidatorMessage}
             />
           </div>
@@ -343,11 +344,6 @@ export default function Editor(): JSX.Element {
               project={project}
               onOpenWizard={(uid, step) => setWizard({ uid, step })}
             />
-          </div>
-        )}
-        {tab === 'ideas' && (
-          <div className="min-h-0 flex-1">
-            <IdeasTab project={project} />
           </div>
         )}
         {tab === 'iconos' && (

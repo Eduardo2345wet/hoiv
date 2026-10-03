@@ -40,6 +40,8 @@ const CONCEPTS = [
   'foco.saltarSi',
   'foco.excluyente',
   'foco.prerrequisito',
+  'espiritu.modificadores',
+  'espiritu.copiarJuego',
   'ejercito.plantilla',
   'ejercito.linea',
   'ejercito.apoyo',

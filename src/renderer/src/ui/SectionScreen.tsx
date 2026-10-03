@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Plus } from 'lucide-react'
 import { registerCommands } from './commands'
+import { store, useApp } from '../store/appStore'
 import type { Project } from '../types'
 import { screenOf, type GroupNode, type SectionDef } from '../sections/ui'
 import { SplitPane } from './kit'
@@ -20,6 +21,14 @@ export default function SectionScreen({
   const [selected, setSelected] = useState<string | null>(null)
   const [view, setView] = useState<'editor' | 'overview'>('editor')
   const [dialog, setDialog] = useState<{ template?: string } | null>(null)
+
+  // Un espíritu recién copiado del juego se abre para editarlo
+  const toSelect = useApp((st) => (def.id === 'ideas' ? st.ideaToSelect : null))
+  useEffect(() => {
+    if (!toSelect) return
+    setSelected(toSelect)
+    store.set({ ideaToSelect: null })
+  }, [toSelect])
 
   const groups: GroupNode[] = useMemo(() => {
     if (screen?.groups) return screen.groups(project)
@@ -46,7 +55,10 @@ export default function SectionScreen({
   const canCreate = !!spec || !!create
 
   const doCreate = (template?: string): void => {
-    if (spec) return setDialog({ template })
+    if (spec) {
+      if (template && spec.direct?.(template)) return
+      return setDialog({ template })
+    }
     void Promise.resolve(create?.()).then((uid) => uid && setSelected(uid))
   }
 

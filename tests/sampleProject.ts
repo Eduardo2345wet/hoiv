@@ -3,6 +3,7 @@
 import { emptyProjectFor } from '../src/renderer/src/templates'
 import { addCountry, newCountry } from '../src/renderer/src/countries/countryOps'
 import { createEvent } from '../src/renderer/src/sections/events'
+import { createIdea } from '../src/renderer/src/ui/projectOps'
 import { createCharacter } from '../src/renderer/src/sections/characters'
 import { newTrack } from '../src/renderer/src/sections/extras'
 import { createSuperEvent } from '../src/renderer/src/sections/superEvents'
@@ -104,6 +105,7 @@ export function sample(): Project {
     group: 'democratic',
     color: [10, 20, 30]
   }).project
+  p = createIdea(p, 'Industria nacional').project
   // Personajes, música e idiomas (secciones sin cambios de formato en el rediseño)
   p = createCharacter(p, {
     name: 'Ana Torres',

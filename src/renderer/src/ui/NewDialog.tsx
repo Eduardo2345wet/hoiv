@@ -165,7 +165,10 @@ export default function NewDialog({
           <TemplateGallery
             templates={spec.templates}
             value={template}
-            onChange={setTemplate}
+            onChange={(id) => {
+              if (spec.direct?.(id)) onClose()
+              else setTemplate(id)
+            }}
             compact
           />
         </div>

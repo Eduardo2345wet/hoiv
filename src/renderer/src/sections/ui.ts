@@ -8,11 +8,19 @@ import type { SectionData } from './types'
 export interface SectionDef {
   id: Extract<
     RibbonId,
-    'eventos' | 'supereventos' | 'decisiones' | 'personajes' | 'ejercito' | 'tecnologias' | 'extras'
+    | 'ideas'
+    | 'ideologias'
+    | 'eventos'
+    | 'supereventos'
+    | 'decisiones'
+    | 'personajes'
+    | 'ejercito'
+    | 'tecnologias'
+    | 'extras'
   >
   label: string
   /** Colección principal que lista el panel izquierdo */
-  collection: keyof SectionData
+  collection: keyof SectionData | 'ideas'
   createLabel: string
   empty: string
   /** Grupos de la cinta */
@@ -33,6 +41,22 @@ const groups = (create: string, view = 'Vista general'): SectionDef['groups'] =>
 ]
 
 export const SECTIONS: SectionDef[] = [
+  {
+    id: 'ideologias',
+    label: 'Ideologías',
+    collection: 'ideologies',
+    createLabel: 'Crear subideología',
+    empty: 'Aún no hay subideologías. Crea una para tus gobiernos.',
+    groups: groups('Subideología')
+  },
+  {
+    id: 'ideas',
+    label: 'Espíritus nacionales',
+    collection: 'ideas',
+    createLabel: 'Crear espíritu',
+    empty: 'Aún no hay espíritus nacionales.',
+    groups: groups('Espíritu')
+  },
   {
     id: 'eventos',
     label: 'Eventos',
@@ -77,8 +101,8 @@ export const SECTIONS: SectionDef[] = [
     id: 'tecnologias',
     label: 'Tecnologías',
     collection: 'technologies',
-    createLabel: 'Crear subideología',
-    empty: 'Aún no hay subideologías ni tecnologías propias. Crea una subideología para empezar.',
+    createLabel: 'Crear tecnología',
+    empty: 'Aún no hay tecnologías propias. Activa el Modo avanzado para crearlas.',
     groups: groups('Tecnología')
   },
   {
@@ -139,6 +163,8 @@ export interface NewSpec {
   newGroupLabel?: string
   /** Alternativa a crear un grupo: elegir uno de otro sitio (por ejemplo un país del juego) */
   pickGroup?: { label: string; pick: () => Promise<{ id: string; name: string } | null> }
+  /** Plantillas que no necesitan la ventana (por ejemplo "Copiar uno del juego"): devuelve true si las atendió */
+  direct?: (template: string) => boolean
   create: (v: {
     name: string
     groupId: string | null

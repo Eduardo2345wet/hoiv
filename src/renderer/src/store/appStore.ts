@@ -70,6 +70,7 @@ export type RibbonId =
   | 'focos'
   | 'paises'
   | 'ideas'
+  | 'ideologias'
   | 'iconos'
   | 'exportar'
   | 'eventos'

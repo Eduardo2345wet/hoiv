@@ -317,6 +317,10 @@ units = {
  guerra.2.d:0 "Se supo."
  guerra.2.a:0 ""
 ",
+  "localisation/spanish/mi_mod_l_spanish.yml": "l_spanish:
+ NVG_industria_nacional:0 "Industria nacional"
+ NVG_industria_nacional_desc:0 ""
+",
   "localisation/spanish/mi_mod_super_events_l_spanish.yml": "l_spanish:
  mi_mod_caida_title:0 "Caída"
  mi_mod_caida_quote:0 "Adiós\\n- Alguien"

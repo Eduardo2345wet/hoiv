@@ -131,6 +131,18 @@ export const HELP: Record<string, HelpEntry> = {
     what: 'Un foco que debe estar completo antes. Si pones varios en un mismo grupo, basta con uno; si los pones por separado, hacen falta todos.',
     ingame: 'Se unen con una línea hacia el foco que depende de ellos.'
   },
+  // ---- Espíritus nacionales
+  'espiritu.modificadores': {
+    title: 'Modificadores',
+    what: 'Cada fila cambia un número del país mientras el espíritu esté activo. Un valor positivo suma y uno negativo resta.',
+    example: 'Estabilidad +5 %: el país es un poco más estable.',
+    ingame: 'Aparecen en el globo que se abre al pasar el mouse sobre el espíritu.'
+  },
+  'espiritu.copiarJuego': {
+    title: 'Copiar del juego',
+    what: 'Crea un espíritu tuyo a partir de uno que ya existe en el juego, con sus modificadores y su ícono. El original no se toca.',
+    example: 'Copia un espíritu de industria y cambia solo un número.'
+  },
   // ---- Ejército
   'ejercito.plantilla': {
     title: 'Plantilla de división',

@@ -33,7 +33,7 @@ import { LABEL_MODES, type LabelMode } from '../map/labelLayout'
 import { TOOLS } from './map/MapTab'
 import { noNationActive } from '../map/noNation'
 import { runCommand } from './commands'
-import { SECTIONS, screenOf } from '../sections/ui'
+import { sectionById, screenOf, type SectionDef } from '../sections/ui'
 
 const sectionHas = (id: string, action: string): boolean => {
   const s = screenOf(id)
@@ -52,6 +52,7 @@ export const RIBBON_TABS: [RibbonId, string][] = [
   ['mapa', 'Mapa'],
   ['focos', 'Focos'],
   ['paises', 'Países'],
+  ['ideologias', 'Ideologías'],
   ['ideas', 'Espíritus'],
   ['eventos', 'Eventos'],
   ['supereventos', 'Súper eventos'],
@@ -98,7 +99,7 @@ export function RBtn({
 }
 
 const TAB_CLASS = (selected: boolean): string =>
-  `shrink-0 whitespace-nowrap px-3 py-1.5 text-sm ${selected ? 'border-b-2 border-hoi-accent text-hoi-text' : 'text-hoi-muted hover:text-hoi-text'}`
+  `shrink-0 whitespace-nowrap px-2 py-1.5 text-sm ${selected ? 'border-b-2 border-hoi-accent text-hoi-text' : 'text-hoi-muted hover:text-hoi-text'}`
 
 /**
  * Pestañas de la cinta en UNA línea: las que no caben van a un menú "Más" (la pestaña activa
@@ -301,7 +302,7 @@ export default function Ribbon(): JSX.Element {
   )
 
   // Pestañas de las secciones nuevas: mismos grupos (Crear · Editar · Ver · Probar) en todas
-  const sectionTab = (def: (typeof SECTIONS)[number]): JSX.Element => (
+  const sectionTab = (def: SectionDef): JSX.Element => (
     <>
       {def.groups.map((g) => (
         <Group key={g.title} title={g.title}>
@@ -326,13 +327,15 @@ export default function Ribbon(): JSX.Element {
     </>
   )
   const content: Record<RibbonId, JSX.Element> = {
-    eventos: sectionTab(SECTIONS[0]),
-    supereventos: sectionTab(SECTIONS[1]),
-    decisiones: sectionTab(SECTIONS[2]),
-    personajes: sectionTab(SECTIONS[3]),
-    ejercito: sectionTab(SECTIONS[4]),
-    tecnologias: sectionTab(SECTIONS[5]),
-    extras: sectionTab(SECTIONS[6]),
+    ideologias: sectionTab(sectionById('ideologias')!),
+    ideas: sectionTab(sectionById('ideas')!),
+    eventos: sectionTab(sectionById('eventos')!),
+    supereventos: sectionTab(sectionById('supereventos')!),
+    decisiones: sectionTab(sectionById('decisiones')!),
+    personajes: sectionTab(sectionById('personajes')!),
+    ejercito: sectionTab(sectionById('ejercito')!),
+    tecnologias: sectionTab(sectionById('tecnologias')!),
+    extras: sectionTab(sectionById('extras')!),
     inicio: (
       <>
         <Group title="Proyecto">
@@ -569,18 +572,6 @@ export default function Ribbon(): JSX.Element {
         </Group>
       </>
     ),
-    ideas: (
-      <>
-        <Group title="Espíritus">
-          <RBtn
-            icon={<Plus size={20} />}
-            label="Nuevo espíritu"
-            disabled={off}
-            onClick={() => runCommand('ideaNew')}
-          />
-        </Group>
-      </>
-    ),
     iconos: (
       <>
         <Group title="Biblioteca">
@@ -666,7 +657,7 @@ export default function Ribbon(): JSX.Element {
         >
           <Redo2 size={16} />
         </button>
-        <span className="shrink-0 px-3 text-xs text-hoi-muted">HOI4 Mod Studio</span>
+        <span className="hidden shrink-0 px-3 text-xs 2xl:block text-hoi-muted">HOI4 Mod Studio</span>
       </div>
       <div className="flex min-h-[84px] items-stretch overflow-x-auto px-1 py-1">
         {content[tab]}
