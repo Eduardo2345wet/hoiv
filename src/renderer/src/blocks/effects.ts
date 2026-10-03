@@ -59,36 +59,35 @@ export const effectBlocks = [
     type: 'eff_recruit_character',
     message0: 'Reclutar personaje %1',
     args0: [{ type: 'field_catalog', name: 'CHARACTER', kind: 'character', value: '' }],
-    tooltip: 'recruit_character: sin esto un personaje nunca aparece',
+    tooltip: 'Sin reclutarlo, un personaje nunca aparece en la partida',
     ...base
   },
   {
     type: 'eff_retire_character',
     message0: 'Quitar personaje %1',
     args0: [{ type: 'field_catalog', name: 'CHARACTER', kind: 'character', value: '' }],
-    tooltip: 'retire_character. por verificar con effects_documentation',
+    tooltip: 'Retira al personaje de sus cargos',
     ...base
   },
   {
     type: 'eff_activate_advisor',
     message0: 'Activar asesor %1',
     args0: [{ type: 'field_catalog', name: 'CHARACTER', kind: 'character', value: '' }],
-    tooltip:
-      'activate_advisor: el consejero ocupa su ranura. por verificar con effects_documentation',
+    tooltip: 'El consejero ocupa su ranura en el panel político',
     ...base
   },
   {
     type: 'eff_activate_mission',
     message0: 'Activar misión %1',
     args0: [{ type: 'field_catalog', name: 'MISSION', kind: 'decision', value: '' }],
-    tooltip: 'Empieza el temporizador de una misión (activate_mission)',
+    tooltip: 'Empieza el temporizador de una misión',
     ...base
   },
   {
     type: 'eff_add_research_slot',
     message0: 'Ranuras de investigación %1',
     args0: [{ type: 'field_number', name: 'AMOUNT', value: 1 }],
-    tooltip: 'add_research_slot: suma (o resta con negativo) ranuras de investigación',
+    tooltip: 'Suma (o resta, con un número negativo) ranuras de investigación',
     ...base
   },
   {
@@ -108,7 +107,7 @@ export const effectBlocks = [
       },
       { type: 'field_input', name: 'TARGET', text: 'infantry_weapons' }
     ],
-    tooltip: 'add_tech_bonus (por verificar con effects_documentation del juego)',
+    tooltip: 'Bono de velocidad para la próxima investigación de una categoría o tecnología',
     ...base
   },
   {
@@ -118,7 +117,7 @@ export const effectBlocks = [
       { type: 'field_catalog', name: 'TECH', kind: 'technology', value: '' },
       { type: 'field_number', name: 'LEVEL', value: 1, min: 0, max: 1 }
     ],
-    tooltip: 'set_technology: la tecnología queda investigada',
+    tooltip: 'La tecnología queda investigada',
     ...base
   },
   {
@@ -284,7 +283,7 @@ export const effectBlocks = [
     type: 'eff_set_country_flag',
     message0: 'Poner la marca %1',
     args0: [{ type: 'field_catalog', name: 'FLAG', kind: 'countryFlag', value: '' }],
-    tooltip: 'Marca = variable del script (set_country_flag), no la bandera del país',
+    tooltip: 'Marca = variable del script, no la bandera del país',
     ...base
   },
   {

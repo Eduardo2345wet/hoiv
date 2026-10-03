@@ -108,7 +108,7 @@ export default function IdeaPicker(): JSX.Element | null {
                 setSel(0)
                 if (listRef.current) listRef.current.scrollTop = 0
               }}
-              className={`px-3 py-1.5 text-sm ${tab === id ? 'border-b-2 border-hoi-accent text-hoi-accent' : 'text-hoi-muted hover:text-hoi-text'}`}
+              className={`px-3 py-1.5 text-sm ${tab === id ? 'border-b-2 border-hoi-accent text-hoi-text' : 'text-hoi-muted hover:text-hoi-text'}`}
             >
               {label} ({(ideas ?? []).filter((i) => i.tab === id).length})
             </button>

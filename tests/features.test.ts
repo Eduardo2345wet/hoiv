@@ -137,7 +137,7 @@ describe('catálogo', () => {
       SPECIAL.create,
       SPECIAL.other
     ])
-    expect(menu[1][0]).toBe(`Industrializar · ${p.focuses[0].id}`)
+    expect(menu[1][0]).toBe('Industrializar')
   })
 })
 
@@ -154,7 +154,7 @@ describe('FieldCatalog', () => {
       expect(isSpecialValue(b.getFieldValue('IDEA'))).toBe(false)
     }
     // Un valor que no existe se muestra con ⚠
-    expect(buildMenu('idea', 'idea_de_un_dlc')[0][0]).toBe('⚠ idea_de_un_dlc (ya no existe)')
+    expect(buildMenu('idea', 'idea_de_un_dlc')[0][0]).toBe('idea_de_un_dlc (ya no existe)')
   })
 
   it('"Escribir otro ID" usa el diálogo propio y valida', () => {
@@ -235,7 +235,7 @@ describe('renombrar y borrar focos', () => {
     expect(next.focuses[0].scripts.available).toContain(oldId)
     store.set({ project: next })
     expect(buildMenu('focus', oldId).find((m) => m[1] === oldId)?.[0]).toBe(
-      `⚠ ${oldId} (ya no existe)`
+      `${oldId} (ya no existe)`
     )
     const avisos = validateProject(next)
       .filter((i) => i.severity === 'aviso')

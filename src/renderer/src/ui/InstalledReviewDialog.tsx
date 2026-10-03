@@ -1,6 +1,7 @@
 // Ventana final de exportación + "Revisar mod instalado". SOLO LEE la carpeta de mods del juego:
 // compara la copia instalada con la última exportación; nunca modifica nada ahí.
 import { useCallback, useEffect, useState } from 'react'
+import { Check } from 'lucide-react'
 import type { ReviewData } from '../../../preload/index.d'
 import { store, useApp } from '../store/appStore'
 import { safeFolderName } from '../../../shared/names'
@@ -115,7 +116,8 @@ export default function InstalledReviewDialog(): JSX.Element | null {
           <p className="text-hoi-muted">Leyendo la carpeta de mods…</p>
         ) : r.status === 'ok' ? (
           <p className="text-green-400">
-            ✔ Al día: la copia del juego es idéntica a la última exportación.
+            <Check size={14} className="mr-1 inline" />
+            Al día: la copia del juego es idéntica a la última exportación.
           </p>
         ) : r.status === 'no-export' ? (
           <p>Todavía no has exportado este mod desde esta app: usa «Exportar mod…» primero.</p>

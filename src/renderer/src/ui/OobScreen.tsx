@@ -1,6 +1,7 @@
 // Pestaña Ejército: plantillas de división (cuadrícula 5×5 + columna de apoyo con arrastrar y soltar),
 // divisiones ubicadas con el mini mapa en modo provincia y producción inicial.
 import { useState } from 'react'
+import { MapPin } from 'lucide-react'
 import type { Project } from '../types'
 import { store, useApp } from '../store/appStore'
 import { registerSectionScreen } from '../sections/ui'
@@ -266,7 +267,7 @@ function Divisions({ oob }: { oob: Oob }): JSX.Element {
                 )
               }
             >
-              📍 {d.province}
+              <MapPin size={12} /> {d.province}
             </Button>
           </Field>
           <Field label="Nombre (opcional)">
@@ -362,7 +363,7 @@ function Production({ oob }: { oob: Oob }): JSX.Element {
           ) : (
             <input
               className="input w-60 font-mono"
-              placeholder="infantry_equipment_1"
+              placeholder="Equipo"
               value={x.equipment}
               onChange={(e) => set(i, { equipment: e.target.value.trim() })}
             />
@@ -431,7 +432,8 @@ function Editor({ oob }: { oob: Oob }): JSX.Element {
 function Side({ project, tag }: { project: Project; tag: string | null }): JSX.Element {
   const map = useApp((s) => s.map)
   const oob = tag ? oobOf(project, tag) : undefined
-  if (!oob || !tag) return <p className="text-xs text-hoi-muted">Elige un país para ver su OOB.</p>
+  if (!oob || !tag)
+    return <p className="text-xs text-hoi-muted">Elige un país para ver su ejército.</p>
   const issues = validateOob(project, map, store.catalogGame()).filter((i) => i.country === tag)
   return (
     <div className="text-xs">

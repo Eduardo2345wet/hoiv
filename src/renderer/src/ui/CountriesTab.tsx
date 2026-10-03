@@ -70,8 +70,8 @@ export default function CountriesTab({ project, onOpenWizard }: Props): JSX.Elem
               </div>
               <div className="text-xs text-hoi-muted">
                 <span className="font-mono">{c.tag}</span> · dueño de los estados pendientes (modo
-                Sin nación). No se puede editar ni borrar aquí: cambia su nombre o tag en Mapa → ⚙
-                Sin nación.
+                Sin nación). No se puede editar ni borrar aquí: cambia su nombre o tag en Mapa → Sin
+                nación Sin nación.
               </div>
             </div>
           </div>

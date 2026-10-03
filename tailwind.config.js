@@ -8,7 +8,7 @@ module.exports = {
           bg: '#121214',
           panel: '#1e1e24',
           card: '#2a2a32',
-          border: '#3f3f4e',
+          border: '#35353f',
           accent: '#f97316', // Naranja HOI4
           accentHover: '#ea580c',
           text: '#f3f4f6',

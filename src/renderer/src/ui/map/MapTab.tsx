@@ -2,7 +2,17 @@
 // mapa en el centro y barra inferior. Tipo Paint: se pinta por ESTADO.
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { registerCommands } from '../commands'
-import { Eraser, MousePointer2, PaintBucket, Paintbrush, Pipette, Shield, Star } from 'lucide-react'
+import {
+  Eraser,
+  MousePointer2,
+  PaintBucket,
+  Paintbrush,
+  Pipette,
+  Shield,
+  Star,
+  ChevronLeft,
+  ChevronRight
+} from 'lucide-react'
 import type { Project } from '../../types'
 import { store, useApp } from '../../store/appStore'
 import MapView, { type MapPointer, type MapViewHandle, type StrokeEvent } from './MapView'
@@ -288,7 +298,7 @@ export default function MapTab({
           )}
           {mapError && (
             <div className="absolute inset-x-0 top-12 z-30 mx-auto w-fit max-w-lg rounded border border-red-500 bg-red-950/90 p-3 text-sm">
-              ❌ {mapError}
+              {mapError}
               <div className="mt-2 flex gap-2">
                 <button className="btn text-xs" onClick={() => void store.loadMap()}>
                   Reintentar
@@ -309,7 +319,7 @@ export default function MapTab({
           <div className="absolute right-3 top-3 z-10 flex flex-col items-end gap-1">
             {map?.source === 'demo' && (
               <div
-                className="rounded bg-sky-600/90 px-2 py-1 text-xs font-semibold text-white shadow"
+                className="rounded border border-hoi-border bg-hoi-panel px-2 py-1 text-xs text-hoi-text shadow"
                 title="Sus estados NO se exportan al mod. Configura la carpeta de HOI4 en Ajustes para usar el mapa real."
               >
                 Mapa de demostración
@@ -336,7 +346,7 @@ export default function MapTab({
                 className="cursor-pointer"
                 title="Subir una imagen PNG para calcar encima del mapa"
               >
-                🖼 Referencia
+                Referencia
                 <input
                   type="file"
                   accept=".png,.jpg,.jpeg,.webp"
@@ -369,8 +379,8 @@ export default function MapTab({
           </div>
 
           {pick && (
-            <div className="absolute left-1/2 top-3 z-20 -translate-x-1/2 rounded bg-amber-500 px-3 py-1 text-sm font-semibold text-black shadow">
-              🗺 Haz clic en el estado que necesitas · Esc para cancelar
+            <div className="absolute left-1/2 top-3 z-20 -translate-x-1/2 rounded border border-hoi-accent bg-hoi-panel px-3 py-1 text-sm shadow">
+              Haz clic en el estado que necesitas · Esc para cancelar
             </div>
           )}
         </div>
@@ -400,7 +410,7 @@ export default function MapTab({
               />
             </span>
             <button
-              className={`rounded px-2 py-0.5 ${pendingView ? 'bg-amber-500 text-black' : 'bg-hoi-card hover:bg-hoi-border'}`}
+              className={`rounded px-2 py-0.5 ${pendingView ? 'bg-hoi-card ring-1 ring-hoi-accent' : 'bg-hoi-card hover:bg-hoi-border'}`}
               onClick={() => store.set({ pendingView: !pendingView })}
             >
               Ver pendientes
@@ -412,7 +422,7 @@ export default function MapTab({
                   title="Pendiente anterior"
                   onClick={() => goPending(-1)}
                 >
-                  ◀ Anterior
+                  <ChevronLeft size={12} className="inline" /> Anterior
                 </button>
                 <span className="font-mono">
                   {pendingIdx + 1}/{pending.length}
@@ -422,7 +432,7 @@ export default function MapTab({
                   title="Pendiente siguiente"
                   onClick={() => goPending(1)}
                 >
-                  Siguiente ▶
+                  Siguiente <ChevronRight size={12} className="inline" />
                 </button>
               </>
             )}

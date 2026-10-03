@@ -1,5 +1,5 @@
 // Tarjeta flotante del pincel activo (arriba a la izquierda del mapa)
-import { Plus, X } from 'lucide-react'
+import { Plus, X, AlertTriangle, Star } from 'lucide-react'
 import { IDEOLOGY_LABELS, type Project } from '../../types'
 import { store, useApp } from '../../store/appStore'
 import { getOwnerCounts } from '../../map/mapOps'
@@ -130,11 +130,15 @@ export default function CountryCard({ project, gameColors, onOpenWizard }: Props
         <span>{stateCount} estado(s)</span>
         {capital ? (
           <button
-            className={foreign ? 'text-yellow-400 underline' : 'text-hoi-accent underline'}
+            className={foreign ? 'text-yellow-400 underline' : 'text-hoi-text underline'}
             onClick={() => store.focusState(capital.id)}
             title="Centrar el mapa en la capital"
           >
-            {foreign ? '⚠ ' : '★ '}
+            {foreign ? (
+              <AlertTriangle size={12} className="mr-1 inline" />
+            ) : (
+              <Star size={12} className="mr-1 inline" />
+            )}
             {capital.name} (#{capital.id})
           </button>
         ) : country || capNum === null ? (

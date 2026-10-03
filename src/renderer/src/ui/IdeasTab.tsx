@@ -122,9 +122,7 @@ function IdeaEditor({
           />
         </div>
         <div>
-          <label className="label">
-            ID {idea.idAuto && <span className="text-hoi-accent">(automático)</span>}
-          </label>
+          <label className="label">ID</label>
           <input
             className={`input font-mono ${ID_REGEX.test(idea.id) && !dup ? '' : 'border-red-500'}`}
             value={idea.id}
@@ -160,7 +158,7 @@ function IdeaEditor({
                 >
                   {MODIFIERS.map((d) => (
                     <option key={d.key} value={d.key}>
-                      {d.label} ({d.key})
+                      {d.label}
                     </option>
                   ))}
                   {!def && <option value={m.key}>{m.key}</option>}

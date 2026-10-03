@@ -191,7 +191,7 @@ export function StartPanel({
               value={s.warSupport}
               onChange={(v) => upd(tag, { warSupport: v })}
             />
-            <Field label="Convoyes (set_convoys)" help="Vacío = no se toca">
+            <Field label="Convoyes" help="Vacío = no se toca">
               <input
                 type="number"
                 className="input w-24"
@@ -214,7 +214,7 @@ export function StartPanel({
                 }
               />
             </Field>
-            <Field label="Espíritus iniciales (add_ideas)">
+            <Field label="Espíritus iniciales">
               <div className="flex flex-wrap items-center gap-1">
                 {s.ideas.map((i) => (
                   <span key={i} className="rounded bg-hoi-card px-2 py-0.5 font-mono text-xs">
@@ -250,7 +250,7 @@ export function StartPanel({
                 )}
               </div>
             </Field>
-            <Field label="Tecnologías iniciales" help="Nivel 1 (set_technology)">
+            <Field label="Tecnologías iniciales" help="Se dan ya investigadas">
               <TechPicker value={s.technologies} onChange={(v) => upd(tag, { technologies: v })} />
             </Field>
             <Field
@@ -348,7 +348,7 @@ export function StartPanel({
                 + Títere
               </Button>
             </Field>
-            <Field label="Garantías (give_guarantee)">
+            <Field label="Garantías">
               <Tags
                 value={s.guarantees}
                 onChange={(v) => upd(tag, { guarantees: v })}
@@ -358,10 +358,7 @@ export function StartPanel({
           </>
         )}
         {tab === 'guerras' && (
-          <Field
-            label="Guerras al inicio"
-            help="Se generan con on_actions (on_startup) y declare_war_on. Por verificar con los archivos del juego."
-          >
+          <Field label="Guerras al inicio" help="Se declaran al empezar la partida.">
             <Tags
               value={s.wars}
               onChange={(v) => upd(tag, { wars: v })}
@@ -400,7 +397,7 @@ export function ScenariosDialog({
 }): JSX.Element {
   const bs = project.bookmarks ?? []
   return (
-    <Modal title="Escenarios de inicio (bookmarks)" width={680} onClose={onClose}>
+    <Modal title="Escenarios de inicio" width={680} onClose={onClose}>
       <p className="mb-2 text-xs text-hoi-muted">
         Opcional. Cada escenario aparece en la pantalla de selección de partida. El modo está
         pensado sobre todo para 1936.
@@ -476,7 +473,7 @@ export function ScenariosDialog({
           </div>
           <Field
             label="Países destacados"
-            help="El primero con ✔ es el país por defecto del escenario"
+            help="El país marcado con el círculo es el país por defecto del escenario"
           >
             {b.featured.map((f, i) => (
               <div key={f.tag} className="mb-1 flex items-center gap-1 text-xs">

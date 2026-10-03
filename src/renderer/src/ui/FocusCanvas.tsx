@@ -1,6 +1,7 @@
 // Lienzo del árbol de focos: cuadrícula con zoom, desplazamiento,
 // arrastre de focos (se ajustan a la cuadrícula) y conexión de líneas.
 import { useEffect, useRef, useState } from 'react'
+import { Pin } from 'lucide-react'
 import type { Focus, Project } from '../types'
 import { store, useApp } from '../store/appStore'
 import IconThumb from './IconThumb'
@@ -92,7 +93,7 @@ export default function FocusCanvas(props: Props): JSX.Element {
   const selLineRef = useRef<Line | null>(null)
   linkRef.current = linkFrom
   selLineRef.current = selLine
-  // Modo selección genérico del store (ej. "completó el foco" → 🎯 Elegir en el árbol)
+  // Modo selección genérico del store (ej. "completó el foco" → Elegir en el árbol)
   const pick = useApp((s) => (s.pick?.kind === 'focus' ? s.pick : null))
 
   // Esc cancela el modo selección aunque el teclado esté en Blockly
@@ -618,7 +619,7 @@ export default function FocusCanvas(props: Props): JSX.Element {
                     props.onTogglePin(f.uid)
                   }}
                 >
-                  📌
+                  <Pin size={12} />
                 </button>
               )}
               {hover === f.uid && !pick && (
@@ -649,8 +650,8 @@ export default function FocusCanvas(props: Props): JSX.Element {
       </div>
 
       {pick && (
-        <div className="pointer-events-none absolute left-1/2 top-2 -translate-x-1/2 rounded bg-amber-500 px-3 py-1 text-sm font-semibold text-black shadow">
-          🎯 Haz clic en el foco que necesitas · Esc para cancelar
+        <div className="pointer-events-none absolute left-1/2 top-2 -translate-x-1/2 rounded border border-hoi-accent bg-hoi-panel px-3 py-1 text-sm shadow">
+          Haz clic en el foco que necesitas · Esc para cancelar
         </div>
       )}
       {!pick && hint && (

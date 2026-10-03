@@ -34,7 +34,7 @@ export default function FocusPanel({ project, focus, onDelete }: Props): JSX.Ele
   return (
     <>
       {/* Encabezado fijo */}
-      <h2 className="shrink-0 border-b border-hoi-border px-4 py-2 font-semibold text-hoi-accent">
+      <h2 className="shrink-0 border-b border-hoi-border px-4 py-2 font-medium text-hoi-text">
         Foco seleccionado
       </h2>
       {/* Contenido con scroll vertical */}

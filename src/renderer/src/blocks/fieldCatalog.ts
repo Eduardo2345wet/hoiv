@@ -68,25 +68,25 @@ export function buildMenu(kind: CatalogKind, current: string | null): Option[] {
   ).filter((o) => o.id !== editingId)
 
   const menu: Option[] = []
-  if (kind === 'focus') menu.push(['🎯 Elegir en el árbol…', SPECIAL.pickTree])
+  if (kind === 'focus') menu.push(['Elegir en el árbol…', SPECIAL.pickTree])
   if (kind === 'state' && current) {
     // El campo muestra el nombre real; al hacer clic se abre el mini mapa (no hay desplegable largo)
     const st = s.map?.states.find((x) => String(x.id) === current)
     menu.push([
       st
-        ? `📍 ${st.name} (${st.owner || '—'}) · ${st.id}`
+        ? `${st.name} (${st.owner || '—'}) · ${st.id}`
         : s.map
-          ? `⚠ Estado ${current} (no existe)`
-          : `📍 Estado ${current}`,
+          ? `Estado ${current} (no existe)`
+          : `Estado ${current}`,
       current
     ])
   } else if (current && !opts.some((o) => o.id === current)) {
     const why = kind === 'focus' || kind === 'idea' ? 'ya no existe' : 'no está en la lista'
-    menu.push([`⚠ ${current} (${why})`, current])
+    menu.push([`${current} (${why})`, current])
   } else if (!current) {
     menu.push(['— elige —', ''])
   }
-  if (kind === 'idea') menu.push(['🔍 Elegir del juego…', SPECIAL.pickGame])
+  if (kind === 'idea') menu.push(['Elegir del juego…', SPECIAL.pickGame])
   if (kind === 'country') {
     // Mismo orden que el selector universal: Mis países → En el mapa → Todos (sin banderas)
     const sec = countrySections(project, s.map, store.catalogGame())
@@ -99,11 +99,19 @@ export function buildMenu(kind: CatalogKind, current: string | null): Option[] {
     add('Mis países', sec.mine)
     add('En el mapa', sec.onMap)
     // Más de 200 opciones nunca se cargan en Blockly: se elige en el selector universal
-    if (sec.game.length > 200) menu.push(['🔍 Elegir otro país del juego…', SPECIAL.pickCountry])
+    if (sec.game.length > 200) menu.push(['Elegir otro país del juego…', SPECIAL.pickCountry])
     else add('Todos los países del juego', sec.game)
   }
+  // Solo el nombre; el id se añade únicamente cuando dos opciones se llaman igual
+  const nameCount = new Map<string, number>()
+  for (const o of opts) nameCount.set(o.etiqueta, (nameCount.get(o.etiqueta) ?? 0) + 1)
   for (const o of kind === 'country' ? [] : opts) {
-    const label = o.etiqueta && o.etiqueta !== o.id ? `${o.etiqueta} · ${o.id}` : o.id
+    const named = o.etiqueta && o.etiqueta !== o.id
+    const label = named
+      ? nameCount.get(o.etiqueta)! > 1
+        ? `${o.etiqueta} · ${o.id}`
+        : o.etiqueta
+      : o.id
     menu.push([o.origen === 'juego' ? `${label}  (juego)` : label, o.id])
   }
   if (kind === 'idea' && s.recentIdeas.length) {

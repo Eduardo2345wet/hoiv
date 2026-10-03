@@ -22,18 +22,18 @@ export const OLD_SLOT_TYPES = {
 export const slotBlocks = [
   {
     type: FOCUS_ROOT,
-    message0: '🎯 Foco: %1',
+    message0: 'Foco: %1',
     args0: [{ type: 'field_label', name: 'NAME', text: '' }],
     // Cada sección: una fila con el título y, DEBAJO, la boca sin campos (como el "si" de Scratch)
-    message1: '📋 Requisitos (available)',
+    message1: 'Requisitos',
     args1: [],
     message2: '%1',
     args2: [{ type: 'input_statement', name: SLOT_INPUTS.available, check: CHECK_CONDITION }],
-    message3: '⏭ Saltar si (bypass)',
+    message3: 'Saltar si se cumple',
     args3: [],
     message4: '%1',
     args4: [{ type: 'input_statement', name: SLOT_INPUTS.bypass, check: CHECK_CONDITION }],
-    message5: '🎁 Recompensa (completion_reward)',
+    message5: 'Recompensa',
     args5: [],
     message6: '%1',
     args6: [{ type: 'input_statement', name: SLOT_INPUTS.reward, check: CHECK_EFFECT }],

@@ -24,7 +24,7 @@ export default function ToastHost(): JSX.Element {
           <span className="max-w-[520px] break-words">{t.message}</span>
           {t.action && (
             <button
-              className="font-semibold text-hoi-accent hover:underline"
+              className="font-medium text-hoi-text underline"
               onClick={() => {
                 t.action!.run()
                 store.dismissToast(t.id)
@@ -35,7 +35,7 @@ export default function ToastHost(): JSX.Element {
           )}
           {t.undo && (
             <button
-              className="font-semibold text-hoi-accent hover:underline"
+              className="font-medium text-hoi-text underline"
               onClick={() => {
                 store.undo()
                 store.dismissToast(t.id)

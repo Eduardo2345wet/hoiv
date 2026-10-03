@@ -79,21 +79,19 @@ export default function IconField({
 
   return (
     <div>
-      <label className="label">
-        Ícono {iconAuto && <span className="text-hoi-accent">(automático)</span>}
-      </label>
+      <label className="label">Ícono</label>
       <div className="mb-2 flex h-24 items-center justify-center rounded bg-[#101013]">
         <IconThumb icon={icon} project={project} height={target === 'focus' ? 80 : 68} />
       </div>
       <div className="grid grid-cols-2 gap-1">
         <button className="btn justify-center text-xs" onClick={() => setDialog('emoji')}>
-          😀 Usar emoji
+          Emoji
         </button>
         <button className="btn justify-center text-xs" onClick={() => setDialog('upload')}>
-          ⬆ Subir imagen
+          Subir imagen
         </button>
         <button className="btn justify-center text-xs" onClick={() => setDialog('library')}>
-          🖼 De mi biblioteca
+          Mi biblioteca
         </button>
         <button
           className="btn justify-center text-xs disabled:opacity-40"
@@ -101,12 +99,12 @@ export default function IconField({
           title={target !== 'focus' ? 'Solo para focos' : ''}
           onClick={() => setDialog('game')}
         >
-          🎮 Del juego
+          Del juego
         </button>
       </div>
       {!iconAuto && (
         <button
-          className="mt-1 text-xs text-hoi-muted underline hover:text-hoi-accent"
+          className="mt-1 text-xs text-hoi-muted underline hover:text-hoi-text"
           onClick={() =>
             store.updateProject((p) =>
               target === 'focus' ? resetFocusIcon(p, ownerUid) : resetIdeaIcon(p, ownerUid)
@@ -165,14 +163,13 @@ export default function IconField({
           onClose={() => setDialog(null)}
         >
           <div className="grid grid-cols-3 gap-1">
-            {FOCUS_ICONS.map(([gfx, label, emoji]) => (
+            {FOCUS_ICONS.map(([gfx, label]) => (
               <button
                 key={gfx}
                 title={gfx}
                 onClick={() => choose({ kind: 'game', gfx })}
                 className="flex items-center gap-2 rounded border border-hoi-border p-1 text-left text-xs hover:border-hoi-accent"
               >
-                <span className="text-xl">{emoji}</span>
                 {label}
               </button>
             ))}

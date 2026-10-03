@@ -1998,3 +1998,41 @@ describe('extras (S9)', () => {
     await page.close()
   }, 60_000)
 })
+
+// ---------- Estilo general: cinta con pestañas en una línea ----------
+describe('cinta de pestañas', () => {
+  it('con poco ancho las pestañas no se parten en dos líneas y las que sobran van a «Más»', async ({
+    skip
+  }) => {
+    if (!browser) skip()
+    const page = await fresh()
+    await page.setViewportSize({ width: 900, height: 700 })
+    await page.waitForSelector('button:text-is("Más")')
+    const heights = await page.evaluate(() =>
+      [...document.querySelectorAll('button')]
+        .filter((b) =>
+          /^(Inicio|Mapa|Focos|Países|Eventos|Más)$/.test((b.textContent ?? '').trim())
+        )
+        .map((b) => (b as HTMLElement).offsetHeight)
+    )
+    expect(heights.length).toBeGreaterThan(2)
+    for (const h of heights) expect(h).toBeLessThan(40)
+    // el menú muestra las que no caben y se puede elegir una
+    await page.locator('button:text-is("Más")').click()
+    await page.waitForSelector('button:text-is("Extras")')
+    // ninguna pestaña con espacios queda partida (alto de una sola línea)
+    const split = await page.evaluate(
+      () =>
+        [...document.querySelectorAll('button')].filter(
+          (b) => /Súper eventos/.test(b.textContent ?? '') && (b as HTMLElement).offsetHeight > 40
+        ).length
+    )
+    expect(split).toBe(0)
+    // a ancho normal todas caben y no hay «Más»
+    await page.setViewportSize({ width: 1600, height: 800 })
+    await page.waitForFunction(
+      () => ![...document.querySelectorAll('button')].some((b) => b.textContent?.trim() === 'Más')
+    )
+    await page.close()
+  }, 60_000)
+})

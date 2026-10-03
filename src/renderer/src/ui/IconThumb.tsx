@@ -1,6 +1,6 @@
 // Miniatura real del ícono de un foco o espíritu
 import type { IconRef, Project } from '../types'
-import { iconEmoji } from './icons'
+import { ImageIcon } from 'lucide-react'
 
 interface Props {
   icon: IconRef | null
@@ -29,9 +29,9 @@ export default function IconThumb({ icon, project, height }: Props): JSX.Element
       <div
         title={icon.gfx}
         className="flex items-center justify-center rounded bg-[#3a3a44] ring-1 ring-hoi-border"
-        style={{ height, width: height * 1.1, fontSize: height * 0.55 }}
+        style={{ height, width: height * 1.1 }}
       >
-        {iconEmoji(icon.gfx)}
+        <ImageIcon size={Math.max(12, height * 0.45)} className="text-hoi-muted" />
       </div>
     )
   return (

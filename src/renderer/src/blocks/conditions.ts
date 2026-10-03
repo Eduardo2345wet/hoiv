@@ -84,7 +84,7 @@ export const conditionBlocks = [
     type: 'cond_has_country_flag',
     message0: 'tiene la marca %1',
     args0: [{ type: 'field_catalog', name: 'FLAG', kind: 'countryFlag', value: '' }],
-    tooltip: 'Marca = variable del script (has_country_flag), no la bandera del país',
+    tooltip: 'Marca = variable del script, no la bandera del país',
     ...base
   },
   {

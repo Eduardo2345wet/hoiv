@@ -1,10 +1,11 @@
 // Cinta de opciones tipo Siemens NX: menú Archivo, pestañas y grupos de herramientas con el
 // título abajo. Sin proyecto abierto todo se ve pero está en gris (menos Archivo).
-import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import {
   Box,
   Brush,
   Copy,
+  ChevronDown,
   Download,
   FilePlus,
   FolderOpen,
@@ -88,11 +89,121 @@ export function RBtn({
       onClick={onClick}
       className={`flex items-center rounded text-xs transition-colors disabled:cursor-not-allowed disabled:opacity-35 ${
         small ? 'flex-row gap-1.5 px-2 py-1' : 'min-w-[56px] flex-col gap-1 px-2 py-1.5'
-      } ${active ? 'bg-hoi-accent text-black' : 'text-hoi-text hover:bg-hoi-card'}`}
+      } ${active ? 'bg-hoi-card text-hoi-text ring-1 ring-hoi-accent' : 'text-hoi-text hover:bg-hoi-card'}`}
     >
       {icon}
       <span className={small ? '' : 'max-w-[84px] text-center leading-tight'}>{label}</span>
     </button>
+  )
+}
+
+const TAB_CLASS = (selected: boolean): string =>
+  `shrink-0 whitespace-nowrap px-3 py-1.5 text-sm ${selected ? 'border-b-2 border-hoi-accent text-hoi-text' : 'text-hoi-muted hover:text-hoi-text'}`
+
+/**
+ * Pestañas de la cinta en UNA línea: las que no caben van a un menú "Más" (la pestaña activa
+ * siempre queda a la vista).
+ */
+function TabStrip({
+  tabs,
+  active,
+  onPick
+}: {
+  tabs: [RibbonId, string][]
+  active: RibbonId
+  onPick: (id: RibbonId) => void
+}): JSX.Element {
+  const wrap = useRef<HTMLDivElement>(null)
+  const meter = useRef<HTMLDivElement>(null)
+  const [fit, setFit] = useState(tabs.length)
+  const [open, setOpen] = useState(false)
+  useLayoutEffect(() => {
+    const calc = (): void => {
+      const w = wrap.current?.clientWidth ?? 0
+      const kids = meter.current ? [...meter.current.children] : []
+      if (!w || kids.length < tabs.length + 1) return
+      const widths = kids.map((k) => (k as HTMLElement).offsetWidth)
+      const more = widths[tabs.length]
+      const total = widths.slice(0, tabs.length).reduce((a, b) => a + b, 0)
+      if (total <= w) return setFit(tabs.length)
+      let used = more
+      let n = 0
+      for (let i = 0; i < tabs.length; i++) {
+        used += widths[i]
+        if (used > w) break
+        n++
+      }
+      setFit(Math.max(1, n))
+    }
+    calc()
+    const ro = new ResizeObserver(calc)
+    if (wrap.current) ro.observe(wrap.current)
+    return () => ro.disconnect()
+  }, [tabs])
+  useEffect(() => {
+    if (!open) return
+    const close = (): void => setOpen(false)
+    window.addEventListener('pointerdown', close)
+    return () => window.removeEventListener('pointerdown', close)
+  }, [open])
+  let shown = tabs.slice(0, fit)
+  // La pestaña activa nunca se esconde: toma el lugar de la última visible
+  if (fit < tabs.length && !shown.some(([id]) => id === active)) {
+    const cur = tabs.find(([id]) => id === active)
+    if (cur) shown = [...shown.slice(0, Math.max(0, fit - 1)), cur]
+  }
+  const rest = tabs.filter(([id]) => !shown.some(([s]) => s === id))
+  return (
+    <div ref={wrap} className="relative flex min-w-0 flex-1 items-center overflow-visible">
+      {/* Medidor invisible con todas las pestañas y el botón "Más" */}
+      <div
+        ref={meter}
+        aria-hidden
+        className="pointer-events-none invisible absolute left-0 top-0 flex h-0 overflow-hidden"
+      >
+        {tabs.map(([id, label]) => (
+          <span key={id} className={TAB_CLASS(false)}>
+            {label}
+          </span>
+        ))}
+        <span className={TAB_CLASS(false)}>Más</span>
+      </div>
+      {shown.map(([id, label]) => (
+        <button key={id} onClick={() => onPick(id)} className={TAB_CLASS(active === id)}>
+          {label}
+        </button>
+      ))}
+      {rest.length > 0 && (
+        <div className="relative shrink-0">
+          <button
+            className={`${TAB_CLASS(false)} flex items-center gap-1`}
+            onPointerDown={(e) => e.stopPropagation()}
+            onClick={() => setOpen((o) => !o)}
+          >
+            Más <ChevronDown size={12} />
+          </button>
+          {open && (
+            <div
+              className="absolute left-0 top-full z-50 min-w-[160px] rounded border border-hoi-border bg-hoi-panel py-1 shadow-lg"
+              onPointerDown={(e) => e.stopPropagation()}
+            >
+              {rest.map(([id, label]) => (
+                <button
+                  key={id}
+                  className="block w-full whitespace-nowrap px-3 py-1.5 text-left text-sm text-hoi-text hover:bg-hoi-card"
+                  onClick={() => {
+                    setOpen(false)
+                    onPick(id)
+                  }}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
   )
 }
 
@@ -522,7 +633,7 @@ export default function Ribbon(): JSX.Element {
       <div className="flex items-center border-b border-hoi-border/60 px-1">
         <div className="relative" ref={menuRef}>
           <button
-            className={`rounded-t px-3 py-1.5 text-sm font-semibold ${menu ? 'bg-hoi-accent text-black' : 'bg-hoi-accent/90 text-black hover:bg-hoi-accent'}`}
+            className={`shrink-0 rounded-t px-3 py-1.5 text-sm font-medium ${menu ? 'bg-hoi-card text-hoi-text' : 'text-hoi-text hover:bg-hoi-card'}`}
             onClick={() => setMenu((m) => !m)}
           >
             Archivo
@@ -534,16 +645,11 @@ export default function Ribbon(): JSX.Element {
             />
           )}
         </div>
-        {RIBBON_TABS.map(([id, label]) => (
-          <button
-            key={id}
-            onClick={() => (on ? store.setUi({ ribbon: id }) : setPreview(id))}
-            className={`px-3 py-1.5 text-sm ${tab === id ? 'border-b-2 border-hoi-accent text-hoi-accent' : 'text-hoi-muted hover:text-hoi-text'}`}
-          >
-            {label}
-          </button>
-        ))}
-        <div className="flex-1" />
+        <TabStrip
+          tabs={RIBBON_TABS}
+          active={tab}
+          onPick={(id) => (on ? store.setUi({ ribbon: id }) : setPreview(id))}
+        />
         <button
           title="Deshacer (Ctrl+Z)"
           disabled={off || !canUndo}
@@ -560,7 +666,7 @@ export default function Ribbon(): JSX.Element {
         >
           <Redo2 size={16} />
         </button>
-        <span className="px-3 text-xs font-semibold text-hoi-accent">HOI4 Mod Studio</span>
+        <span className="shrink-0 px-3 text-xs text-hoi-muted">HOI4 Mod Studio</span>
       </div>
       <div className="flex min-h-[84px] items-stretch overflow-x-auto px-1 py-1">
         {content[tab]}

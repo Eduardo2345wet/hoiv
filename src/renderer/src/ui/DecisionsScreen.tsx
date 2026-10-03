@@ -242,7 +242,7 @@ function CategoryEditor({ project, c }: { project: Project; c: DecisionCategory 
           addLabel="+ Estado"
         />
       </Field>
-      <Field label="Centrar el mapa (on_map_area)" help="x, y y zoom; vacío = no mueve el mapa">
+      <Field label="Centrar el mapa" help="x, y y zoom; vacío = no mueve el mapa">
         <div className="flex items-center gap-1">
           {(['x', 'y', 'zoom'] as const).map((k) => (
             <input
@@ -366,21 +366,21 @@ function DecisionEditor({ project, d }: { project: Project; d: Decision }): JSX.
         {tab === 'cond' && (
           <>
             <Script
-              label="visible"
+              label="Visible cuando"
               mode="condition"
               value={d.visible}
               onChange={(v) => set({ visible: v })}
               help="Se revisa siempre. En misiones no funciona (usa activación)."
             />
             <Script
-              label="available"
+              label="Disponible cuando"
               mode="condition"
               value={d.available}
               onChange={(v) => set({ available: v })}
             />
             {d.kind === 'mission' && (
               <Script
-                label="activation"
+                label="Se activa cuando"
                 mode="condition"
                 value={d.activation}
                 onChange={(v) => set({ activation: v })}
@@ -391,33 +391,33 @@ function DecisionEditor({ project, d }: { project: Project; d: Decision }): JSX.
         {tab === 'eff' && (
           <>
             <Script
-              label="complete_effect"
+              label="Al completarla"
               mode="effect"
               value={d.complete}
               onChange={(v) => set({ complete: v })}
             />
             <Script
-              label="remove_effect (al terminar el temporizador)"
+              label="Al terminar el temporizador"
               mode="effect"
               value={d.remove}
               onChange={(v) => set({ remove: v })}
             />
             {d.kind === 'mission' && (
               <Script
-                label="timeout_effect (misión sin cumplir)"
+                label="Al agotarse el tiempo (misión sin cumplir)"
                 mode="effect"
                 value={d.timeout}
                 onChange={(v) => set({ timeout: v })}
               />
             )}
             <Script
-              label="cancel_trigger"
+              label="Condición para cancelarla"
               mode="condition"
               value={d.cancelTrigger}
               onChange={(v) => set({ cancelTrigger: v })}
             />
             <Script
-              label="cancel_effect"
+              label="Al cancelarla"
               mode="effect"
               value={d.cancel}
               onChange={(v) => set({ cancel: v })}
@@ -432,7 +432,7 @@ function DecisionEditor({ project, d }: { project: Project; d: Decision }): JSX.
                 options={[
                   { value: 'none', label: 'Gratis' },
                   { value: 'pp', label: 'Poder político' },
-                  { value: 'custom', label: 'Personalizado (custom_cost_trigger)' }
+                  { value: 'custom', label: 'Personalizado (con condición propia)' }
                 ]}
                 onChange={(v) => set({ cost: { ...d.cost, mode: v as Decision['cost']['mode'] } })}
               />
@@ -449,13 +449,13 @@ function DecisionEditor({ project, d }: { project: Project; d: Decision }): JSX.
             {d.cost.mode === 'custom' && (
               <>
                 <Script
-                  label="custom_cost_trigger"
+                  label="Condición del costo personalizado"
                   mode="condition"
                   value={d.cost.customTrigger}
                   onChange={(v) => set({ cost: { ...d.cost, customTrigger: v } })}
-                  help="No cobra nada: resta el costo tú mismo en complete_effect."
+                  help="No cobra nada por sí solo: réstalo tú en los efectos al completarla."
                 />
-                <Field label="Texto del costo (custom_cost_text)">
+                <Field label="Texto del costo">
                   <input
                     className="input"
                     value={d.cost.customText}
@@ -464,7 +464,7 @@ function DecisionEditor({ project, d }: { project: Project; d: Decision }): JSX.
                     }
                   />
                 </Field>
-                <Field label="ai_hint_pp_cost">
+                <Field label="Poder político que la IA cree que cuesta">
                   <NumberField
                     value={d.cost.aiHintPp}
                     min={0}
@@ -473,7 +473,7 @@ function DecisionEditor({ project, d }: { project: Project; d: Decision }): JSX.
                 </Field>
               </>
             )}
-            <Field label="Días para reactivar (days_re_enable)">
+            <Field label="Días para reactivarla">
               <NumberField
                 value={d.daysReEnable}
                 min={0}
@@ -488,7 +488,7 @@ function DecisionEditor({ project, d }: { project: Project; d: Decision }): JSX.
               />
               Una sola vez (fire_only_once)
             </label>
-            <Field label="Duración del temporizador (days_remove)" help="0 = sin temporizador">
+            <Field label="Duración del temporizador (días)" help="0 = sin temporizador">
               <NumberField value={d.daysRemove} min={0} onChange={(v) => set({ daysRemove: v })} />
             </Field>
             <Card title="Modificadores mientras corre el temporizador">
@@ -530,7 +530,7 @@ function DecisionEditor({ project, d }: { project: Project; d: Decision }): JSX.
             </Card>
             {d.kind === 'mission' && (
               <>
-                <Field label="Tiempo límite de la misión (days_mission_timeout)">
+                <Field label="Tiempo límite de la misión (días)">
                   <NumberField
                     value={d.missionTimeoutDays}
                     min={0}
@@ -555,7 +555,7 @@ function DecisionEditor({ project, d }: { project: Project; d: Decision }): JSX.
                 </label>
               </>
             )}
-            <Field label="Guerra al completar (war_with_on_complete)">
+            <Field label="Guerra al completarla">
               <Chips
                 value={d.warWithOnComplete ? [d.warWithOnComplete] : []}
                 onChange={(v) => set({ warWithOnComplete: v[v.length - 1] ?? '' })}
@@ -563,7 +563,7 @@ function DecisionEditor({ project, d }: { project: Project; d: Decision }): JSX.
                 addLabel="Elegir país"
               />
             </Field>
-            <Field label="Guerra al terminar el temporizador (war_with_on_remove)">
+            <Field label="Guerra al terminar el temporizador">
               <Chips
                 value={d.warWithOnRemove ? [d.warWithOnRemove] : []}
                 onChange={(v) => set({ warWithOnRemove: v[v.length - 1] ?? '' })}
@@ -576,8 +576,8 @@ function DecisionEditor({ project, d }: { project: Project; d: Decision }): JSX.
         {tab === 'ai' && (
           <>
             <Field
-              label="Peso base de la IA (ai_will_do)"
-              help="Por defecto la IA NUNCA elige una decisión. 0 = no se escribe ai_will_do."
+              label="Peso base de la IA"
+              help="Por defecto la IA NUNCA elige una decisión. 0 = la IA no la usa."
             >
               <NumberField value={d.aiBase} min={0} onChange={(v) => set({ aiBase: v })} />
             </Field>
@@ -645,7 +645,7 @@ function DecisionEditor({ project, d }: { project: Project; d: Decision }): JSX.
                 />
               </Field>
             ) : (
-              <Field label="Estados objetivo (state_target)">
+              <Field label="Estados objetivo">
                 <Chips
                   value={d.targetStates}
                   onChange={(v) => set({ targetStates: v })}
@@ -655,16 +655,16 @@ function DecisionEditor({ project, d }: { project: Project; d: Decision }): JSX.
               </Field>
             )}
             <Script
-              label="target_trigger"
+              label="Condición del objetivo"
               mode="condition"
               value={d.targetTrigger}
               onChange={(v) => set({ targetTrigger: v })}
               help="FROM es el objetivo."
             />
-            <Field label="on_map_mode">
+            <Field label="Modo de mapa">
               <input
                 className="input"
-                placeholder="map_only"
+                placeholder="Opcional"
                 value={d.onMapMode}
                 onChange={(e) => set({ onMapMode: e.target.value.trim() }, 'mapmode')}
               />

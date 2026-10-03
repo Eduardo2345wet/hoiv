@@ -1,5 +1,6 @@
 // Subir una imagen: ajustar/rellenar al tamaño final con vista previa a 1× y 2×
 import { useEffect, useRef, useState } from 'react'
+import { AlertTriangle } from 'lucide-react'
 import type { IconAsset, IconTarget } from '../types'
 import { newUid } from '../types'
 import { ICON_SIZES } from '../icons/sizes'
@@ -182,7 +183,8 @@ export default function ImageUploader({
             </p>
             {small && (
               <p className="mt-2 text-xs text-yellow-400">
-                ⚠ La imagen ({img.width}×{img.height}) es más chica que {w}×{h}: se verá borrosa.
+                <AlertTriangle size={12} className="mr-1 inline" />
+                La imagen ({img.width}×{img.height}) es más chica que {w}×{h}: se verá borrosa.
               </p>
             )}
           </div>

@@ -7,6 +7,8 @@ body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
   background-color: #121214;
   color: #f3f4f6;
+  font-size: 14px;
+  line-height: 1.45;
   user-select: none;
 }
 
@@ -23,23 +25,23 @@ body {
   border-radius: 4px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #f97316;
+  background: #5a5a6b;
 }
 
 /* Componentes reutilizables (botones y campos) */
 @layer components {
   .btn {
-    @apply inline-flex items-center gap-1.5 rounded border border-hoi-border bg-hoi-card px-3 py-1.5 text-sm hover:border-hoi-accent;
+    @apply inline-flex items-center gap-1.5 rounded border border-hoi-border bg-hoi-card px-3 py-1.5 text-sm hover:bg-hoi-border disabled:cursor-not-allowed disabled:opacity-40;
   }
   .btn-primary {
     @apply inline-flex items-center gap-1.5 rounded bg-hoi-accent px-3 py-1.5 text-sm font-semibold text-black hover:bg-hoi-accentHover;
   }
   .input {
-    @apply w-full rounded border border-hoi-border bg-hoi-bg px-2 py-1.5 text-sm outline-none focus:border-hoi-accent;
+    @apply w-full rounded border border-hoi-border bg-hoi-bg px-2 py-1.5 text-sm outline-none focus:border-gray-400;
     user-select: text;
   }
   .label {
-    @apply mb-1 block text-xs text-hoi-muted;
+    @apply mb-1 block text-[13px] text-gray-300;
   }
 }
 

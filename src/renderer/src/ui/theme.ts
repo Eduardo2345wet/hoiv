@@ -16,8 +16,8 @@ Blockly.Css.register(
     // que Blockly oculta las barras de desplazamiento: quedaban flotando (y tapaban clics).
     `.injectionDiv svg[display='none'] { display: none !important; }`,
     // (la barra del flyout de la papelera nunca llega a tener tamaño: sin `height` mediría 150 px)
-  `.injectionDiv svg.blocklyFlyoutScrollbar:not([height]) { display: none !important; }`,
-  `.blocklyWidgetDiv, .blocklyDropDownDiv { z-index: ${Z.blocklyFloating} !important; }`,
+    `.injectionDiv svg.blocklyFlyoutScrollbar:not([height]) { display: none !important; }`,
+    `.blocklyWidgetDiv, .blocklyDropDownDiv { z-index: ${Z.blocklyFloating} !important; }`,
     `.blocklyTooltipDiv { z-index: ${Z.blocklyFloating} !important; }`
   ].join('\n')
 )

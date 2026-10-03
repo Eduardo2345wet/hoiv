@@ -59,12 +59,12 @@ export default function SettingsDialog({ onClose }: { onClose: () => void }): JS
       gamePath: dir,
       gameDetect: { searching: false, auto: false, via: 'manual' }
     })
-    setMsg(`✔ Leídos ${cat.countries.length} países y ${cat.ideas.length} espíritus del juego.`)
+    setMsg(`Leídos ${cat.countries.length} países y ${cat.ideas.length} espíritus del juego.`)
   }
   const redetect = async (): Promise<void> => {
     await window.electronAPI?.setSettings({ gamePath: null, gamePathAuto: true })
     const found = await loadGameSettings()
-    setMsg(found ? '✔ HOI4 encontrado.' : 'No encontré HOI4.')
+    setMsg(found ? 'HOI4 encontrado.' : 'No encontré HOI4.')
   }
 
   return (

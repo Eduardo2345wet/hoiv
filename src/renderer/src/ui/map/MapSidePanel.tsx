@@ -49,7 +49,7 @@ export default function MapSidePanel({ project, onOpenWizard, onGoTab }: Props):
     return (
       <div className="flex min-h-0 flex-1 flex-col">
         <div className="flex items-center justify-between border-b border-hoi-border px-4 py-2">
-          <h2 className="font-semibold text-hoi-accent">Estado #{state.id}</h2>
+          <h2 className="font-medium text-hoi-text">Estado #{state.id}</h2>
           <button title="Cerrar" onClick={() => store.set({ selectedStateId: null })}>
             <X size={16} />
           </button>
@@ -76,7 +76,7 @@ export default function MapSidePanel({ project, onOpenWizard, onGoTab }: Props):
           <Row k="Archivo" v={<span className="font-mono text-xs">{state.file}</span>} />
           <Row
             k="Cambios con fecha"
-            v={state.hasDatedChanges ? '⚠ sí (1939.1.1 = { … } u otros)' : 'no'}
+            v={state.hasDatedChanges ? 'sí (bloques con fecha como 1939.1.1)' : 'no'}
           />
           <Row k="Modificado" v={isChanged(state, project) ? 'sí' : 'no'} />
           <StateDataPanel state={state} project={project} />
@@ -96,7 +96,7 @@ export default function MapSidePanel({ project, onOpenWizard, onGoTab }: Props):
     const tree = project.focusTrees.find((t) => t.id === country?.focusTreeId)
     return (
       <div className="flex min-h-0 flex-1 flex-col">
-        <h2 className="border-b border-hoi-border px-4 py-2 font-semibold text-hoi-accent">
+        <h2 className="border-b border-hoi-border px-4 py-2 font-medium text-hoi-text">
           {country?.names.name ?? activeTag}
         </h2>
         <div className="grid grid-cols-2 gap-1 p-3">
@@ -166,7 +166,7 @@ export default function MapSidePanel({ project, onOpenWizard, onGoTab }: Props):
   const warnings = issues.length - errors
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-y-auto p-4">
-      <h2 className="mb-3 font-semibold text-hoi-accent">{project.modName}</h2>
+      <h2 className="mb-3 font-medium text-hoi-text">{project.modName}</h2>
       <button className="btn mb-1 justify-between text-sm" onClick={() => onGoTab('paises')}>
         Países del mod <span>{project.countries.length}</span>
       </button>

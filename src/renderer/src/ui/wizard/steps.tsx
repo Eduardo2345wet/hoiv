@@ -62,8 +62,8 @@ export function historyLocked(c: Country): boolean {
 export function HistoryNotice({ draft }: { draft: Country }): JSX.Element | null {
   if (!historyLocked(draft)) return null
   return (
-    <div className="mb-3 rounded border border-sky-600/60 bg-sky-500/10 p-3 text-sm text-sky-200">
-      ℹ Para cambiar la política o el líder de un país existente, configura la carpeta de HOI4 en
+    <div className="mb-3 rounded border border-hoi-border bg-hoi-card p-3 text-sm text-hoi-muted">
+      Para cambiar la política o el líder de un país existente, configura la carpeta de HOI4 en
       Ajustes. Sin ella no se exporta la historia del país (se conserva la del juego).
     </div>
   )
@@ -172,7 +172,7 @@ export function IdentityStep({
       {draft.mode === 'existente' && (
         <Field
           label="País del juego"
-          hint="Solo se exporta lo que cambies. Nunca se tocan country_tags ni common/countries."
+          hint="Solo se exporta lo que cambies. Los archivos de países del juego nunca se reemplazan."
         >
           <button
             className="btn w-full justify-start"
@@ -287,8 +287,8 @@ export function IdentityStep({
         </div>
         {similar && (
           <p className="mt-1 text-xs text-yellow-400">
-            ⚠ Es casi igual al color de {similar.names.name || similar.tag}: costará distinguirlos
-            en el mapa.
+            Es casi igual al color de {similar.names.name || similar.tag}: costará distinguirlos en
+            el mapa.
           </p>
         )}
       </Field>
@@ -472,7 +472,7 @@ function PoliticsForm({ draft, set }: StepProps): JSX.Element {
 
       <div>
         <button
-          className="text-sm text-hoi-accent underline"
+          className="text-sm text-hoi-muted underline"
           onClick={() => setShowNames(!showNames)}
         >
           {showNames ? '▾' : '▸'} Nombre del país por ideología (opcional)
@@ -533,7 +533,7 @@ export function CapitalStep({ draft, set, game }: StepProps): JSX.Element {
             void chooseState({ current: draft.capital }).then((id) => id && set({ capital: id }))
           }
         >
-          🗺 Elegir en el mini mapa…
+          Elegir en el mini mapa…
         </button>
         <datalist id="estados-juego">
           {game?.states?.slice(0, 2000).map((s) => (
@@ -554,7 +554,7 @@ export function CapitalStep({ draft, set, game }: StepProps): JSX.Element {
               )}
             </p>
           ) : (
-            <p className="text-sm text-yellow-400">⚠ Ese estado no existe en el juego.</p>
+            <p className="text-sm text-yellow-400">Ese estado no existe en el juego.</p>
           )
         ) : null
       ) : (
@@ -563,10 +563,10 @@ export function CapitalStep({ draft, set, game }: StepProps): JSX.Element {
         </p>
       )}
       {draft.mode === 'nuevo' && (
-        <div className="rounded border border-yellow-600/60 bg-yellow-500/10 p-3 text-sm text-yellow-200">
-          ⚠ Un país NUEVO no aparece en la partida si no es dueño de ningún estado. Asignarle
-          estados llegará con el editor de mapa; mientras tanto puedes liberarlo con un foco o
-          evento de otro país.
+        <div className="rounded border border-hoi-border bg-hoi-card p-3 text-sm text-hoi-muted">
+          Un país NUEVO no aparece en la partida si no es dueño de ningún estado. Asignarle estados
+          llegará con el editor de mapa; mientras tanto puedes liberarlo con un foco o evento de
+          otro país.
         </div>
       )}
     </fieldset>
@@ -630,7 +630,7 @@ export function FlagStep({ draft, set }: StepProps): JSX.Element {
           </div>
           {draft.flags.mainSmall && (
             <p className="mt-1 text-xs text-yellow-400">
-              ⚠ Imagen más chica que 82×52: se verá borrosa.
+              Imagen más chica que 82×52: se verá borrosa.
             </p>
           )}
         </div>
@@ -774,8 +774,8 @@ export function LeaderStep({ draft, set, game }: StepProps): JSX.Element {
   return (
     <div className="flex flex-col gap-3">
       {historyLocked(draft) && (
-        <p className="rounded border border-sky-600/60 bg-sky-500/10 p-2 text-xs text-sky-200">
-          ℹ Sin la carpeta de HOI4, los líderes que añadas se exportan como personajes pero no se
+        <p className="rounded border border-hoi-border bg-hoi-card p-2 text-xs text-hoi-muted">
+          Sin la carpeta de HOI4, los líderes que añadas se exportan como personajes pero no se
           reclutan (hace falta la historia del país). Configúrala en Ajustes.
         </p>
       )}

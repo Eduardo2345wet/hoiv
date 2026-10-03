@@ -176,7 +176,7 @@ export default function CountryWizard({
                 className="mr-auto max-w-[480px] truncate text-xs text-red-400"
                 title={stepErrors[0].message}
               >
-                ✖ {stepErrors[0].message}
+                {stepErrors[0].message}
               </span>
             )}
             <button className="btn" onClick={close}>
@@ -231,7 +231,10 @@ export default function CountryWizard({
                       : 'bg-hoi-bg text-hoi-muted'
                 }`}
               >
-                {n + 1}. {name} {hasErr && (n < step || editing) ? '⚠' : ''}
+                {n + 1}. {name}{' '}
+                {hasErr && (n < step || editing) && (
+                  <AlertTriangle size={12} className="inline text-yellow-400" />
+                )}
               </button>
             )
           })}

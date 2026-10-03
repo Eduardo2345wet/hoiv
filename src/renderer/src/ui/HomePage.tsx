@@ -20,7 +20,7 @@ export default function HomePage(): JSX.Element {
           className="flex w-56 flex-col items-center gap-3 rounded-lg border-2 border-hoi-accent bg-hoi-accent/10 px-6 py-8 text-lg font-semibold hover:bg-hoi-accent/20"
           onClick={() => store.set({ newProjectDialog: { name: '' } })}
         >
-          <FilePlus size={40} className="text-hoi-accent" />
+          <FilePlus size={40} />
           Nuevo proyecto
         </button>
         <button
@@ -48,7 +48,7 @@ export default function HomePage(): JSX.Element {
             >
               <span className="flex items-baseline gap-3">
                 <span className="font-medium">{r.name}</span>
-                <span className="text-xs text-hoi-accent">
+                <span className="text-xs text-hoi-muted">
                   {templateInfo(r.template as TemplateId).name}
                 </span>
                 <span className="ml-auto text-xs text-hoi-muted">

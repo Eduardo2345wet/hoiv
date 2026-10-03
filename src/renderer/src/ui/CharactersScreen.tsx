@@ -188,7 +188,7 @@ function Editor({ project, c }: { project: Project; c: Character }): JSX.Element
                 onChange={(e) => set({ name: e.target.value }, 'name')}
               />
             </Field>
-            <Field label="ID" help="Clave de localización y nombre en recruit_character">
+            <Field label="ID" help="Se usa para el nombre y para reclutarlo">
               <input
                 className="input font-mono"
                 value={c.id}
@@ -279,7 +279,7 @@ function Editor({ project, c }: { project: Project; c: Character }): JSX.Element
                     onChange={(v) => set({ advisor: { ...c.advisor, slot: v as AdvisorSlot } })}
                   />
                 </Field>
-                <Field label="idea_token (único)">
+                <Field label="Identificador del cargo (único)">
                   <input
                     className="input font-mono"
                     value={c.advisor.ideaToken}

@@ -73,7 +73,7 @@ export default function Editor(): JSX.Element {
   useEffect(() => {
     if (tab === 'mapa') setMapMounted(true)
   }, [tab])
-  // "🗺 Elegir en el mapa…": abrir la pestaña Mapa y volver a donde estaba al terminar
+  // "Elegir en el mapa…": abrir la pestaña Mapa y volver a donde estaba al terminar
   const statePick = useApp((s) => s.pick?.kind === 'state')
   const prevTab = useRef<Tab | null>(null)
   useEffect(() => {
@@ -150,8 +150,7 @@ export default function Editor(): JSX.Element {
       store.set({
         reviewDialog: { modName: project.modName, folder: res.folder ?? null, moves: moved }
       })
-    } else if (res.message !== 'Exportación cancelada.')
-      store.toast('❌ ' + res.message, { kind: 'error' })
+    } else if (res.message !== 'Exportación cancelada.') store.toast(res.message, { kind: 'error' })
   }
   const startExport = async (validateOnly = false): Promise<void> => {
     const { map, gamePath } = store.get()
@@ -364,8 +363,8 @@ export default function Editor(): JSX.Element {
             {(() => {
               const c = project.countries.find((x) => x.focusTreeId === activeTree)
               return c?.mode === 'existente' && game?.focusTreeTags?.[c.tag] !== undefined ? (
-                <span className="text-xs text-sky-300">
-                  ℹ Este árbol reemplazará el árbol original de {c.names.name || c.tag}.
+                <span className="text-xs text-hoi-muted">
+                  Este árbol reemplazará el árbol original de {c.names.name || c.tag}.
                 </span>
               ) : null
             })()}
@@ -416,7 +415,7 @@ export default function Editor(): JSX.Element {
                   selectedFocus.extraText?.trim()) && (
                   <div
                     data-advanced-focus
-                    className="border-b border-hoi-border bg-yellow-900/30 px-3 py-1 text-xs text-yellow-200"
+                    className="border-b border-hoi-border bg-hoi-card px-3 py-1 text-xs text-hoi-muted"
                   >
                     Foco importado: sus condiciones y recompensa están como texto avanzado y se
                     exportan tal cual (míralo en la vista previa). Si editas los bloques, se

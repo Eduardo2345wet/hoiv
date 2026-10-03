@@ -272,7 +272,7 @@ function Options({ project, ev }: { project: Project; ev: GameEvent }): JSX.Elem
             />
           </Field>
           <Field
-            label="ai_chance (base)"
+            label="Probabilidad para la IA"
             help="Proporcional entre las opciones; 0 = la IA no la elige al azar"
           >
             <NumberField value={o.aiBase} min={0} onChange={(v) => setOpt(i, { aiBase: v })} />
@@ -379,7 +379,7 @@ function Editor({ project, uid }: { project: Project; uid: string }): JSX.Elemen
                 onChange={(v) => patch(ev.uid, { type: v as GameEvent['type'] })}
               />
             </Field>
-            <Field label="Namespace" help="Se declara con add_namespace; minúsculas, números y _">
+            <Field label="Grupo de eventos" help="Agrupa tus eventos; minúsculas, números y _">
               <input
                 className="input w-64 font-mono"
                 value={ev.namespace}
@@ -482,8 +482,8 @@ function Editor({ project, uid }: { project: Project; uid: string }): JSX.Elemen
             <Card title="Banderas">
               {(
                 [
-                  ['triggeredOnly', 'Solo por disparo (is_triggered_only)'],
-                  ['fireOnlyOnce', 'Una vez en todo el juego (fire_only_once)'],
+                  ['triggeredOnly', 'Solo cuando otro lo lanza'],
+                  ['fireOnlyOnce', 'Una sola vez en toda la partida'],
                   ['major', 'Para todos los países (major)'],
                   ['hidden', 'Oculto (sin título)'],
                   ['minorFlavor', 'minor_flavor']
@@ -499,23 +499,26 @@ function Editor({ project, uid }: { project: Project; uid: string }): JSX.Elemen
                 </label>
               ))}
             </Card>
-            <Field label="mean_time_to_happen (días)" help="Solo para eventos automáticos">
+            <Field
+              label="Tiempo medio hasta que ocurre (días)"
+              help="Solo para eventos automáticos"
+            >
               <NumberField
                 value={ev.mtthDays}
                 min={0}
                 onChange={(v) => patch(ev.uid, { mtthDays: v })}
               />
             </Field>
-            <Field label="timeout_days" help="0 = el valor por defecto (13)">
+            <Field label="Días para elegir" help="0 = el valor por defecto (13)">
               <NumberField
                 value={ev.timeoutDays}
                 min={0}
                 onChange={(v) => patch(ev.uid, { timeoutDays: v })}
               />
             </Field>
-            {script('trigger', 'condition', 'Condición (trigger)')}
-            {script('immediate', 'effect', 'immediate (antes de elegir)')}
-            {script('after', 'effect', 'after (después de elegir)')}
+            {script('trigger', 'condition', 'Condición para que ocurra')}
+            {script('immediate', 'effect', 'Efectos al aparecer (antes de elegir)')}
+            {script('after', 'effect', 'Efectos después de elegir')}
           </>
         )}
       </div>

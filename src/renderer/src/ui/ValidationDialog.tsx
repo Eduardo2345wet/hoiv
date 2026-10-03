@@ -114,9 +114,7 @@ export default function ValidationDialog({
       <div className="max-h-[80vh] w-[700px] overflow-hidden rounded-lg border border-hoi-border bg-hoi-panel shadow-2xl">
         <div className="border-b border-hoi-border p-4">
           <h2 className="text-lg font-semibold">
-            {errors.length
-              ? `❌ Hay ${errors.length} error(es) que arreglar`
-              : '⚠️ Revisa estos avisos'}
+            {errors.length ? `Hay ${errors.length} error(es) que arreglar` : 'Revisa estos avisos'}
           </h2>
           <p className="text-xs text-hoi-muted">
             Los errores bloquean la exportación; los avisos no. Usa "Ir" para arreglar cada uno.

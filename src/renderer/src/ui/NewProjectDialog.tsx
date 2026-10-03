@@ -1,6 +1,7 @@
 // Archivo → Nuevo proyecto (como Archivo → Nuevo de NX): categorías y tarjetas con miniatura,
 // vista previa y detalles a la derecha; abajo el nombre y la carpeta.
 import { validateProjectName } from '../../../shared/names'
+import { AlertTriangle } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { store, useApp } from '../store/appStore'
 import {
@@ -123,7 +124,7 @@ export default function NewProjectDialog({ initialName }: { initialName: string 
                   const first = TEMPLATES.find((t) => t.category === id)
                   if (first && templateInfo(selected).category !== id) setSelected(first.id)
                 }}
-                className={`px-3 py-1.5 text-sm ${category === id ? 'border-b-2 border-hoi-accent text-hoi-accent' : 'text-hoi-muted hover:text-hoi-text'}`}
+                className={`px-3 py-1.5 text-sm ${category === id ? 'border-b-2 border-hoi-accent text-hoi-text' : 'text-hoi-muted hover:text-hoi-text'}`}
               >
                 {label}
               </button>
@@ -205,8 +206,9 @@ export default function NewProjectDialog({ initialName }: { initialName: string 
                 </div>
               </div>
               {mod && (
-                <p className="mt-1 rounded bg-yellow-500/15 p-2 text-[11px] text-yellow-200">
-                  ⚠ Mod base: "{mod.name}". Tu mod necesitará "{mod.name}" activado y cargado antes
+                <p className="mt-1 rounded border border-hoi-border bg-hoi-card p-2 text-xs text-hoi-muted">
+                  <AlertTriangle size={12} className="mr-1 inline" />
+                  Mod base: "{mod.name}". Tu mod necesitará "{mod.name}" activado y cargado antes
                   (dependencia).
                 </p>
               )}

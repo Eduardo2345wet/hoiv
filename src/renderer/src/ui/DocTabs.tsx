@@ -25,7 +25,7 @@ export default function DocTabs(): JSX.Element | null {
           }`}
         >
           <span className="truncate">{t.name}</span>
-          {t.dirty && <span className="text-hoi-accent">●</span>}
+          {t.dirty && <span className="text-hoi-muted">●</span>}
           <button
             title="Cerrar (Ctrl+W)"
             className="rounded p-0.5 opacity-60 hover:bg-hoi-card hover:opacity-100"

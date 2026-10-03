@@ -28,11 +28,7 @@ export function registerAreaBlocks(): void {
     (['country', 'state'] as AreaScope[]).map((scope) => ({
       type: areaRootType(mode, scope),
       message0:
-        mode === 'effect'
-          ? scope === 'state'
-            ? '⚙ Efectos de estado'
-            : '⚙ Efectos'
-          : '⚙ Condiciones',
+        mode === 'effect' ? (scope === 'state' ? 'Efectos de estado' : 'Efectos') : 'Condiciones',
       message1: '%1',
       args1: [{ type: 'input_statement', name: 'BODY', check: CHECKS[`${mode}:${scope}`] }],
       colour: COLOR_SLOT,

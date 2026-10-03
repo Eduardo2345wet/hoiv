@@ -137,7 +137,7 @@ export function Tabs({
           role="tab"
           aria-selected={value === t.id}
           onClick={() => onChange(t.id)}
-          className={`px-3 py-1.5 text-sm ${value === t.id ? 'border-b-2 border-hoi-accent text-hoi-accent' : 'text-hoi-muted hover:text-hoi-text'}`}
+          className={`px-3 py-1.5 text-sm ${value === t.id ? 'border-b-2 border-hoi-accent text-hoi-text' : 'text-hoi-muted hover:text-hoi-text'}`}
         >
           {t.label}
         </button>

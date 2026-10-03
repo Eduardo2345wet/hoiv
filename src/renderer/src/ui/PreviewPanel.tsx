@@ -27,7 +27,7 @@ export default function PreviewPanel({
     [project, tab, treeId]
   )
   const tabClass = (t: Tab): string =>
-    `px-3 py-1 text-xs ${tab === t ? 'border-b-2 border-hoi-accent text-hoi-accent' : 'text-hoi-muted'}`
+    `px-3 py-1 text-xs ${tab === t ? 'border-b-2 border-hoi-accent text-hoi-text' : 'text-hoi-muted'}`
   return (
     <div className="flex h-full flex-col">
       <div className="flex border-b border-hoi-border">

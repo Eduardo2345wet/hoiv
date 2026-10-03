@@ -183,7 +183,7 @@ export default function PalettePanel({
       <div
         className={`flex items-center justify-between border-b border-hoi-border px-3 py-2 ${embedded ? 'hidden' : ''}`}
       >
-        <span className="text-sm font-semibold text-hoi-accent">Paleta</span>
+        <span className="text-sm font-medium text-hoi-text">Paleta</span>
         <button title="Plegar la paleta" onClick={() => setCollapsed(true)}>
           <ChevronLeft size={16} />
         </button>
@@ -279,7 +279,7 @@ export default function PalettePanel({
         )}
         {lastQuickUid && project.countries.some((c) => c.uid === lastQuickUid) && !quick && (
           <button
-            className="mt-1 w-full text-center text-[11px] text-hoi-accent underline"
+            className="mt-1 w-full text-center text-[11px] text-hoi-muted underline"
             onClick={() => onOpenWizard(lastQuickUid)}
           >
             Completar país… (bandera, líder, política)

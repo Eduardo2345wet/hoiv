@@ -247,7 +247,7 @@ function TechEditor({ project, t }: { project: Project; t: Technology }): JSX.El
         ) : (
           <input
             className="input font-mono"
-            placeholder="infantry_folder"
+            placeholder="Carpeta"
             value={t.folder}
             onChange={(e) => patchT(t.uid, { folder: e.target.value.trim() }, 'folder')}
           />
@@ -267,7 +267,7 @@ function TechEditor({ project, t }: { project: Project; t: Technology }): JSX.El
           <NumberField value={t.year} min={1900} onChange={(v) => patchT(t.uid, { year: v })} />
         </Field>
       </div>
-      <Field label="Categorías" help="Separadas por comas, ej. infantry_weapons">
+      <Field label="Categorías" help="Separadas por comas">
         <input
           className="input font-mono"
           value={t.categories.join(', ')}

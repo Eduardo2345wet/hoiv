@@ -1,5 +1,6 @@
 // Pestaña Súper eventos: ventana grande con imagen, cita y sonido (sistema propio).
 import { useState } from 'react'
+import { Play } from 'lucide-react'
 import type { Project } from '../types'
 import { store } from '../store/appStore'
 import { registerSectionScreen } from '../sections/ui'
@@ -75,7 +76,7 @@ function Preview({ project, se }: { project: Project; se: SuperEvent }): JSX.Ele
               void a.play()
             }}
           >
-            ▶ Reproducir
+            <Play size={12} /> Reproducir
           </Button>
           <span className="text-hoi-muted">{se.sound.name}</span>
           {!isPcmWav(se.sound.base64) && <Badge tone="warn">no es WAV PCM</Badge>}
@@ -173,7 +174,7 @@ function Editor({ project, uid }: { project: Project; uid: string }): JSX.Elemen
           </Button>
         )}
       </Field>
-      <Field label="Quién la ve" help="Siempre solo jugadores humanos (is_ai = no)">
+      <Field label="Quién la ve" help="Siempre solo jugadores humanos">
         <Select
           value={se.audience}
           options={[

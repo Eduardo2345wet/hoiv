@@ -98,7 +98,7 @@ export default function BlocklyArea({
           <div className="mb-1 flex items-center justify-between text-xs text-hoi-muted">
             <span>Avanzado (texto): se exporta tal cual</span>
             <button
-              className="underline hover:text-hoi-accent"
+              className="underline hover:text-hoi-text"
               title="Descarta el texto y empieza con bloques"
               onClick={() => {
                 if (confirm('¿Empezar de cero con bloques? El texto se descartará.')) {

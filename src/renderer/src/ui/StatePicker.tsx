@@ -170,13 +170,13 @@ export default function StatePicker(): JSX.Element | null {
     if (prov) {
       const st = map ? stateOf(map.provinceToState[id]) : undefined
       return map && map.provinceType[id] === PROVINCE_TYPE.land
-        ? `📍 Provincia ${id}${st ? ` · ${st.name} #${st.id}` : ''}${map.provinceCoastal[id] ? ' (costera)' : ''}`
-        : `⚠ La provincia ${id} no es de tierra`
+        ? `Provincia ${id}${st ? ` · ${st.name} #${st.id}` : ''}${map.provinceCoastal[id] ? ' (costera)' : ''}`
+        : `La provincia ${id} no es de tierra`
     }
     const s = stateOf(id)
     return s && project
-      ? `📍 ${s.name} (${effectiveOwner(s, project) || '—'}) · ${id}`
-      : `⚠ Estado ${id} (no existe)`
+      ? `${s.name} (${effectiveOwner(s, project) || '—'}) · ${id}`
+      : `Estado ${id} (no existe)`
   }
   const center = (id: number): void => {
     const c = map?.stateCenters[prov ? map.provinceToState[id] : id]

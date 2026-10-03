@@ -71,7 +71,7 @@ export default function SectionScreen({
               {screen?.templates?.map((t) => (
                 <button
                   key={t.id}
-                  className="mt-1 w-full text-left text-xs text-hoi-muted underline hover:text-hoi-accent"
+                  className="mt-1 w-full text-left text-xs text-hoi-muted underline hover:text-hoi-text"
                   onClick={() => void Promise.resolve(t.create()).then((u) => u && setSelected(u))}
                 >
                   + {t.label}

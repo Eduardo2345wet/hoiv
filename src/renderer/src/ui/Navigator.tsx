@@ -91,7 +91,7 @@ export default function Navigator({ project }: { project: Project }): JSX.Elemen
       key={key}
       onClick={onClick}
       onDoubleClick={onDouble ?? undefined}
-      className={`flex cursor-pointer items-center gap-2 truncate px-4 py-1 text-sm hover:bg-hoi-card ${active ? 'bg-hoi-accent/15 text-hoi-accent' : ''}`}
+      className={`flex cursor-pointer items-center gap-2 truncate px-4 py-1 text-sm hover:bg-hoi-card ${active ? 'bg-hoi-accent/15 text-hoi-text' : ''}`}
     >
       {children}
     </div>
@@ -100,7 +100,7 @@ export default function Navigator({ project }: { project: Project }): JSX.Elemen
   return (
     <aside className="flex w-64 shrink-0 flex-col border-r border-hoi-border bg-hoi-panel">
       <div className="flex items-center justify-between border-b border-hoi-border px-3 py-1.5">
-        <span className="text-sm font-semibold text-hoi-accent">Navegador del proyecto</span>
+        <span className="text-sm font-medium text-hoi-text">Navegador del proyecto</span>
         <button
           title="Plegar"
           onClick={() => {
