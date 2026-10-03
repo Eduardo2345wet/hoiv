@@ -1734,7 +1734,10 @@ describe('ideologías y tecnologías, secciones separadas (rediseño)', () => {
     expect(await page.locator('text=parchan archivos').count()).toBe(0)
     await page.locator('[data-empty] [data-template="tecnologia"]').click()
     await page.fill('input[data-new-name]', 'Fusil mejorado')
-    expect(await page.locator('select[data-new-group]').count()).toBe(0)
+    // el grupo es la carpeta de investigación (opcional), no la ideología
+    expect(await page.locator('select[data-new-group] option').allInnerTexts()).toEqual([
+      'Sin grupo'
+    ])
     await page.locator('button:text-is("Crear")').click()
     await page.waitForSelector('text=Activa el Modo avanzado')
     expect((await model(page)).technologies.length).toBe(0)
@@ -1743,7 +1746,7 @@ describe('ideologías y tecnologías, secciones separadas (rediseño)', () => {
     await page.fill('input[data-new-name]', 'Fusil mejorado')
     await page.locator('button:text-is("Crear")').click()
     await page.waitForSelector('[data-tech-editor]')
-    expect(await page.locator('[data-group="tecnologias"]').count()).toBe(0)
+    expect(await page.locator('[data-group="_sin_carpeta"] [data-item]').count()).toBe(1)
     expect((await model(page)).technologies.length).toBe(1)
     await page.close()
   }, 60_000)
