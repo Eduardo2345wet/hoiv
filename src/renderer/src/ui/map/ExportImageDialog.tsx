@@ -3,7 +3,9 @@
 import { useState } from 'react'
 import {
   EXPORT_BASE,
+  ExportSizeError,
   exportFileName,
+  type ExportFit,
   type ExportOptions,
   type ExportSize
 } from '../../map/exportImage'
@@ -31,6 +33,8 @@ export default function ExportImageDialog({ view, modName, initial, onClose }: P
   const [prov, setProv] = useState(initial.provinceBorders)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  /** El mayor tamaño posible cuando el pedido no cabe en esta computadora */
+  const [fit, setFit] = useState<ExportFit | null>(null)
   const dpr = window.devicePixelRatio || 1
 
   const screen = view?.screen() ?? { width: 0, height: 0 }
@@ -39,14 +43,15 @@ export default function ExportImageDialog({ view, modName, initial, onClose }: P
       ? `${Math.round(screen.width * dpr)} × ${Math.round(screen.height * dpr)}`
       : `${EXPORT_BASE.w * (s === '2x' ? 2 : 1)} × ${EXPORT_BASE.h * (s === '2x' ? 2 : 1)}`
 
-  const run = async (): Promise<void> => {
+  const run = async (factor?: number): Promise<void> => {
     if (!view) return
     setBusy(true)
     setError(null)
+    setFit(null)
     try {
       // Deja pintar el "Generando…" antes de empezar el trabajo pesado
       await new Promise((r) => setTimeout(r, 30))
-      const opts: ExportOptions = { size, labels, provinceBorders: prov }
+      const opts: ExportOptions = { size, labels, provinceBorders: prov, factor }
       const r = await view.exportImage(opts)
       const name = exportFileName(modName, size)
       const bytes = new Uint8Array(await r.blob.arrayBuffer())
@@ -70,6 +75,7 @@ export default function ExportImageDialog({ view, modName, initial, onClose }: P
       onClose()
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e))
+      if (e instanceof ExportSizeError) setFit(e.fit)
       setBusy(false)
     }
   }
@@ -87,7 +93,7 @@ export default function ExportImageDialog({ view, modName, initial, onClose }: P
           <button
             className="btn-primary disabled:opacity-40"
             disabled={busy || !view}
-            onClick={run}
+            onClick={() => run()}
           >
             {busy ? 'Generando imagen…' : 'Exportar PNG'}
           </button>
@@ -102,7 +108,11 @@ export default function ExportImageDialog({ view, modName, initial, onClose }: P
               type="radio"
               name="export-size"
               checked={size === s}
-              onChange={() => setSize(s)}
+              onChange={() => {
+                setSize(s)
+                setError(null)
+                setFit(null)
+              }}
             />
             {text}
             <span className="ml-auto font-mono text-xs text-hoi-muted">{dims(s)}</span>
@@ -120,9 +130,15 @@ export default function ExportImageDialog({ view, modName, initial, onClose }: P
       </label>
       <p className="text-xs text-hoi-muted">
         La imagen sale del mismo dibujo que ves en pantalla (mar azul, tierra blanca o del color del
-        país). El tamaño 2× necesita bastante memoria; si falla, usa 1×.
+        país). Si tu tarjeta gráfica no dibuja un tamaño tan grande de una vez, la imagen se hace
+        por partes; y si ni así cabe en tu computadora, te ofrecemos el mayor tamaño posible.
       </p>
       {error && <p className="mt-2 text-xs text-red-400">{error}</p>}
+      {fit && (
+        <button className="btn mt-2" disabled={busy} onClick={() => run(fit.factor)}>
+          Exportar a {fit.width} × {fit.height}
+        </button>
+      )}
     </Modal>
   )
 }

@@ -32,6 +32,13 @@ afterAll(async () => {
   await server?.close()
 })
 
+/**
+ * Ruta de un archivo del proyecto para `import()` dentro de la página: `/@fs/` + ruta absoluta con
+ * barras normales. En Windows (`C:\Users\…`) un simple `'/@fs' + ruta` queda `/@fsC:\…` y no carga.
+ */
+const fsUrl = (rel: string): string =>
+  '/@fs/' + path.resolve(rel).replace(/\\/g, '/').replace(/^\/+/, '')
+
 async function fresh(): Promise<Page> {
   const page = await browser!.newPage({ viewport: { width: 1366, height: 768 } })
   await page.goto(url)
@@ -967,7 +974,7 @@ describe('capital de un país del juego en la tarjeta', () => {
   it('muestra la capital del juego y avisa si ahora es de otro país', async ({ skip }) => {
     if (!browser) skip()
     const page = await fresh()
-    const demoUrl = '/@fs' + path.resolve('src/shared/map/demo.ts')
+    const demoUrl = fsUrl('src/shared/map/demo.ts')
     const r = await page.evaluate(async (url) => {
       const { generateDemoMap } = await new Function('u', 'return import(u)')(url)
       const map = generateDemoMap()
@@ -1535,7 +1542,7 @@ describe('mini mapa "Elegir estado" (parte E)', () => {
     if (!browser) skip()
     const page = await fresh()
     await focusEditor(page)
-    const demoUrl = '/@fs' + path.resolve('src/shared/map/demo.ts')
+    const demoUrl = fsUrl('src/shared/map/demo.ts')
     const info = await page.evaluate(async (url) => {
       const { generateDemoMap } = await new Function('u', 'return import(u)')(url)
       const map = generateDemoMap()
@@ -1613,7 +1620,7 @@ describe('memoria del mapa (parte F)', () => {
     if (!browser) skip()
     const page = await fresh()
     await focusEditor(page)
-    const demoUrl = '/@fs' + path.resolve('src/shared/map/demo.ts')
+    const demoUrl = fsUrl('src/shared/map/demo.ts')
     await page.evaluate(async (url) => {
       const { generateDemoMap } = await new Function('u', 'return import(u)')(url)
       const st = (window as unknown as HoiWindow).__hoiStore as never as {
@@ -2155,7 +2162,7 @@ describe('estados a fondo (S6)', () => {
     if (!browser) skip()
     const page = await fresh()
     await focusEditor(page)
-    const demoUrl = '/@fs' + path.resolve('src/shared/map/demo.ts')
+    const demoUrl = fsUrl('src/shared/map/demo.ts')
     const info = await page.evaluate(async (url) => {
       const { generateDemoMap } = await new Function('u', 'return import(u)')(url)
       const map = generateDemoMap()
@@ -2202,7 +2209,7 @@ describe('estados a fondo (S6)', () => {
 describe('ejército (rediseño)', () => {
   const prep = async (page: Page, withOob: boolean): Promise<void> => {
     await focusEditor(page)
-    const demoUrl = '/@fs' + path.resolve('src/shared/map/demo.ts')
+    const demoUrl = fsUrl('src/shared/map/demo.ts')
     await page.evaluate(
       async ([url, withOob]) => {
         const { generateDemoMap } = await new Function('u', 'return import(u)')(url)

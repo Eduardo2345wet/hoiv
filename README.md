@@ -391,7 +391,14 @@ una imagen para calcar encima, apagada por defecto, y nunca cambia el dibujo ni 
 Botón **🖼 Exportar imagen del mapa (PNG)** (arriba a la derecha del mapa). Tamaños: **1×**
 (5632×2048), **2×** (11264×4096) o la **vista actual**; con o sin etiquetas y con o sin fronteras
 de provincia. Se genera fuera de pantalla con el mismo motor WebGL2 y se guarda con "Guardar
-como" (nunca dentro de la carpeta del juego). Si el 2× falla por memoria, usa 1×.
+como" (nunca dentro de la carpeta del juego).
+
+**Imágenes más grandes que tu GPU.** Muchas tarjetas gráficas solo dibujan hasta 8192 px por lado,
+así que el 2× (11264 de ancho) no cabe de una vez. En ese caso la imagen se dibuja **por pedazos**
+(cuadros de hasta 4096 px, con la vista corrida para que cada uno caiga en su lugar) y se une al
+final en un canvas normal: el resultado es idéntico a dibujarla de golpe. Si ni así cabe en la
+memoria de tu computadora, el diálogo avisa y ofrece el **mayor tamaño posible** con la misma
+composición (botón "Exportar a W × H"). El código está en `map/exportImage.ts`.
 
 ### Rendimiento
 Mide tú mismo con **F3** en tu computadora. Con un mapa **sintético** del tamaño del real

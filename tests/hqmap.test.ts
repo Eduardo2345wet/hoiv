@@ -30,7 +30,14 @@ import {
   zoomFrame
 } from '../src/renderer/src/map/viewMath'
 import { FLAG } from '../src/renderer/src/map/colors'
-import { exportFileName, exportGeometry, EXPORT_BASE } from '../src/renderer/src/map/exportImage'
+import {
+  ExportSizeError,
+  exportFileName,
+  exportGeometry,
+  largestFit,
+  scaleGeometry,
+  EXPORT_BASE
+} from '../src/renderer/src/map/exportImage'
 import { saveImage } from '../src/main/saveImage'
 import fs from 'fs'
 import os from 'os'
@@ -695,6 +702,50 @@ describe('exportar imagen: geometría y guardado (parte 5)', () => {
     expect(g.view.scale).toBeCloseTo(Math.min(5632 / 1200, 2048 / 600), 9)
     expect(g.view.x * 2 + demo.width * g.view.scale).toBeCloseTo(5632, 6)
     expect(g.view.y * 2 + demo.height * g.view.scale).toBeCloseTo(2048, 6)
+  })
+  it('reducir una exportación conserva la composición (la vista en px CSS no cambia)', () => {
+    const real = { width: 5632, height: 2048 }
+    const g2 = exportGeometry('2x', real, cur)
+    expect(scaleGeometry(g2, 1)).toBe(g2)
+    const half = scaleGeometry(g2, 0.5)
+    expect([half.width, half.height, half.dpr]).toEqual([5632, 2048, 1])
+    expect(half.view).toEqual(g2.view)
+    expect([half.cssWidth, half.cssHeight]).toEqual([g2.cssWidth, g2.cssHeight])
+  })
+  it('el mayor tamaño posible: lo pedido si cabe; si no, el mayor que respeta los límites', () => {
+    const g = { width: 11264, height: 4096 }
+    const all = (): boolean => true
+    // Cabe todo: 11264×4096 = 46 M px, bajo los límites de seguridad
+    expect(largestFit(g, all)).toEqual({ factor: 1, width: 11264, height: 4096 })
+    // Límite de píxeles: el tamaño redondeado nunca lo pasa y la forma se conserva
+    const limits = { maxPixels: 10_000_000, maxSide: 16384 }
+    const byArea = largestFit(g, all, limits)!
+    expect(byArea.width * byArea.height).toBeLessThanOrEqual(10_000_000)
+    expect(byArea.width / byArea.height).toBeCloseTo(11264 / 4096, 2)
+    // Límite de lado
+    const bySide = largestFit(g, all, { maxPixels: 1e9, maxSide: 8000 })!
+    expect(bySide.width).toBeLessThanOrEqual(8000)
+    // Si el canvas real no se puede crear, baja hasta uno que sí
+    const real = largestFit(g, (w) => w <= 6000)!
+    expect(real.width).toBeLessThanOrEqual(6000)
+    expect(real.width).toBeGreaterThan(6000 * 0.85 * 0.85) // bajó poco a poco, no de golpe
+    // Reintentar con ese factor da exactamente ese tamaño
+    const again = scaleGeometry(
+      exportGeometry('2x', { width: 5632, height: 2048 }, cur),
+      real.factor
+    )
+    expect([again.width, again.height]).toEqual([real.width, real.height])
+    // Nada cabe: sin oferta
+    expect(largestFit(g, () => false)).toBeNull()
+  })
+  it('el aviso de tamaño dice cuánto se pidió y cuánto es lo máximo', () => {
+    const e = new ExportSizeError(
+      { width: 11264, height: 4096 },
+      { factor: 0.7, width: 7885, height: 2867 }
+    )
+    expect(e.message).toContain('11264×4096')
+    expect(e.message).toContain('7885×2867')
+    expect(new ExportSizeError({ width: 1, height: 1 }, null).fit).toBeNull()
   })
   it('nombre de archivo sin acentos ni caracteres raros', () => {
     expect(exportFileName('Mi mod de México', '1x')).toBe('mapa-Mi_mod_de_Mexico-1x.png')

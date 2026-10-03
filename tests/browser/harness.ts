@@ -4,9 +4,14 @@ import { generateDemoMap } from '../../src/shared/map/demo'
 import { PROVINCE_TYPE, type MapData, type MapState } from '../../src/shared/map/types'
 import { buildPalette, type Palette } from '../../src/renderer/src/map/colors'
 import {
+  ExportSizeError,
   exportGeometry,
   exportMapImage,
+  gpuMaxSide,
   renderToCanvas,
+  type ExportContext,
+  type ExportFit,
+  type ExportLimits,
   type ExportSize
 } from '../../src/renderer/src/map/exportImage'
 import { createWebGLRenderer } from '../../src/renderer/src/map/webglRenderer'
@@ -174,38 +179,16 @@ const api = {
     return Array.from({ length: y1 - y0 + 1 }, (_, i) => [d[i * 4], d[i * 4 + 1], d[i * 4 + 2]])
   },
 
+  /** Lado máximo que la GPU de este equipo dibuja de una vez (null: no hay WebGL2) */
+  gpuSide(): number | null {
+    return gpuMaxSide()
+  },
+
   /** Exporta el mapa de demostración y mide la imagen PNG que sale */
-  async exportDemo(size: ExportSize, labels: boolean) {
-    const map = generateDemoMap()
-    const palette = buildPalette(map, null, null, {
-      mode: 'politico',
-      activeTag: null,
-      selectedId: null,
-      gameColors: false,
-      blankUnpainted: true,
-      highlightPending: false
-    })
-    const geo = exportGeometry(size, map, {
-      width: 1000,
-      height: 600,
-      view: { scale: 1, x: 0, y: 0 },
-      dpr: 1
-    })
-    const res = await exportMapImage(
-      { size, labels, provinceBorders: false },
-      {
-        map,
-        palette,
-        current: { width: 1000, height: 600, view: { scale: 1, x: 0, y: 0 }, dpr: 1 },
-        labelInput: {
-          map,
-          mode: 'id',
-          capitals: null,
-          colorOf: () => [255, 255, 255],
-          measure: canvasMeasure()
-        }
-      }
-    )
+  async exportDemo(size: ExportSize, labels: boolean, limits?: Partial<ExportLimits>) {
+    const { map, ctx: exportCtx } = demoContext(limits)
+    const geo = exportGeometry(size, map, exportCtx.current)
+    const res = await exportMapImage({ size, labels, provinceBorders: false }, exportCtx)
     const bmp = await createImageBitmap(res.blob)
     const c = document.createElement('canvas')
     c.width = bmp.width
@@ -228,7 +211,99 @@ const api = {
         Math.round(geo.view.y + (cy + 0.5) * geo.view.scale)
       ),
       inside,
-      bytes: res.blob.size
+      bytes: res.blob.size,
+      tiles: res.tiles
+    }
+  },
+
+  /**
+   * Mosaico contra una sola pasada: mismo mapa, misma vista, una vez de golpe y otra en cuadros
+   * de `tileSide` px. Devuelve cuántos píxeles difieren (y el mayor salto de un canal).
+   */
+  tileCompare(tileSide: number) {
+    const { map, ctx } = demoContext()
+    const geometry = {
+      width: 1500,
+      height: 900,
+      dpr: 1.5,
+      cssWidth: 1000,
+      cssHeight: 600,
+      view: { scale: 0.9, x: 37.5, y: 12.25 }
+    }
+    const job = {
+      map,
+      palette: ctx.palette,
+      geometry,
+      provinceBorders: true,
+      labels: null as null,
+      activeContour: false
+    }
+    const whole = renderToCanvas({ ...job, limits: { gpuSide: 1_000_000 } })
+    const tiled = renderToCanvas({ ...job, limits: { gpuSide: tileSide } })
+    const a = readPixels(whole.canvas, 0, 0, geometry.width, geometry.height)
+    const b = readPixels(tiled.canvas, 0, 0, geometry.width, geometry.height)
+    let different = 0
+    let maxJump = 0
+    for (let i = 0; i < a.length; i++) {
+      const d = Math.abs(a[i] - b[i])
+      if (d) {
+        different++
+        maxJump = Math.max(maxJump, d)
+      }
+    }
+    const res = { different, maxJump, wholeTiles: whole.tiles, tiledTiles: tiled.tiles }
+    whole.dispose()
+    tiled.dispose()
+    return res
+  },
+
+  /** Pide más de lo que cabe: debe avisar con el mayor tamaño posible, y ese tamaño debe salir */
+  async tooBig() {
+    const { ctx } = demoContext({ maxPixels: 4_000_000 })
+    const opts = { size: 'view' as const, labels: false, provinceBorders: false }
+    ctx.current = { width: 3000, height: 2000, view: { scale: 1, x: 0, y: 0 }, dpr: 1 }
+    let fit: ExportFit | null = null
+    let message = ''
+    let isSizeError = false
+    try {
+      await exportMapImage(opts, ctx)
+    } catch (e) {
+      isSizeError = e instanceof ExportSizeError
+      message = (e as Error).message
+      fit = e instanceof ExportSizeError ? e.fit : null
+    }
+    if (!fit) return { isSizeError, message, fit, retry: null }
+    const res = await exportMapImage({ ...opts, factor: fit.factor }, ctx)
+    const bmp = await createImageBitmap(res.blob)
+    return { isSizeError, message, fit, retry: { width: bmp.width, height: bmp.height } }
+  }
+}
+
+/** El mapa de demostración con su paleta y todo lo que pide `exportMapImage` */
+function demoContext(limits?: Partial<ExportLimits>): { map: MapData; ctx: ExportContext } {
+  const map = generateDemoMap()
+  const palette = buildPalette(map, null, null, {
+    mode: 'politico',
+    activeTag: null,
+    selectedId: null,
+    gameColors: false,
+    blankUnpainted: true,
+    highlightPending: false
+  })
+  return {
+    map,
+    ctx: {
+      map,
+      palette,
+      current: { width: 1000, height: 600, view: { scale: 1, x: 0, y: 0 }, dpr: 1 },
+      labelInput: {
+        map,
+        mode: 'id',
+        capitals: null,
+        colorOf: () => [255, 255, 255],
+        measure: canvasMeasure()
+      },
+      limits
     }
   }
 }

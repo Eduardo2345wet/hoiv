@@ -166,15 +166,59 @@ describe('motor WebGL2 en Chromium (partes 5 y 7)', () => {
     expect(hex(r.sea)).toBe('#446BA3')
   }, 180_000)
 
-  it('PNG 2×: 11264×4096 con los mismos colores', async ({ skip }) => {
+  it('PNG 2×: 11264×4096 con los mismos colores, de una pasada o por mosaico según la GPU', async ({
+    skip
+  }) => {
     if (!page) skip()
-    const r = await call<{ width: number; height: number; sea: number[] }>(
+    // El límite REAL de este equipo: muchas GPU solo dibujan hasta 8192 px por lado, y en ellas la
+    // imagen 2× (11264 de ancho) tiene que salir por pedazos. Sea cual sea el límite, sale completa.
+    const limit = await call<number | null>('gpuSide')
+    const r = await call<{ width: number; height: number; sea: number[]; tiles: number }>(
       'exportDemo',
       '2x',
       false
     )
     expect([r.width, r.height]).toEqual([11264, 4096])
     expect(hex(r.sea)).toBe('#446BA3')
+    const tile = Math.min(limit ?? 4096, 4096)
+    const needsTiles = limit !== null && limit < 11264
+    expect(r.tiles).toBe(needsTiles ? Math.ceil(11264 / tile) * Math.ceil(4096 / tile) : 1)
+  }, 240_000)
+
+  it('el mosaico sale igual que dibujar todo de una vez (también con cuadros que sobran)', async ({
+    skip
+  }) => {
+    if (!page) skip()
+    // 1500×900 en cuadros de 512: 3×2 cuadros, los de la orilla recortados
+    for (const side of [512, 700]) {
+      const r = await call<{
+        different: number
+        maxJump: number
+        wholeTiles: number
+        tiledTiles: number
+      }>('tileCompare', side)
+      expect(r.wholeTiles).toBe(1)
+      expect(r.tiledTiles).toBe(Math.ceil(1500 / side) * Math.ceil(900 / side))
+      expect(r.different).toBe(0)
+    }
+  }, 240_000)
+
+  it('si no cabe avisa con el mayor tamaño posible, y ese tamaño sí sale', async ({ skip }) => {
+    if (!page) skip()
+    const r = await call<{
+      isSizeError: boolean
+      message: string
+      fit: { factor: number; width: number; height: number } | null
+      retry: { width: number; height: number } | null
+    }>('tooBig')
+    // Pidió 3000×2000 = 6 000 000 px con un máximo de 4 000 000
+    expect(r.isSizeError).toBe(true)
+    expect(r.fit).not.toBeNull()
+    expect(r.fit!.factor).toBeLessThan(1)
+    expect(r.fit!.width * r.fit!.height).toBeLessThanOrEqual(4_000_000)
+    expect(r.fit!.width / r.fit!.height).toBeCloseTo(1.5, 2) // misma composición
+    expect(r.message).toContain(`${r.fit!.width}×${r.fit!.height}`)
+    expect(r.retry).toEqual({ width: r.fit!.width, height: r.fit!.height })
   }, 240_000)
 
   it('PNG de la vista actual: el tamaño de la pantalla', async ({ skip }) => {
