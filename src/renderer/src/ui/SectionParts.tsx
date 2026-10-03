@@ -140,22 +140,28 @@ export function GroupTree({
               </div>
               {open &&
                 items.map((i) => (
-                  <div
-                    key={i.uid}
-                    data-item={i.uid}
-                    onClick={() => onSelect(i.uid)}
-                    className={`ml-3 flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 ${i.uid === selected ? 'bg-hoi-accent/20 ring-1 ring-hoi-accent' : 'hover:bg-hoi-card'}`}
-                  >
-                    {i.thumb && <div className="flex w-8 shrink-0 justify-center">{i.thumb}</div>}
-                    <div className="min-w-0">
-                      <div className="truncate text-sm">
-                        {i.title || <span className="text-hoi-muted">Sin nombre</span>}
+                  <div key={i.uid}>
+                    {i.heading && (
+                      <div className="ml-3 mt-1 px-2 text-[10px] uppercase tracking-wide text-hoi-muted">
+                        {i.heading}
                       </div>
-                      {i.subtitle && (
-                        <div className="truncate font-mono text-[10px] text-hoi-muted">
-                          {i.subtitle}
+                    )}
+                    <div
+                      data-item={i.uid}
+                      onClick={() => onSelect(i.uid)}
+                      className={`ml-3 flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 ${i.uid === selected ? 'bg-hoi-accent/20 ring-1 ring-hoi-accent' : 'hover:bg-hoi-card'}`}
+                    >
+                      {i.thumb && <div className="flex w-8 shrink-0 justify-center">{i.thumb}</div>}
+                      <div className="min-w-0">
+                        <div className="truncate text-sm">
+                          {i.title || <span className="text-hoi-muted">Sin nombre</span>}
                         </div>
-                      )}
+                        {i.subtitle && (
+                          <div className="truncate font-mono text-[10px] text-hoi-muted">
+                            {i.subtitle}
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
                 ))}

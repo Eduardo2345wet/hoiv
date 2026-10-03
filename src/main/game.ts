@@ -8,10 +8,18 @@ import path from 'path'
 import { shineShape } from '../shared/shine'
 import { parseFocusFile } from '../shared/gameFocus'
 import { parseTechnologies, topLevelKeys, type GameTech } from '../shared/gameTech'
-import { listSprites, textureSize } from './gameSprites'
+import { listSprites, spriteIndex, textureSize } from './gameSprites'
 import { readIdeologyGroups } from '../shared/textPatch'
 import { parseBuildings, parseStateCategories } from '../shared/gameBuildings'
-import { parseEquipments, parseSubUnits, type GameSubUnit } from '../shared/gameUnits'
+import {
+  parseEquipments,
+  parseSubUnits,
+  parseUnitNames,
+  unitSpriteCandidates,
+  type GameSubUnit,
+  type UnitNames
+} from '../shared/gameUnits'
+import { decodeGameText } from '../shared/map/text'
 import { parseTraits, type GameTrait } from '../shared/gameTraits'
 
 export interface Settings {
@@ -122,6 +130,59 @@ function readDir(dir: string): string[] {
   }
 }
 
+/** Nombres de los batallones en la localización del juego (español e inglés); replace/ gana */
+function readUnitNames(gamePath: string, ids: string[]): Record<string, UnitNames> {
+  const wanted = new Set(ids)
+  const out: Record<string, UnitNames> = {}
+  const walkYml = (dir: string, acc: string[] = []): string[] => {
+    try {
+      for (const it of fs.readdirSync(dir, { withFileTypes: true })) {
+        const full = path.join(dir, it.name)
+        if (it.isDirectory()) walkYml(full, acc)
+        else if (it.name.endsWith('.yml')) acc.push(full)
+      }
+    } catch {
+      // idioma ausente
+    }
+    return acc
+  }
+  for (const [lang, key] of [
+    ['spanish', 'es'],
+    ['english', 'en']
+  ] as const) {
+    const files = walkYml(path.join(gamePath, 'localisation', lang))
+    const isReplace = (f: string): boolean => /[\\/]replace[\\/]/i.test(f)
+    for (const f of [...files.filter((x) => !isReplace(x)), ...files.filter(isReplace)])
+      try {
+        for (const [k, v] of parseUnitNames(
+          decodeGameText(new Uint8Array(fs.readFileSync(f))),
+          wanted
+        ))
+          (out[k] ??= {})[key] = v
+      } catch {
+        // archivo ilegible
+      }
+  }
+  return out
+}
+
+/** Sprite GFX de cada batallón: el primer nombre habitual que exista en interface/*.gfx */
+function unitSprites(gamePath: string, units: GameSubUnit[]): GameSubUnit[] {
+  let known: Map<string, string>
+  try {
+    known = new Map([...spriteIndex(gamePath).sprites.keys()].map((n) => [n.toLowerCase(), n]))
+  } catch {
+    return units
+  }
+  return units.map((u) => {
+    for (const c of unitSpriteCandidates(u)) {
+      const hit = known.get(c.toLowerCase())
+      if (hit) return { ...u, gfx: hit }
+    }
+    return u
+  })
+}
+
 /** Lee todos los .txt de una carpeta como [nombre, contenido] */
 function readDirNamed(dir: string, ext = '.txt'): [string, string][] {
   try {
@@ -215,6 +276,8 @@ export interface GameCatalogResult {
   ideologyFiles?: { file: string; groups: { group: string; types: string[] }[] }[]
   /** Batallones de common/units y equipos de common/units/equipment */
   subUnits?: GameSubUnit[]
+  /** Nombres de los batallones según la localización del juego (español e inglés) */
+  unitNames?: Record<string, UnitNames>
   equipments?: string[]
   unitTraits?: GameTrait[]
   decisionCategoryIcons?: string[]
@@ -475,10 +538,16 @@ export function readGameCatalog(gamePath: string): GameCatalogResult | null {
     for (const f of fs.readdirSync(dir))
       if (f.endsWith('.txt'))
         for (const u of parseSubUnits(fs.readFileSync(path.join(dir, f), 'utf-8'))) all.set(u.id, u)
-    if (all.size) subUnits = [...all.values()]
+    if (all.size) subUnits = unitSprites(gamePath, [...all.values()])
   } catch {
     // sin la carpeta: lista de reserva
   }
+  let unitNames: Record<string, UnitNames> | undefined
+  if (subUnits)
+    unitNames = readUnitNames(
+      gamePath,
+      subUnits.map((u) => u.id)
+    )
   try {
     const dir = path.join(gamePath, 'common', 'units', 'equipment')
     const all = new Set<string>()
@@ -508,6 +577,7 @@ export function readGameCatalog(gamePath: string): GameCatalogResult | null {
     eventPictureSize,
     ideologyFiles,
     subUnits,
+    unitNames,
     equipments,
     buildingMax,
     stateCategories,

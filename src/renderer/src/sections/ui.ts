@@ -71,8 +71,8 @@ export const SECTIONS: SectionDef[] = [
     id: 'ejercito',
     label: 'Ejército',
     collection: 'oobs',
-    createLabel: 'Ejército de un país',
-    empty: 'Aún no hay ejército inicial. Elige un país y diseña sus plantillas de división.',
+    createLabel: 'Crear plantilla',
+    empty: 'Aún no hay ejército inicial. Crea la plantilla de división de un país.',
     groups: groups('Plantilla')
   },
   {
@@ -98,6 +98,8 @@ export const sectionById = (id: string): SectionDef | undefined => SECTIONS.find
 /** Un elemento de la lista de la izquierda: nombre normal, ID pequeño y miniatura opcional */
 export interface ListItem {
   uid: string
+  /** Rótulo pequeño que se muestra encima de este elemento (por ejemplo "Plantillas") */
+  heading?: string
   title: string
   /** Texto pequeño y gris (por ejemplo el ID) */
   subtitle?: string
@@ -162,7 +164,11 @@ export interface SectionScreen {
     selected: string | null,
     select: (uid: string) => void
   ) => ReactNode
-  renderEditor?: (project: Project, selected: string | null) => ReactNode
+  renderEditor?: (
+    project: Project,
+    selected: string | null,
+    select: (uid: string) => void
+  ) => ReactNode
   renderPreview?: (project: Project, selected: string | null) => ReactNode
   label?: (item: Record<string, unknown>) => string
   /** Lista del panel izquierdo si no es la colección principal (p. ej. categorías + decisiones) */

@@ -1938,67 +1938,172 @@ describe('estados a fondo (S6)', () => {
   }, 60_000)
 })
 
-// ---------- Ejército inicial (S7) ----------
-describe('ejército inicial (S7)', () => {
-  it('colocar un batallón en la cuadrícula y abrir el mini mapa en modo provincia', async ({
+// ---------- Ejército inicial (S7) y rediseño ----------
+describe('ejército (rediseño)', () => {
+  const prep = async (page: Page, withOob: boolean): Promise<void> => {
+    await focusEditor(page)
+    const demoUrl = '/@fs' + path.resolve('src/shared/map/demo.ts')
+    await page.evaluate(
+      async ([url, withOob]) => {
+        const { generateDemoMap } = await new Function('u', 'return import(u)')(url)
+        const st = (window as unknown as HoiWindow).__hoiStore as never as {
+          set(p: unknown): void
+          updateProject(f: (p: object) => object): void
+        }
+        st.updateProject((p) => ({
+          ...p,
+          events: [],
+          eventGroups: [],
+          superEvents: [],
+          decisionCategories: [],
+          decisions: [],
+          characters: [],
+          countryStart: [],
+          technologies: [],
+          ideologies: [],
+          bookmarks: [],
+          music: [],
+          loadingScreens: [],
+          languages: [{ code: 'english' }],
+          oobs: withOob
+            ? [
+                {
+                  country: 'NVG',
+                  templates: [{ name: 'Inf', regiments: [], support: [] }],
+                  divisions: [],
+                  production: []
+                }
+              ]
+            : []
+        }))
+        st.set({
+          map: generateDemoMap(),
+          mapKey: 'demo',
+          // Un "juego" falso: batallones terrestres, uno naval y uno aéreo; nombres en español
+          game: {
+            ideas: [],
+            subUnits: [
+              { id: 'infantry', group: 'infantry', type: 'infantry' },
+              { id: 'light_armor', group: 'armor', type: 'armor' },
+              { id: 'engineer', group: 'support' },
+              { id: 'destroyer', group: 'ships', type: 'naval' },
+              { id: 'fighter', group: 'air', type: 'air', mapIcon: 'air' }
+            ],
+            unitNames: {
+              infantry: { es: 'Infantería', en: 'Infantry' },
+              light_armor: { en: 'Light Tank' },
+              destroyer: { es: 'Destructor' },
+              fighter: { es: 'Caza' }
+            }
+          }
+        })
+      },
+      [demoUrl, withOob] as const
+    )
+  }
+
+  it('estado vacío con galería; crear pide el país y nunca un ID; la plantilla de arranque se aplica', async ({
     skip
   }) => {
     if (!browser) skip()
     const page = await fresh()
-    await focusEditor(page)
-    const demoUrl = '/@fs' + path.resolve('src/shared/map/demo.ts')
-    await page.evaluate(async (url) => {
-      const { generateDemoMap } = await new Function('u', 'return import(u)')(url)
-      const st = (window as unknown as HoiWindow).__hoiStore as never as {
-        set(p: unknown): void
-        updateProject(f: (p: object) => object): void
-      }
-      st.updateProject((p) => ({
-        ...p,
-        events: [],
-        superEvents: [],
-        decisionCategories: [],
-        decisions: [],
-        characters: [],
-        countryStart: [],
-        technologies: [],
-        ideologies: [],
-        bookmarks: [],
-        music: [],
-        loadingScreens: [],
-        languages: [{ code: 'english' }],
-        oobs: [
-          {
-            country: 'NVG',
-            templates: [{ name: 'Inf', regiments: [], support: [] }],
-            divisions: [],
-            production: []
-          }
-        ]
-      }))
-      st.set({ map: generateDemoMap(), mapKey: 'demo' })
-    }, demoUrl)
+    await prep(page, false)
     await page.locator('button:text-is("Ejército")').first().click()
-    await page.locator('[data-item]:has-text("NVG")').first().click()
-    await page.waitForSelector('[data-cell="combat:0:0"]')
-    await page.locator('span:text-is("infantry")').click()
+    await page.waitForSelector('[data-empty]')
+    expect(await page.locator('[data-empty] [data-template]').count()).toBe(4)
+    await page.locator('[data-empty] [data-template="infantry"]').click()
+    await page.waitForSelector('input[data-new-name]')
+    const idLabels = await page.evaluate(() => {
+      const dlg =
+        document.querySelector('input[data-new-name]')!.closest('.shadow-2xl') ?? document.body
+      return [...dlg.querySelectorAll('label')].filter((l) => /^ID\b/.test(l.textContent ?? ''))
+        .length
+    })
+    expect(idLabels).toBe(0)
+    // sin ejércitos aún, el país se elige con el selector
+    expect(await page.locator('button:has-text("Elegir otro país")').count()).toBe(1)
+    await page.close()
+  }, 60_000)
+
+  it('lista país → plantillas; el editor muestra íconos y nombres del juego y solo unidades terrestres', async ({
+    skip
+  }) => {
+    if (!browser) skip()
+    const page = await fresh()
+    await prep(page, true)
+    await page.locator('button:text-is("Ejército")').first().click()
+    await page.waitForSelector('[data-group="NVG"]')
+    await page.locator('[data-item="NVG:t:0"]').click()
+    await page.waitForSelector('[data-template-editor]')
+    // paleta agrupada por tipo; las aéreas y navales NO aparecen
+    expect(await page.locator('[data-unit-group="infantry"] [data-unit="infantry"]').count()).toBe(
+      1
+    )
+    expect(await page.locator('[data-unit-group="armor"] [data-unit="light_armor"]').count()).toBe(
+      1
+    )
+    expect(await page.locator('[data-unit-group="support"] [data-unit="engineer"]').count()).toBe(1)
+    expect(await page.locator('[data-unit="destroyer"]').count()).toBe(0)
+    expect(await page.locator('[data-unit="fighter"]').count()).toBe(0)
+    // nombre en español (juego → tabla propia → inglés del juego), nunca el id en inglés
+    const chips = await page.locator('[data-unit]').allInnerTexts()
+    expect(chips).toContain('Infantería')
+    expect(chips).toContain('Blindado ligero')
+    expect(chips).toContain('Ingenieros')
+    expect(chips).not.toContain('infantry')
+    // colocar dos batallones: el nombre aparece en la casilla
+    await page.locator('[data-unit="infantry"]').click()
     await page.locator('[data-cell="combat:0:0"]').click()
     await page.locator('[data-cell="combat:1:0"]').click()
-    await page.waitForSelector('text=division_template = {')
-    const regs = await page.evaluate(
+    expect(await page.locator('[data-cell="combat:0:0"] [data-cell-name]').innerText()).toBe(
+      'Infantería'
+    )
+    // el apoyo va aparte
+    await page.locator('[data-unit="engineer"]').click()
+    await page.locator('[data-cell="support:0:0"]').click()
+    expect(await page.locator('[data-support-column] [data-cell-name]').innerText()).toBe(
+      'Ingenieros'
+    )
+    const t = await page.evaluate(
       () =>
         (
           (window as unknown as HoiWindow).__hoiStore.get().project as unknown as {
-            oobs: { templates: { regiments: unknown[] }[] }[]
+            oobs: { templates: { regiments: unknown[]; support: unknown[] }[] }[]
           }
-        ).oobs[0].templates[0].regiments
+        ).oobs[0].templates[0]
     )
-    expect(regs).toEqual([
+    expect(t.regiments).toEqual([
       { type: 'infantry', x: 0, y: 0 },
       { type: 'infantry', x: 1, y: 0 }
     ])
-    await page.locator('button[role="tab"]:has-text("Divisiones")').click()
-    await page.locator('button:has-text("+ División")').click()
+    expect(t.support).toEqual([{ type: 'engineer', y: 0 }])
+    // resumen, vista previa y "Ver código" plegado
+    expect(await page.locator('[data-template-summary]').innerText()).toContain(
+      '2 batallones de línea y 1 de apoyo'
+    )
+    await page.waitForSelector('[data-division-design]')
+    expect(await page.locator('[data-code-view][open]').count()).toBe(0)
+    await page.locator('[data-code-view] summary').click()
+    await page.waitForSelector('text=division_template = {')
+    await page.close()
+  }, 60_000)
+
+  it('el aviso "necesita al menos un batallón" va dentro de la tarjeta y la división abre el mini mapa', async ({
+    skip
+  }) => {
+    if (!browser) skip()
+    const page = await fresh()
+    await prep(page, true)
+    await page.locator('button:text-is("Ejército")').first().click()
+    await page.locator('[data-item="NVG:t:0"]').click()
+    await page.waitForSelector('[data-template-editor]')
+    const note = page.locator('[data-template-editor] section:has-text("Batallones") li')
+    await note.first().waitFor()
+    expect(await note.first().innerText()).toContain('Necesita al menos un batallón')
+    // país: nueva división pide la provincia en el mapa
+    await page.locator('[data-group="NVG"] button').nth(1).click()
+    await page.waitForSelector('[data-country-editor]')
+    await page.locator('button:has-text("Nueva división")').click()
     await page.waitForSelector('text=Elegir provincia')
     await page.close()
   }, 60_000)

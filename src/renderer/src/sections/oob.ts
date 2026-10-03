@@ -12,6 +12,12 @@ import { PROVINCE_TYPE } from '../../../shared/map/types'
 import { registerSectionGenerator } from './generators'
 import { registerHistoryContributor } from './historyExtras'
 import type { Oob, OobDivision, OobTemplate } from './types'
+import {
+  UNIT_CATEGORIES,
+  unitCategory,
+  unitName,
+  type UnitCategory
+} from '../../../shared/gameUnits'
 
 /** por verificar con un OOB real del juego: la cuadrícula de combate es 5×5 y el apoyo una columna de 5 */
 export const COMBAT_GRID = { w: 5, h: 5 }
@@ -46,13 +52,79 @@ export const BUILTIN_SUPPORT = [
   'anti_tank'
 ]
 
+/** Categoría de cada batallón de la lista de reserva */
+const BUILTIN_CATEGORY: Record<string, UnitCategory> = {
+  infantry: 'infantry',
+  cavalry: 'infantry',
+  marine: 'infantry',
+  mountaineers: 'infantry',
+  paratrooper: 'infantry',
+  motorized: 'mobile',
+  mechanized: 'mobile',
+  light_armor: 'armor',
+  medium_armor: 'armor',
+  heavy_armor: 'armor',
+  artillery_brigade: 'artillery',
+  anti_tank_brigade: 'artillery',
+  anti_air_brigade: 'artillery'
+}
+
+/** Un batallón listo para mostrar: nombre del juego, ícono (sprite) y tipo */
+export interface UnitInfo {
+  id: string
+  name: string
+  category: UnitCategory
+  /** Sprite GFX_… del juego; null = ícono genérico del tipo */
+  gfx: string | null
+}
+
+/** Solo unidades terrestres (las aéreas y navales no caben en una plantilla de división) */
+export function landUnits(game?: GameCatalog | null): UnitInfo[] {
+  const names = game?.unitNames
+  const fromGame = (game?.subUnits ?? [])
+    .map((u) => ({ u, category: unitCategory(u) }))
+    .filter((x): x is { u: (typeof x)['u']; category: UnitCategory } => x.category !== null)
+    .map(({ u, category }): UnitInfo => ({
+      id: u.id,
+      name: unitName(u.id, names),
+      category,
+      gfx: u.gfx ?? null
+    }))
+  if (fromGame.length) return fromGame
+  return [
+    ...BUILTIN_COMBAT.map((id): UnitInfo => ({
+      id,
+      category: BUILTIN_CATEGORY[id],
+      gfx: null,
+      name: unitName(id)
+    })),
+    ...BUILTIN_SUPPORT.map((id): UnitInfo => ({
+      id,
+      category: 'support',
+      gfx: null,
+      name: unitName(id)
+    }))
+  ]
+}
+
+/** Batallones agrupados por tipo: Infantería, Móviles, Blindados, Artillería… y Apoyo */
+export function unitGroups(
+  game?: GameCatalog | null
+): { category: UnitCategory; label: string; units: UnitInfo[] }[] {
+  const all = landUnits(game)
+  return UNIT_CATEGORIES.map((c) => ({
+    category: c.id,
+    label: c.label,
+    units: all.filter((u) => u.category === c.id)
+  })).filter((g) => g.units.length)
+}
+
 /** Batallones disponibles (de combate y de apoyo), del juego o la lista de reserva */
 export function unitLists(game?: GameCatalog | null): { combat: string[]; support: string[] } {
-  const subs = game?.subUnits
-  if (!subs?.length) return { combat: BUILTIN_COMBAT, support: BUILTIN_SUPPORT }
+  const all = landUnits(game)
   return {
-    combat: subs.filter((u) => u.group !== 'support').map((u) => u.id),
-    support: subs.filter((u) => u.group === 'support').map((u) => u.id)
+    combat: all.filter((u) => u.category !== 'support').map((u) => u.id),
+    support: all.filter((u) => u.category === 'support').map((u) => u.id)
   }
 }
 
@@ -85,6 +157,90 @@ export const deleteOob = (p: Project, tag: string): Project => ({
   ...p,
   oobs: (p.oobs ?? []).filter((o) => o.country !== tag)
 })
+
+/** Plantillas de arranque de la ventana "Nueva plantilla" (formaciones habituales) */
+export const DIVISION_PRESETS: {
+  id: string
+  label: string
+  description: string
+  /** [tipo, x, y] de los batallones de línea y [tipo, y] de apoyo */
+  combat: [string, number, number][]
+  support: [string, number][]
+}[] = [
+  {
+    id: 'blank',
+    label: 'En blanco',
+    description: 'Una cuadrícula vacía para diseñarla desde cero.',
+    combat: [],
+    support: []
+  },
+  {
+    id: 'infantry',
+    label: 'Infantería',
+    description: 'Siete batallones de infantería y dos de artillería, con ingenieros.',
+    combat: [
+      ['infantry', 0, 0],
+      ['infantry', 0, 1],
+      ['infantry', 0, 2],
+      ['infantry', 1, 0],
+      ['infantry', 1, 1],
+      ['infantry', 1, 2],
+      ['infantry', 2, 0],
+      ['artillery_brigade', 3, 0],
+      ['artillery_brigade', 3, 1]
+    ],
+    support: [['engineer', 0]]
+  },
+  {
+    id: 'motorized',
+    label: 'Motorizada',
+    description: 'División rápida: batallones motorizados con apoyo de artillería.',
+    combat: [
+      ['motorized', 0, 0],
+      ['motorized', 0, 1],
+      ['motorized', 0, 2],
+      ['motorized', 1, 0],
+      ['motorized', 1, 1],
+      ['motorized', 1, 2],
+      ['artillery_brigade', 2, 0]
+    ],
+    support: [['recon', 0]]
+  },
+  {
+    id: 'armor',
+    label: 'Blindada',
+    description: 'Tanques medios con algo de infantería motorizada.',
+    combat: [
+      ['medium_armor', 0, 0],
+      ['medium_armor', 0, 1],
+      ['medium_armor', 0, 2],
+      ['medium_armor', 1, 0],
+      ['medium_armor', 1, 1],
+      ['medium_armor', 1, 2],
+      ['motorized', 2, 0],
+      ['motorized', 2, 1]
+    ],
+    support: [['maintenance_company', 0]]
+  }
+]
+
+/** Una plantilla nueva a partir de una de arranque; omite los batallones que el juego no tiene */
+export function templateFromPreset(
+  o: Oob,
+  presetId: string,
+  name: string,
+  game?: GameCatalog | null
+): OobTemplate {
+  const preset = DIVISION_PRESETS.find((x) => x.id === presetId) ?? DIVISION_PRESETS[0]
+  const known = game?.subUnits ? new Set(game.subUnits.map((u) => u.id)) : null
+  const ok = (type: string): boolean => !known || known.has(type)
+  const t = newTemplate(o, name)
+  return {
+    ...t,
+    regiments: preset.combat.filter(([ty]) => ok(ty)).map(([type, x, y]) => ({ type, x, y })),
+    support: preset.support.filter(([ty]) => ok(ty)).map(([type, y]) => ({ type, y }))
+  }
+}
 
 export function newTemplate(o: Oob, name = 'Nueva plantilla'): OobTemplate {
   const taken = new Set(o.templates.map((t) => t.name))
@@ -190,6 +346,10 @@ export interface OobIssue {
   severity: 'error' | 'aviso'
   message: string
   country: string
+  /** Nombre de la plantilla afectada (para mostrar el aviso junto a ella) */
+  template?: string
+  /** uid de la división afectada */
+  division?: string
 }
 
 export function validateOob(
@@ -202,8 +362,17 @@ export function validateOob(
   const knownCombat = new Set(units.combat)
   const knownSupport = new Set(units.support)
   for (const o of p.oobs ?? []) {
-    const at = (severity: OobIssue['severity'], m: string): number =>
-      out.push({ severity, message: `Ejército de ${o.country}: ${m}`, country: o.country })
+    const at = (
+      severity: OobIssue['severity'],
+      m: string,
+      where: { template?: string; division?: string } = {}
+    ): number =>
+      out.push({
+        severity,
+        message: `Ejército de ${o.country}: ${m}`,
+        country: o.country,
+        ...where
+      })
     const c = p.countries.find((x) => x.tag === o.country)
     if (!c) at('aviso', 'el país no está en el mod: no se exporta su ejército.')
     else if (c.light)
@@ -215,8 +384,9 @@ export function validateOob(
       at('aviso', 'reemplaza TODO el ejército del juego de este país por el que diseñaste aquí.')
     const names = new Set<string>()
     for (const t of o.templates) {
-      const tt = (m: string): number => at('error', `la plantilla "${t.name}" ${m}`)
-      if (!t.name.trim()) at('error', 'una plantilla no tiene nombre.')
+      const tt = (m: string): number =>
+        at('error', `la plantilla "${t.name}" ${m}`, { template: t.name })
+      if (!t.name.trim()) at('error', 'una plantilla no tiene nombre.', { template: t.name })
       if (names.has(t.name)) tt('está repetida.')
       names.add(t.name)
       if (!t.regiments.length) tt('necesita al menos un batallón.')
@@ -242,7 +412,7 @@ export function validateOob(
     }
     for (const d of o.divisions) {
       const dd = (sev: OobIssue['severity'], m: string): number =>
-        at(sev, `la división en la provincia ${d.province}: ${m}`)
+        at(sev, `la división en la provincia ${d.province}: ${m}`, { division: d.uid })
       if (!names.has(d.template)) dd('error', `la plantilla "${d.template}" no existe.`)
       if (map) {
         if (map.provinceType[d.province] !== PROVINCE_TYPE.land)

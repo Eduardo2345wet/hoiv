@@ -84,7 +84,7 @@ export default function SectionScreen({
         {screen.renderOverview(project, selected, (u) => (setSelected(u), setView('editor')))}
       </div>
     ) : selected && screen?.renderEditor ? (
-      screen.renderEditor(project, selected)
+      screen.renderEditor(project, selected, (u) => setSelected(u))
     ) : (
       <div data-empty className="mx-auto flex max-w-2xl flex-col gap-5 p-8">
         <div>

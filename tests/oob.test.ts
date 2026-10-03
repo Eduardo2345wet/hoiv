@@ -1,13 +1,20 @@
 import { describe, expect, it } from 'vitest'
+import fs from 'fs'
+import os from 'os'
+import path from 'path'
 import { Jomini } from 'jomini'
 import { emptyProjectFor } from '../src/renderer/src/templates'
 import { addCountry, newCountry } from '../src/renderer/src/countries/countryOps'
 import {
+  DIVISION_PRESETS,
   hasOob,
+  landUnits,
   newDivision,
   newTemplate,
   oobFiles,
   oobText,
+  templateFromPreset,
+  unitGroups,
   unitLists,
   updateOob,
   validateOob
@@ -18,7 +25,15 @@ import { patchHistory } from '../src/renderer/src/countries/history'
 import { historyExtras } from '../src/renderer/src/sections/historyExtras'
 import { generateDemoMap } from '../src/shared/map/demo'
 import { PROVINCE_TYPE } from '../src/shared/map/types'
-import { parseEquipments, parseSubUnits } from '../src/shared/gameUnits'
+import {
+  parseEquipments,
+  parseSubUnits,
+  parseUnitNames,
+  unitCategory,
+  unitName,
+  unitSpriteCandidates
+} from '../src/shared/gameUnits'
+import { readGameCatalog } from '../src/main/game'
 import type { Project } from '../src/renderer/src/types'
 
 const map = generateDemoMap()
@@ -218,5 +233,141 @@ describe('ejército inicial (S7)', () => {
   infantry_equipment_1 = { archetype = infantry_equipment }
 }`)
     ).toEqual(['infantry_equipment_1'])
+  })
+})
+
+describe('Ejército: solo unidades terrestres, nombres e íconos del juego', () => {
+  const gameDir = (): string => {
+    const g = fs.mkdtempSync(path.join(os.tmpdir(), 'hoi-units-'))
+    const w = (rel: string, text: string): void => {
+      fs.mkdirSync(path.dirname(path.join(g, rel)), { recursive: true })
+      fs.writeFileSync(path.join(g, rel), text)
+    }
+    w('common/country_tags/00_countries.txt', 'GER = "countries/Germany.txt"\n')
+    w(
+      'common/units/infantry.txt',
+      `sub_units = {
+  infantry = { sprite = infantry map_icon_category = infantry type = infantry group = infantry }
+  motorized = { sprite = motorized type = motorized group = mobile }
+  light_armor = { sprite = light_armor type = armor group = armor }
+  artillery_brigade = { sprite = artillery type = artillery group = artillery }
+  engineer = { sprite = engineer group = support }
+  destroyer = { sprite = destroyer map_icon_category = ship type = naval group = ships }
+  fighter = { sprite = fighter map_icon_category = air type = air group = air }
+}`
+    )
+    w(
+      'interface/units.gfx',
+      `spriteTypes = {
+  spriteType = { name = "GFX_unit_infantry_icon_strip" texturefile = "gfx/interface/units/infantry.dds" noOfFrames = 2 }
+  spriteType = { name = "GFX_unit_engineer_icon" texturefile = "gfx/interface/units/engineer.dds" }
+}`
+    )
+    // El archivo del juego trae BOM; el español gana sobre el inglés
+    fs.mkdirSync(path.join(g, 'localisation', 'spanish'), { recursive: true })
+    fs.writeFileSync(
+      path.join(g, 'localisation', 'spanish', 'units_l_spanish.yml'),
+      '\uFEFFl_spanish:\n infantry:0 "Infantería"\n light_armor:0 "Tanque ligero"\n',
+      'utf-8'
+    )
+    fs.mkdirSync(path.join(g, 'localisation', 'english'), { recursive: true })
+    fs.writeFileSync(
+      path.join(g, 'localisation', 'english', 'units_l_english.yml'),
+      '\uFEFFl_english:\n infantry:0 "Infantry"\n engineer:0 "Engineer"\n destroyer:0 "Destroyer"\n',
+      'utf-8'
+    )
+    return g
+  }
+
+  it('reconoce la categoría terrestre y deja fuera las aéreas y navales', () => {
+    expect(unitCategory({ group: 'infantry' })).toBe('infantry')
+    expect(unitCategory({ group: 'mobile' })).toBe('mobile')
+    expect(unitCategory({ group: 'armor' })).toBe('armor')
+    expect(unitCategory({ group: 'artillery' })).toBe('artillery')
+    expect(unitCategory({ group: 'support' })).toBe('support')
+    expect(unitCategory({ group: 'ships', type: 'naval' })).toBeNull()
+    expect(unitCategory({ group: 'air', mapIcon: 'air' })).toBeNull()
+    expect(unitCategory({ group: 'x', mapIcon: 'ship' })).toBeNull()
+    // grupo desconocido: se decide por el tipo
+    expect(unitCategory({ group: 'otro', type: 'cavalry' })).toBe('infantry')
+    expect(unitCategory({ group: 'otro', type: 'raro' })).toBeNull()
+  })
+
+  it('el catálogo trae nombres (español antes que inglés) y el sprite de cada batallón', () => {
+    const cat = readGameCatalog(gameDir())!
+    const u = Object.fromEntries(cat.subUnits!.map((x) => [x.id, x]))
+    expect(u.infantry.gfx).toBe('GFX_unit_infantry_icon_strip')
+    expect(u.engineer.gfx).toBe('GFX_unit_engineer_icon')
+    expect(u.motorized.gfx ?? null).toBeNull()
+    expect(cat.unitNames!.infantry).toEqual({ es: 'Infantería', en: 'Infantry' })
+    expect(cat.unitNames!.engineer).toEqual({ en: 'Engineer' })
+  })
+
+  it('las listas solo traen terrestres, agrupadas por tipo y con su nombre del juego', () => {
+    const cat = readGameCatalog(gameDir())! as never
+    const ids = landUnits(cat).map((x) => x.id)
+    expect(ids).not.toContain('destroyer')
+    expect(ids).not.toContain('fighter')
+    expect(unitLists(cat)).toEqual({
+      combat: ['infantry', 'motorized', 'light_armor', 'artillery_brigade'],
+      support: ['engineer']
+    })
+    const groups = unitGroups(cat)
+    expect(groups.map((g) => g.label)).toEqual([
+      'Infantería',
+      'Móviles',
+      'Blindados',
+      'Artillería, antitanque y antiaérea',
+      'Apoyo'
+    ])
+    const names = Object.fromEntries(landUnits(cat).map((x) => [x.id, x.name]))
+    // español del juego → tabla propia → inglés → id legible
+    expect(names.infantry).toBe('Infantería')
+    expect(names.light_armor).toBe('Tanque ligero')
+    expect(names.motorized).toBe('Motorizada')
+    expect(names.engineer).toBe('Ingenieros')
+  })
+
+  it('sin la carpeta del juego usa la lista básica con nombres en español y tipos', () => {
+    const all = landUnits(null)
+    expect(all.find((x) => x.id === 'infantry')).toMatchObject({
+      name: 'Infantería',
+      category: 'infantry',
+      gfx: null
+    })
+    expect(all.find((x) => x.id === 'light_armor')?.category).toBe('armor')
+    expect(all.find((x) => x.id === 'engineer')?.category).toBe('support')
+    expect(unitName('algo_raro')).toBe('Algo raro')
+  })
+
+  it('lee solo los textos pedidos de un .yml y propone nombres de sprite', () => {
+    const m = parseUnitNames(
+      'l_english:\n infantry:0 "Infantry"\n otra:0 "x"\n engineer: "Engineer"\n',
+      new Set(['infantry', 'engineer'])
+    )
+    expect([...m.entries()]).toEqual([
+      ['infantry', 'Infantry'],
+      ['engineer', 'Engineer']
+    ])
+    expect(unitSpriteCandidates({ id: 'infantry', sprite: 'infantry' })[0]).toBe(
+      'GFX_unit_infantry_icon_strip'
+    )
+  })
+
+  it('las plantillas de arranque omiten los batallones que el juego no tiene', () => {
+    const o = { country: 'NVG', templates: [], divisions: [], production: [] }
+    const blank = templateFromPreset(o, 'blank', 'Vacía')
+    expect(blank.regiments).toEqual([])
+    const inf = templateFromPreset(o, 'infantry', 'Inf')
+    expect(inf.regiments.filter((r) => r.type === 'infantry')).toHaveLength(7)
+    expect(DIVISION_PRESETS.map((x) => x.id)).toEqual(['blank', 'infantry', 'motorized', 'armor'])
+    const cat = readGameCatalog(gameDir())! as never
+    const inGame = templateFromPreset(o, 'infantry', 'Inf', cat)
+    // el juego de prueba tiene artillery_brigade e infantry; sí hay ingenieros (apoyo)
+    expect(inGame.regiments.some((r) => r.type === 'artillery_brigade')).toBe(true)
+    expect(inGame.support).toEqual([{ type: 'engineer', y: 0 }])
+    const armor = templateFromPreset(o, 'armor', 'Bl', cat)
+    // medium_armor no existe en ese juego: no se agrega
+    expect(armor.regiments.some((r) => r.type === 'medium_armor')).toBe(false)
   })
 })

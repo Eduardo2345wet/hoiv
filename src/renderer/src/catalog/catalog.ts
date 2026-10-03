@@ -70,7 +70,15 @@ export interface GameCatalog {
   eventPictureSize?: { w: number; h: number }
   goalSprites?: string[]
   ideologyFiles?: { file: string; groups: { group: string; types: string[] }[] }[]
-  subUnits?: { id: string; group: string }[]
+  subUnits?: {
+    id: string
+    group: string
+    type?: string
+    mapIcon?: string
+    sprite?: string
+    gfx?: string | null
+  }[]
+  unitNames?: Record<string, { es?: string; en?: string }>
   equipments?: string[]
   leaderTraits?: { id: string; slot?: string; type?: string }[]
   unitTraits?: { id: string; slot?: string; type?: string }[]
