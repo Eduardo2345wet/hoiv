@@ -89,21 +89,45 @@ const CATEGORY_ICON: Record<UnitCategory, typeof Shield> = {
   support: Wrench
 }
 
-/** Ícono del batallón: el del juego (miniatura en caché) o uno genérico por tipo */
-function UnitIcon({ unit, h }: { unit: UnitInfo | null; h: number }): JSX.Element {
+/**
+ * Tamaños (px) de las casillas y del ícono dentro de ellas. El ícono ocupa ~70 % del ANCHO de su
+ * casilla. Los del juego miden 76×42 por cuadro: aquí siempre se REDUCEN (nunca se agrandan, que es
+ * lo que los hace verse borrosos) y se muestran con el ancho entero y el alto automático, para
+ * conservar la proporción.
+ */
+const ICON_FRACTION = 0.7
+const ICON_ASPECT = 76 / 42
+/** Casilla de la cuadrícula de la plantilla y de la paleta (4.25rem) */
+const CELL = 68
+/** Casilla del dibujo de la vista previa (cabe en la columna de 384 px) */
+const DESIGN_CELL = 48
+const iconWidth = (cell: number): number => Math.round(cell * ICON_FRACTION)
+
+/** Ícono del batallón: el del juego (miniatura en caché) o uno genérico por tipo, de `width` px de ancho */
+function UnitIcon({ unit, width }: { unit: UnitInfo | null; width: number }): JSX.Element {
   const src = useSpriteThumb(unit?.gfx ?? null)
   if (src)
     return (
       <img
+        data-unit-icon
         src={src}
         alt=""
         draggable={false}
-        style={{ height: h, maxWidth: h * 1.6 }}
-        className="object-contain"
+        style={{ width, height: 'auto' }}
+        className="shrink-0"
       />
     )
   const Icon = CATEGORY_ICON[unit?.category ?? 'infantry']
-  return <Icon size={Math.round(h * 0.75)} className="text-hoi-muted" />
+  const height = Math.round(width / ICON_ASPECT)
+  return (
+    <span
+      data-unit-icon
+      style={{ width, height }}
+      className="flex shrink-0 items-center justify-center"
+    >
+      <Icon size={Math.round(height * 0.9)} className="text-hoi-muted" />
+    </span>
+  )
 }
 
 /** Datos para mostrar un tipo de batallón (aunque el juego no lo tenga) */
@@ -178,13 +202,14 @@ function TemplateGrid({
           else if (cur) clear(kind, x, y)
         }}
         title={info ? `${info.name} (clic para quitar)` : 'Arrastra un batallón aquí'}
-        className={`flex h-[4.25rem] w-[4.25rem] flex-col items-center justify-center gap-0.5 overflow-hidden rounded border px-0.5 text-center text-[10px] leading-tight ${
+        style={{ width: CELL, height: CELL }}
+        className={`flex flex-col items-center justify-center gap-0.5 overflow-hidden rounded border px-0.5 text-center text-[10px] leading-tight ${
           cur ? 'border-hoi-accent bg-hoi-card' : 'border-dashed border-hoi-border'
         }`}
       >
         {info && (
           <>
-            <UnitIcon unit={info} h={26} />
+            <UnitIcon unit={info} width={iconWidth(CELL)} />
             <span data-cell-name className="line-clamp-2 w-full break-words">
               {info.name}
             </span>
@@ -201,7 +226,7 @@ function TemplateGrid({
         </div>
         <div
           className="grid gap-1"
-          style={{ gridTemplateColumns: `repeat(${COMBAT_GRID.w}, 4.25rem)` }}
+          style={{ gridTemplateColumns: `repeat(${COMBAT_GRID.w}, ${CELL}px)` }}
         >
           {Array.from({ length: COMBAT_GRID.h }, (_, y) =>
             Array.from({ length: COMBAT_GRID.w }, (_, x) => cell('combat', x, y))
@@ -224,7 +249,7 @@ function TemplateGrid({
 /** Dibujo pequeño de una plantilla (vista previa y lista de divisiones) */
 function DivisionDesign({ t }: { t: OobTemplate }): JSX.Element {
   const infoOf = useUnitLookup()
-  const sz = 34
+  const sz = DESIGN_CELL
   return (
     <div
       data-division-design
@@ -246,11 +271,12 @@ function DivisionDesign({ t }: { t: OobTemplate }): JSX.Element {
               return (
                 <div
                   key={`${x}${y}`}
+                  data-design-cell={`combat:${x}:${y}`}
                   title={info?.name}
                   className={`flex items-center justify-center rounded-sm border ${r ? 'border-[#8c7b4f] bg-[#2f3947]' : 'border-[#3f4858] bg-[#1c222b]'}`}
                   style={{ height: sz, width: sz }}
                 >
-                  {info && <UnitIcon unit={info} h={22} />}
+                  {info && <UnitIcon unit={info} width={iconWidth(sz)} />}
                 </div>
               )
             })
@@ -263,11 +289,12 @@ function DivisionDesign({ t }: { t: OobTemplate }): JSX.Element {
             return (
               <div
                 key={y}
+                data-design-cell={`support:0:${y}`}
                 title={info?.name}
                 className={`flex items-center justify-center rounded-sm border ${s ? 'border-[#8c7b4f] bg-[#2f3947]' : 'border-[#3f4858] bg-[#1c222b]'}`}
                 style={{ height: sz, width: sz }}
               >
-                {info && <UnitIcon unit={info} h={22} />}
+                {info && <UnitIcon unit={info} width={iconWidth(sz)} />}
               </div>
             )
           })}
@@ -306,10 +333,14 @@ function TemplateEditor({
         draggable
         onDragStart={(e) => e.dataTransfer.setData('text/plain', `${kind}|${u.id}||`)}
         onClick={() => setBrush(on ? null : { kind, type: u.id })}
-        className={`flex cursor-grab items-center gap-1.5 rounded border px-2 py-1 text-xs ${on ? 'border-hoi-accent bg-hoi-accent/20' : 'border-hoi-border bg-hoi-card'}`}
+        title={u.name}
+        style={{ width: CELL }}
+        className={`flex cursor-grab flex-col items-center gap-0.5 rounded border px-0.5 py-1 text-center text-[10px] leading-tight ${on ? 'border-hoi-accent bg-hoi-accent/20' : 'border-hoi-border bg-hoi-card'}`}
       >
-        <UnitIcon unit={u} h={18} />
-        {u.name}
+        <UnitIcon unit={u} width={iconWidth(CELL)} />
+        <span data-unit-name className="line-clamp-2 w-full break-words">
+          {u.name}
+        </span>
       </span>
     )
   }
@@ -714,7 +745,7 @@ registerSectionScreen('ejercito', {
           heading: i === 0 ? 'Plantillas' : undefined,
           title: t.name,
           subtitle: `${t.regiments.length} batallones · ${t.support.length} de apoyo`,
-          thumb: <UnitIcon unit={all.get(t.regiments[0]?.type) ?? null} h={20} />
+          thumb: <UnitIcon unit={all.get(t.regiments[0]?.type) ?? null} width={32} />
         })),
         ...o.divisions.map((d, i) => ({
           uid: divisionUid(o.country, d.uid),

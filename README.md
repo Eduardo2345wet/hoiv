@@ -779,3 +779,10 @@ comprobación en tu PC: `npm run report:army` (acepta la ruta del juego como arg
   terrestre»), no el de «no existe».
 - **Resultado en tu juego:** de las 122 unidades terrestres, **las 122 tienen ícono real** (todas por su ID;
   ninguna necesitó el respaldo del `sprite` y ninguna queda con el genérico).
+- **Íconos más grandes (Parte 4).** En las casillas de la plantilla (68 px), en la paleta y en la vista
+  previa (casillas de 48 px, que caben en la columna de 384 px) el ícono ocupa **el 70 % del ancho de la
+  casilla** y el nombre va debajo, en texto pequeño. Los íconos del juego miden 76×42 por cuadro y
+  siempre se **reducen**, nunca se agrandan (agrandar es lo que los vuelve borrosos); se muestran con el
+  ancho entero y el alto automático para conservar la proporción. La paleta pasó de «píldoras» a casillas
+  iguales a las de la cuadrícula. Lo cubre `tests/ui.test.ts` (mide fracción, proporción y que el nombre
+  quede debajo en las tres zonas).

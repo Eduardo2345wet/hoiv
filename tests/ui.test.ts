@@ -2355,6 +2355,92 @@ describe('ejército (rediseño)', () => {
     await page.close()
   }, 60_000)
 
+  it('los íconos ocupan ~70 % de la casilla, conservan su proporción y nunca se agrandan (casillas, paleta y vista previa)', async ({
+    skip
+  }) => {
+    if (!browser) skip()
+    const page = await fresh()
+    await prep(page, true)
+    // Miniaturas falsas del tamaño de las reales (un cuadro de 76×42), sin leer el juego
+    await page.evaluate(() => {
+      const c = document.createElement('canvas')
+      c.width = 76
+      c.height = 42
+      const g = c.getContext('2d')!
+      g.fillStyle = '#c33'
+      g.fillRect(0, 0, 76, 42)
+      g.fillStyle = '#fff'
+      g.fillRect(4, 4, 68, 34)
+      const url = c.toDataURL('image/png')
+      const w = window as unknown as HoiWindow & {
+        electronAPI: { getSpriteThumbs(g: string, n: string[]): Promise<Record<string, string>> }
+      }
+      w.electronAPI = {
+        getSpriteThumbs: async (_g, names) => Object.fromEntries(names.map((n) => [n, url]))
+      }
+      ;(w.__hoiStore as never as { set(p: unknown): void }).set({
+        gamePath: 'C:/falso',
+        game: {
+          ideas: [],
+          subUnits: [
+            {
+              id: 'infantry',
+              group: 'infantry',
+              type: 'infantry',
+              gfx: 'GFX_unit_infantry_icon_medium'
+            },
+            { id: 'engineer', group: 'support', gfx: 'GFX_unit_engineer_icon_medium' }
+          ],
+          unitNames: { infantry: { es: 'Infantería' }, engineer: { es: 'Ingenieros' } }
+        }
+      })
+    })
+    await page.locator('button:text-is("Ejército")').first().click()
+    await page.locator('[data-item="NVG:t:0"]').click()
+    await page.waitForSelector('[data-template-editor]')
+    await page.locator('[data-unit="infantry"]').click()
+    await page.locator('[data-cell="combat:0:0"]').click()
+    await page.waitForSelector('[data-cell="combat:0:0"] img')
+    await page.waitForSelector('[data-unit="infantry"] img')
+    await page.waitForSelector('[data-division-design] img')
+    const measure = (cell: string, name: string): Promise<Record<string, number | null>> =>
+      page.evaluate(
+        ([cellSel, nameSel]) => {
+          const box = document.querySelector(cellSel)!
+          const img = box.querySelector('img')!
+          const a = box.getBoundingClientRect()
+          const b = img.getBoundingClientRect()
+          const n = nameSel ? box.querySelector(nameSel)?.getBoundingClientRect() : null
+          return {
+            fraction: b.width / a.width,
+            ratio: b.width / b.height,
+            natural: img.naturalWidth / img.naturalHeight,
+            shown: b.width,
+            natW: img.naturalWidth,
+            gap: n ? n.top - b.bottom : null
+          }
+        },
+        [cell, name]
+      )
+    const where = {
+      casilla: await measure('[data-cell="combat:0:0"]', '[data-cell-name]'),
+      paleta: await measure('[data-unit="infantry"]', '[data-unit-name]'),
+      'vista previa': await measure('[data-design-cell="combat:0:0"]', '')
+    }
+    for (const [lugar, m] of Object.entries(where)) {
+      // ~70 % del ancho de la casilla
+      expect(m.fraction, `${lugar}: fracción del ancho`).toBeGreaterThan(0.66)
+      expect(m.fraction, `${lugar}: fracción del ancho`).toBeLessThan(0.74)
+      // proporción conservada (el cuadro mide 76×42)
+      expect(Math.abs(m.ratio! / m.natural! - 1), `${lugar}: proporción`).toBeLessThan(0.03)
+      // nítido: solo se reduce, nunca se agranda
+      expect(m.shown!, `${lugar}: no se agranda`).toBeLessThanOrEqual(m.natW!)
+      // el nombre va debajo del ícono
+      if (m.gap !== null) expect(m.gap, `${lugar}: nombre debajo`).toBeGreaterThanOrEqual(-0.5)
+    }
+    await page.close()
+  }, 60_000)
+
   it('el aviso "necesita al menos un batallón" va dentro de la tarjeta y la división abre el mini mapa', async ({
     skip
   }) => {
