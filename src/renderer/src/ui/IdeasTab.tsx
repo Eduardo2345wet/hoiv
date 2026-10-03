@@ -59,7 +59,7 @@ export default function IdeasTab({ project }: { project: Project }): JSX.Element
                 i.uid === selected ? 'bg-hoi-accent/20 ring-1 ring-hoi-accent' : 'hover:bg-hoi-card'
               }`}
             >
-              <IconThumb icon={i.icon} project={project} height={40} />
+              <IconThumb icon={i.icon} project={project} height={40} picture={i.picture} />
               <div className="min-w-0">
                 <div className="truncate text-sm">
                   {i.name || <span className="text-red-400">sin nombre</span>}
@@ -243,6 +243,7 @@ function IdeaEditor({
           ownerName={idea.name}
           icon={idea.icon}
           iconAuto={idea.iconAuto}
+          picture={idea.picture}
         />
       </div>
     </div>

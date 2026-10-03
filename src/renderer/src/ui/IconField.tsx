@@ -8,6 +8,7 @@ import {
   resetFocusIcon,
   resetIdeaIcon,
   setFocusIcon,
+  setIdeaGameSprite,
   setIdeaIcon,
   updateAsset
 } from './projectOps'
@@ -17,7 +18,7 @@ import IconThumb from './IconThumb'
 import EmojiPicker from './EmojiPicker'
 import ImageUploader from './ImageUploader'
 import Modal from './Modal'
-import { FOCUS_ICONS } from './icons'
+import GameIconPicker from './GameIconPicker'
 
 interface Props {
   project: Project
@@ -26,6 +27,8 @@ interface Props {
   ownerName: string
   icon: IconRef | null
   iconAuto: boolean
+  /** Espíritu con ícono del juego: su picture (sin GFX_idea_) */
+  picture?: string
 }
 
 type Dialog = 'emoji' | 'upload' | 'library' | 'game' | null
@@ -36,7 +39,8 @@ export default function IconField({
   ownerUid,
   ownerName,
   icon,
-  iconAuto
+  iconAuto,
+  picture
 }: Props): JSX.Element {
   const [dialog, setDialog] = useState<Dialog>(null)
   const current =
@@ -81,7 +85,12 @@ export default function IconField({
     <div>
       <label className="label">Ícono</label>
       <div className="mb-2 flex h-24 items-center justify-center rounded bg-[#101013]">
-        <IconThumb icon={icon} project={project} height={target === 'focus' ? 80 : 68} />
+        <IconThumb
+          icon={icon}
+          project={project}
+          height={target === 'focus' ? 80 : 68}
+          picture={picture}
+        />
       </div>
       <div className="grid grid-cols-2 gap-1">
         <button className="btn justify-center text-xs" onClick={() => setDialog('emoji')}>
@@ -93,12 +102,7 @@ export default function IconField({
         <button className="btn justify-center text-xs" onClick={() => setDialog('library')}>
           Mi biblioteca
         </button>
-        <button
-          className="btn justify-center text-xs disabled:opacity-40"
-          disabled={target !== 'focus'}
-          title={target !== 'focus' ? 'Solo para focos' : ''}
-          onClick={() => setDialog('game')}
-        >
+        <button className="btn justify-center text-xs" onClick={() => setDialog('game')}>
           Del juego
         </button>
       </div>
@@ -116,6 +120,9 @@ export default function IconField({
       )}
       {icon?.kind === 'game' && (
         <p className="mt-1 break-all font-mono text-[10px] text-hoi-muted">{icon.gfx}</p>
+      )}
+      {!icon && picture && (
+        <p className="mt-1 break-all font-mono text-[10px] text-hoi-muted">GFX_idea_{picture}</p>
       )}
 
       {dialog === 'emoji' && (
@@ -157,24 +164,26 @@ export default function IconField({
         </Modal>
       )}
       {dialog === 'game' && (
-        <Modal
-          title="Ícono del juego (no agrega archivos al mod)"
-          width={600}
+        <GameIconPicker
+          kind={target === 'focus' ? 'goal' : 'idea'}
+          current={
+            target === 'focus'
+              ? icon?.kind === 'game'
+                ? icon.gfx
+                : null
+              : picture
+                ? `GFX_idea_${picture}`
+                : null
+          }
           onClose={() => setDialog(null)}
-        >
-          <div className="grid grid-cols-3 gap-1">
-            {FOCUS_ICONS.map(([gfx, label]) => (
-              <button
-                key={gfx}
-                title={gfx}
-                onClick={() => choose({ kind: 'game', gfx })}
-                className="flex items-center gap-2 rounded border border-hoi-border p-1 text-left text-xs hover:border-hoi-accent"
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-        </Modal>
+          onPick={(sprite) => {
+            if (target === 'focus') choose({ kind: 'game', gfx: sprite })
+            else {
+              store.updateProject((p) => setIdeaGameSprite(p, ownerUid, sprite))
+              setDialog(null)
+            }
+          }}
+        />
       )}
     </div>
   )

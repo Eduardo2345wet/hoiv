@@ -2036,3 +2036,41 @@ describe('cinta de pestañas', () => {
     await page.close()
   }, 60_000)
 })
+
+describe('íconos del juego (espíritus)', () => {
+  it('«Del juego» está habilitado para espíritus y abre el selector con buscador', async ({
+    skip
+  }) => {
+    if (!browser) skip()
+    const page = await fresh()
+    await focusEditor(page)
+    await page.evaluate(() => {
+      const st = (window as unknown as HoiWindow).__hoiStore as never as {
+        updateProject(f: (p: object) => object): void
+      }
+      st.updateProject((p) => ({
+        ...p,
+        ideas: [
+          {
+            uid: 'i1',
+            id: 'esp',
+            idAuto: false,
+            name: 'Esp',
+            description: '',
+            modifiers: [],
+            icon: null,
+            iconAuto: false
+          }
+        ]
+      }))
+    })
+    await page.locator('button:text-is("Espíritus")').first().click()
+    await page.locator('li:has-text("Esp")').first().click()
+    const btn = page.locator('button:text-is("Del juego"):visible')
+    await btn.waitFor()
+    expect(await btn.isDisabled()).toBe(false)
+    await btn.click()
+    await page.waitForSelector('input[placeholder="Buscar por nombre…"]')
+    await page.close()
+  }, 60_000)
+})

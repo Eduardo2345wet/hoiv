@@ -1,4 +1,5 @@
 import { readModFolder } from './modReader'
+import { listSprites, prewarm, spriteThumbs } from './gameSprites'
 import { planTextPatches, type TextPatchRequest } from './textPatches'
 import { app, BrowserWindow, ipcMain, dialog, shell } from 'electron'
 import { join } from 'path'
@@ -192,6 +193,15 @@ app.whenReady().then(() => {
     clearCache(cacheDirPath())
     return cacheInfo(cacheDirPath())
   })
+  ipcMain.handle('list-game-sprites', async (_, gamePath: string, kind: 'idea' | 'goal') =>
+    listSprites(gamePath, kind)
+  )
+  ipcMain.handle('get-sprite-thumbs', async (_, gamePath: string, names: string[]) =>
+    spriteThumbs(gamePath, path.join(app.getPath('userData'), 'cache'), names)
+  )
+  ipcMain.handle('prewarm-sprites', async (_, gamePath: string, kind: 'idea' | 'goal') =>
+    prewarm(gamePath, path.join(app.getPath('userData'), 'cache'), kind)
+  )
   ipcMain.handle('read-mod-folder', async (_, folder: string) => readModFolder(folder))
   ipcMain.handle('list-game-files', async (_, gamePath: string) => listGameFiles(gamePath))
   ipcMain.handle('export-exists', async (_, folder: string, modName: string) =>

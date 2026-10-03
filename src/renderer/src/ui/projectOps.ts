@@ -86,7 +86,16 @@ export function setFocusIcon(p: Project, uid: string, icon: IconRef): Project {
   return dropUnusedAuto(updateFocus(p, uid, { icon, iconAuto: false }))
 }
 export function setIdeaIcon(p: Project, uid: string, icon: IconRef): Project {
-  return dropUnusedAuto(updateIdea(p, uid, { icon, iconAuto: false }))
+  return dropUnusedAuto(updateIdea(p, uid, { icon, iconAuto: false, picture: undefined }))
+}
+
+/**
+ * Ícono del juego para un espíritu: `picture` = nombre del sprite SIN el prefijo GFX_idea_ (el juego
+ * usa su propio sprite; no se copia ningún archivo).
+ */
+export function setIdeaGameSprite(p: Project, uid: string, sprite: string): Project {
+  const picture = sprite.replace(/^GFX_idea_/, '')
+  return dropUnusedAuto(updateIdea(p, uid, { icon: null, iconAuto: false, picture }))
 }
 
 /** "Restablecer al automático" */

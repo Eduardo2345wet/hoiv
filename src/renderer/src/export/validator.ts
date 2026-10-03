@@ -361,6 +361,28 @@ export function validateProject(
         })
   }
 
+  // Íconos del juego que ya no existen en la versión instalada (solo aviso)
+  if (game?.ideaSprites?.length) {
+    const known = new Set(game.ideaSprites)
+    for (const i of project.ideas)
+      if (!i.icon && i.picture && !known.has(`GFX_idea_${i.picture}`))
+        issues.push({
+          severity: 'aviso',
+          message: `El espíritu "${i.name || i.id}" usa un ícono del juego (${i.picture}) que no existe en esta versión de HOI4.`,
+          ideaUid: i.uid
+        })
+  }
+  if (game?.goalSprites?.length) {
+    const known = new Set(game.goalSprites)
+    for (const f of project.focuses)
+      if (f.icon.kind === 'game' && f.icon.gfx.startsWith('GFX_goal_') && !known.has(f.icon.gfx))
+        issues.push({
+          severity: 'aviso',
+          message: `El foco "${f.name || f.id}" usa un ícono del juego (${f.icon.gfx}) que no existe en esta versión de HOI4.`,
+          focusUid: f.uid
+        })
+  }
+
   // ---- Países ----
   // El país técnico "Sin nación" se valida aparte (en el mapa)
   for (const c of project.countries ?? [])

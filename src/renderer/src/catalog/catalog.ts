@@ -66,6 +66,8 @@ export interface GameCatalog {
   autonomyStates?: string[]
   buildingMax?: Record<string, { max: number; provincial: boolean }>
   stateCategories?: string[]
+  ideaSprites?: string[]
+  goalSprites?: string[]
   ideologyFiles?: { file: string; groups: { group: string; types: string[] }[] }[]
   subUnits?: { id: string; group: string }[]
   equipments?: string[]
