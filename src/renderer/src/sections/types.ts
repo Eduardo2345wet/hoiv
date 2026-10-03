@@ -50,6 +50,8 @@ export interface GameEvent {
   mtthDays: number
   /** timeout_days (0 = el valor por defecto del juego, 13) */
   timeoutDays: number
+  /** Sentencias que la app no entiende (de un mod importado): se exportan tal cual */
+  extraText?: string
   flags: {
     triggeredOnly: boolean
     fireOnlyOnce: boolean
@@ -154,6 +156,8 @@ export interface Decision {
   onMapMode: string
   warWithOnComplete: string
   warWithOnRemove: string
+  /** Sentencias que la app no entiende (de un mod importado): se exportan tal cual */
+  extraText?: string
 }
 
 export type CharacterRole =
@@ -284,22 +288,38 @@ export interface Bookmark {
   featured: { tag: string; ideology: string; history: string; ideas: string[]; focuses: string[] }[]
 }
 
+/** Archivo subido (.ogg…): bytes en base64 */
+export interface UploadedFile {
+  name: string
+  base64: string
+}
+
 export interface MusicTrack {
   uid: string
+  /** Nombre de la canción (se vuelve el id con el prefijo del mod) */
   name: string
-  file: string
+  /** Estación a la que se añade ('' = la estación propia del mod) */
+  station: string
+  ogg: UploadedFile | null
+  /** Peso base (chance) */
   weight: number
+  /** Condición simple: solo suena si se cumple (vacía = siempre) */
+  condition: BlockScript
 }
 
 export interface LoadingScreen {
   uid: string
   name: string
+  /** Imagen subida (PNG/JPG en data URL) o de mi biblioteca */
   image: IconRef | null
+  upload: { name: string; png: string } | null
 }
 
 /** Idiomas del mod: el inglés es la base obligatoria */
 export interface LanguageSetting {
   code: string
+  /** Traducciones por clave de localización (si falta, se usa el texto en inglés) */
+  strings?: Record<string, string>
 }
 
 /** Colecciones nuevas de Project, vacías por defecto */

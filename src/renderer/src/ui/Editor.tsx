@@ -23,6 +23,7 @@ import './EventsScreen'
 import './SuperEventsScreen'
 import './DecisionsScreen'
 import './OobScreen'
+import './ExtrasScreen'
 import './CharactersScreen'
 import { sectionById } from '../sections/ui'
 import { autoLayout, dropFocus, repairTree } from '../focus/layout'
@@ -404,8 +405,25 @@ export default function Editor(): JSX.Element {
 
           {/* Parte de abajo: bloques + vista previa */}
           <div className="flex min-h-0 flex-[45] border-t border-hoi-border">
-            <div className="min-w-0 flex-1">
-              <BlocklyEditor focus={selectedFocus} onChange={onBlocksChange} />
+            <div className="flex min-w-0 flex-1 flex-col">
+              {selectedFocus &&
+                !selectedFocus.blocks &&
+                (selectedFocus.scripts.available.trim() ||
+                  selectedFocus.scripts.bypass.trim() ||
+                  selectedFocus.scripts.reward.trim() ||
+                  selectedFocus.extraText?.trim()) && (
+                  <div
+                    data-advanced-focus
+                    className="border-b border-hoi-border bg-yellow-900/30 px-3 py-1 text-xs text-yellow-200"
+                  >
+                    Foco importado: sus condiciones y recompensa están como texto avanzado y se
+                    exportan tal cual (míralo en la vista previa). Si editas los bloques, se
+                    reemplazan por lo que armes aquí.
+                  </div>
+                )}
+              <div className="min-h-0 flex-1">
+                <BlocklyEditor focus={selectedFocus} onChange={onBlocksChange} />
+              </div>
             </div>
             <aside className="w-[420px] border-l border-hoi-border bg-[#101013]">
               <PreviewPanel project={project} treeId={activeTree} />

@@ -41,7 +41,8 @@ export function localisationFiles(
     const body = keys
       .map((k) => {
         const t = entries[k]
-        const text = typeof t === 'string' ? t : (t[lang] ?? t.english ?? '')
+        const own = project.languages.find((l) => l.code === lang)?.strings?.[k]
+        const text = own ?? (typeof t === 'string' ? t : (t[lang] ?? t.english ?? ''))
         return ` ${k}:0 "${locValue(text)}"`
       })
       .join('\n')

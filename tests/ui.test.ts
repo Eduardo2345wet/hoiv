@@ -1655,8 +1655,7 @@ describe('pestañas de secciones nuevas (B0)', () => {
     const page = await fresh()
     await focusEditor(page)
     for (const [tab, texto, crear] of [
-      ['Tecnologías', 'Aún no hay tecnologías', 'Crear tecnología'],
-      ['Extras', 'Idiomas, música', 'Agregar']
+      ['Tecnologías', 'Aún no hay tecnologías', 'Crear tecnología']
     ] as const) {
       await page.locator(`button:text-is("${tab}")`).first().click()
       await page.waitForSelector(`text=${texto}`)
@@ -1863,6 +1862,135 @@ describe('ejército inicial (S7)', () => {
     await page.locator('button[role="tab"]:has-text("Divisiones")').click()
     await page.locator('button:has-text("+ División")').click()
     await page.waitForSelector('text=Elegir provincia')
+    await page.close()
+  }, 60_000)
+})
+
+// ---------- Extras e importación (S9) ----------
+describe('extras (S9)', () => {
+  const prep = async (page: Page): Promise<void> => {
+    await focusEditor(page)
+    await page.evaluate(() => {
+      const st = (window as unknown as HoiWindow).__hoiStore as never as {
+        updateProject(f: (p: object) => object): void
+      }
+      st.updateProject((p) => ({
+        ...p,
+        events: [],
+        superEvents: [],
+        decisionCategories: [],
+        decisions: [],
+        characters: [],
+        countryStart: [],
+        oobs: [],
+        technologies: [],
+        ideologies: [],
+        bookmarks: [],
+        music: [],
+        loadingScreens: [],
+        languages: [{ code: 'english' }]
+      }))
+    })
+  }
+
+  it('elegir un idioma muestra la tabla de traducción y guarda lo escrito', async ({ skip }) => {
+    if (!browser) skip()
+    const page = await fresh()
+    await prep(page)
+    await page.locator('button:text-is("Extras")').first().click()
+    await page.locator('li:has-text("Idiomas")').first().click()
+    await page.locator('label:has-text("Español") input').check()
+    await page.waitForSelector('text=Solo las que faltan')
+    await page.locator('table input').first().fill('Texto en español')
+    const langs = await page.evaluate(
+      () =>
+        (
+          (window as unknown as HoiWindow).__hoiStore.get().project as unknown as {
+            languages: { code: string; strings?: Record<string, string> }[]
+          }
+        ).languages
+    )
+    expect(langs.map((l) => l.code)).toEqual(['english', 'spanish'])
+    expect(Object.values(langs[1].strings ?? {})).toContain('Texto en español')
+    await page.close()
+  }, 60_000)
+
+  it('un script importado como texto se muestra como Avanzado (texto)', async ({ skip }) => {
+    if (!browser) skip()
+    const page = await fresh()
+    await prep(page)
+    await page.evaluate(() => {
+      const st = (window as unknown as HoiWindow).__hoiStore as never as {
+        updateProject(f: (p: object) => object): void
+      }
+      st.updateProject((p) => ({
+        ...p,
+        decisionCategories: [
+          {
+            uid: 'c1',
+            id: 'cat',
+            name: 'Cat',
+            description: '',
+            icon: null,
+            picture: null,
+            priority: 0,
+            visibleWhenEmpty: false,
+            highlightStates: [],
+            mapArea: null
+          }
+        ],
+        decisions: [
+          {
+            uid: 'd1',
+            id: 'dec',
+            categoryUid: 'c1',
+            kind: 'normal',
+            name: 'Dec',
+            description: '',
+            icon: null,
+            priority: 0,
+            countries: [],
+            visible: { blocks: null, code: '\thas_war = yes\n' },
+            available: { blocks: null, code: '' },
+            complete: { blocks: null, code: '' },
+            remove: { blocks: null, code: '' },
+            timeout: { blocks: null, code: '' },
+            cancel: { blocks: null, code: '' },
+            cancelTrigger: { blocks: null, code: '' },
+            cost: {
+              mode: 'none',
+              pp: 0,
+              customTrigger: { blocks: null, code: '' },
+              customText: '',
+              aiHintPp: 0
+            },
+            daysReEnable: 0,
+            fireOnlyOnce: false,
+            daysRemove: 0,
+            modifiers: [],
+            aiBase: 0,
+            aiModifiers: [],
+            missionTimeoutDays: 0,
+            selectableMission: false,
+            isGood: true,
+            activation: { blocks: null, code: '' },
+            targetCountries: [],
+            targetStates: [],
+            targetTrigger: { blocks: null, code: '' },
+            onMapMode: '',
+            warWithOnComplete: '',
+            warWithOnRemove: ''
+          }
+        ]
+      }))
+    })
+    await page.locator('button:text-is("Decisiones")').first().click()
+    await page.locator('li:has-text("Dec")').last().click()
+    await page.locator('button[role="tab"]:text-is("Condiciones")').click()
+    await page.waitForSelector('[data-advanced-text] textarea')
+    expect(await page.locator('[data-advanced-text] textarea').first().inputValue()).toContain(
+      'has_war = yes'
+    )
     await page.close()
   }, 60_000)
 })

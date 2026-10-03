@@ -23,6 +23,7 @@ import { EVENT_PICTURE_SIZE, eventImagePath, eventImagePaths, eventPng } from '.
 import { decisionImagePaths, decisionImages } from '../sections/decisions'
 import { characterImagePaths, characterImages } from '../sections/characters'
 import { bookmarkImages } from '../sections/start'
+import { coverBytes, loadingImages } from '../sections/extras'
 import { baseMod } from './statesExport'
 import { withTechnicalCapital } from '../map/noNation'
 import { withMovedCapitals } from '../map/capitals'
@@ -74,6 +75,8 @@ export async function buildExtraFiles(
   files.push(...countryTextFiles(project, game))
   // Secciones nuevas (eventos, decisiones…): cada generador aporta sus archivos
   files.push(...sectionFiles(project).files)
+  const cover = coverBytes(project)
+  if (cover) files.push({ path: 'thumbnail.png', data: cover })
   if (read) {
     files.push(...(await countryImageFiles(project, read)))
     // Imágenes de eventos (subidas o de la biblioteca): DDS al tamaño de las del juego
@@ -91,6 +94,10 @@ export async function buildExtraFiles(
       files.push({ path: i.path, data: writeDDS(img.width, img.height, img.rgba) })
     }
     for (const i of bookmarkImages(project)) {
+      const img = await read(i.png, i.w, i.h)
+      files.push({ path: i.path, data: writeDDS(img.width, img.height, img.rgba) })
+    }
+    for (const i of loadingImages(project)) {
       const img = await read(i.png, i.w, i.h)
       files.push({ path: i.path, data: writeDDS(img.width, img.height, img.rgba) })
     }
@@ -135,6 +142,8 @@ export function plannedPaths(project: Project, game: GameCatalog | null = null):
   paths.push(...decisionImagePaths(project))
   paths.push(...characterImagePaths(project))
   paths.push(...bookmarkImages(project).map((i) => i.path))
+  paths.push(...loadingImages(project).map((i) => i.path))
+  if (coverBytes(project)) paths.push('thumbnail.png')
   return paths
 }
 

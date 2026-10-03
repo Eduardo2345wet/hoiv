@@ -317,6 +317,7 @@ export function decisionNode(p: Project, d: Decision): Node {
           .map((m) => block('modifier', [kv('factor', m.factor), raw(m.trigger.code)]))
       ])
     )
+  if (d.extraText?.trim()) kids.push(raw(d.extraText))
   return block(d.id, kids)
 }
 

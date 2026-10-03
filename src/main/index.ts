@@ -1,3 +1,4 @@
+import { readModFolder } from './modReader'
 import { app, BrowserWindow, ipcMain, dialog, shell } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
@@ -190,6 +191,7 @@ app.whenReady().then(() => {
     clearCache(cacheDirPath())
     return cacheInfo(cacheDirPath())
   })
+  ipcMain.handle('read-mod-folder', async (_, folder: string) => readModFolder(folder))
   ipcMain.handle('list-game-files', async (_, gamePath: string) => listGameFiles(gamePath))
   ipcMain.handle('export-exists', async (_, folder: string, modName: string) =>
     exportPreviousExists(folder, modName)

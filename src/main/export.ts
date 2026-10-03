@@ -114,7 +114,11 @@ export function buildModFiles(payload: ExportModPayload): BuiltMod | { error: st
   const dependencies = deps.length
     ? `dependencies={\n${deps.map((d) => `\t"${escapeQuotes(d)}"`).join('\n')}\n}\n`
     : ''
-  const descriptor = `version="1.0"\n${tags}\nname="${escapeQuotes(modName)}"\n${dependencies}supported_version="${payload.supportedVersion || DEFAULT_SUPPORTED_VERSION}"\n`
+  // Portada: thumbnail.png en la raíz + picture en el descriptor
+  const picture = (payload.files ?? []).some((f) => f.path === 'thumbnail.png')
+    ? 'picture="thumbnail.png"\n'
+    : ''
+  const descriptor = `version="1.0"\n${tags}\nname="${escapeQuotes(modName)}"\n${dependencies}${picture}supported_version="${payload.supportedVersion || DEFAULT_SUPPORTED_VERSION}"\n`
   const entries: ModEntry[] = [{ rel: 'descriptor.mod', bytes: Buffer.from(descriptor, 'utf-8') }]
   if (focusTreeScript)
     entries.push({

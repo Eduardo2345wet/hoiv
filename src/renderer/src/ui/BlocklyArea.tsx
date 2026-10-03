@@ -1,6 +1,6 @@
 // Ranura de bloques reutilizable (efectos o condiciones) para cualquier sección: misma caja de
 // herramientas que los focos, filtrada por contexto, y el mismo generador PDX.
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import * as Blockly from 'blockly'
 import { registerAllBlocks } from '../blocks'
 import {
@@ -35,6 +35,9 @@ export default function BlocklyArea({
   const last = useRef<unknown>(null)
   const cb = useRef(onChange)
   cb.current = onChange
+  // Código importado que no viene de bloques: se muestra y edita como texto (se exporta tal cual)
+  const [forceBlocks, setForceBlocks] = useState(false)
+  const advanced = !forceBlocks && value.blocks === null && value.code.trim() !== ''
 
   useEffect(() => {
     registerAllBlocks()
@@ -89,8 +92,40 @@ export default function BlocklyArea({
   }, [value, mode, scope])
 
   return (
-    <div className="relative w-full rounded border border-hoi-border" style={{ height }}>
-      <div ref={divRef} className="absolute inset-0" />
-    </div>
+    <>
+      {advanced && (
+        <div className="w-full rounded border border-hoi-border p-2" data-advanced-text>
+          <div className="mb-1 flex items-center justify-between text-xs text-hoi-muted">
+            <span>Avanzado (texto): se exporta tal cual</span>
+            <button
+              className="underline hover:text-hoi-accent"
+              title="Descarta el texto y empieza con bloques"
+              onClick={() => {
+                if (confirm('¿Empezar de cero con bloques? El texto se descartará.')) {
+                  last.current = {} // fuerza cargar el espacio de trabajo (con su bloque raíz)
+                  setForceBlocks(true)
+                  cb.current({ blocks: null, code: '' })
+                }
+              }}
+            >
+              Reemplazar por bloques
+            </button>
+          </div>
+          <textarea
+            className="input w-full font-mono text-xs"
+            style={{ height }}
+            value={value.code}
+            onChange={(e) => cb.current({ blocks: null, code: e.target.value })}
+            spellCheck={false}
+          />
+        </div>
+      )}
+      <div
+        className={advanced ? 'hidden' : 'relative w-full rounded border border-hoi-border'}
+        style={{ height }}
+      >
+        <div ref={divRef} className="absolute inset-0" />
+      </div>
+    </>
   )
 }

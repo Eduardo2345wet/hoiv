@@ -70,6 +70,8 @@ export interface Focus {
   mutuallyExclusive: string[]
   /** Fijado: "Ordenar árbol" no lo mueve */
   pinned?: boolean
+  /** Sentencias que la app no entiende (de un mod importado): se exportan tal cual */
+  extraText?: string
   /** Estado guardado del espacio de trabajo de Blockly */
   blocks: unknown | null
   /** Script generado de cada ranura (cache para vista previa y exportación) */
@@ -273,6 +275,8 @@ export interface Project extends SectionData {
   /** Plantilla de creación. Los proyectos viejos la toman de la base del mapa que tenían. */
   template?: TemplateId
   modName: string
+  /** Portada del mod (PNG cuadrado en data URL) → thumbnail.png */
+  cover?: string | null
   /** Tag con el que se creó el mod (compatibilidad); los países mandan */
   tag: string
   countries: Country[]

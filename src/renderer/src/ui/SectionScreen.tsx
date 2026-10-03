@@ -15,9 +15,10 @@ export default function SectionScreen({
 }): JSX.Element {
   const screen = screenOf(def.id)
   const [selected, setSelected] = useState<string | null>(null)
-  const items = (screen?.items?.(project) ??
-    project[def.collection] ??
-    []) as unknown as Record<string, unknown>[]
+  const items = (screen?.items?.(project) ?? project[def.collection] ?? []) as unknown as Record<
+    string,
+    unknown
+  >[]
   const labelOf = (i: Record<string, unknown>): string =>
     screen?.label?.(i) ?? String(i.name ?? i.title ?? i.id ?? i.country ?? i.code ?? '')
   const create = screen?.create
@@ -56,14 +57,16 @@ export default function SectionScreen({
           onSelect={setSelected}
           header={
             <div className="border-b border-hoi-border p-2">
-              <button
-                className="btn-primary w-full justify-center disabled:opacity-40"
-                disabled={!create}
-                title={create ? undefined : 'Disponible cuando se construya esta sección'}
-                onClick={doCreate}
-              >
-                {def.createLabel}
-              </button>
+              {!(def.noCreate && !create) && (
+                <button
+                  className="btn-primary w-full justify-center disabled:opacity-40"
+                  disabled={!create}
+                  title={create ? undefined : 'Disponible cuando se construya esta sección'}
+                  onClick={doCreate}
+                >
+                  {def.createLabel}
+                </button>
+              )}
               {screen?.templates?.map((t) => (
                 <button
                   key={t.id}
@@ -92,12 +95,16 @@ export default function SectionScreen({
         ) : (
           <EmptyState
             text={def.empty}
-            action={{
-              label: def.createLabel,
-              onClick: doCreate,
-              disabled: !create,
-              title: create ? undefined : 'Disponible cuando se construya esta sección'
-            }}
+            action={
+              def.noCreate && !create
+                ? undefined
+                : {
+                    label: def.createLabel,
+                    onClick: doCreate,
+                    disabled: !create,
+                    title: create ? undefined : 'Disponible cuando se construya esta sección'
+                  }
+            }
           />
         )
       }

@@ -21,6 +21,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getMemory: () => ipcRenderer.invoke('get-memory'),
   cacheInfo: () => ipcRenderer.invoke('cache-info'),
   clearCache: () => ipcRenderer.invoke('clear-cache'),
+  readModFolder: (folder: string) => ipcRenderer.invoke('read-mod-folder', folder),
   listGameFiles: (gamePath: string) => ipcRenderer.invoke('list-game-files', gamePath),
   exportExists: (folder: string, modName: string) =>
     ipcRenderer.invoke('export-exists', folder, modName),

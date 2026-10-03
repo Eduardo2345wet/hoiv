@@ -235,6 +235,7 @@ export function eventNode(p: Project, e: GameEvent): Node {
   const trig = e.trigger.code.trim() ? [raw(e.trigger.code)] : []
   if (tagCond.length || trig.length) kids.push(block('trigger', [...tagCond, ...trig]))
   kids.push(...sc('immediate', e.immediate))
+  if (e.extraText?.trim()) kids.push(raw(e.extraText))
   e.options.forEach((o, i) => {
     const on: Node[] = [kv('name', k.opts[i])]
     if (o.trigger.code.trim()) on.push(block('trigger', [raw(o.trigger.code)]))

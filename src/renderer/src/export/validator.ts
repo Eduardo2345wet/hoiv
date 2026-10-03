@@ -13,6 +13,7 @@ import { validateEvents } from '../sections/events'
 import { validateCharacters } from '../sections/characters'
 import { validateStart } from '../sections/start'
 import { validateOob } from '../sections/oob'
+import { validateExtras } from '../sections/extras'
 import { validateDecisions } from '../sections/decisions'
 import { validateSuperEvents } from '../sections/superEvents'
 import { sectionFiles } from '../sections/generators'
@@ -429,6 +430,10 @@ export function validateProject(
   // ---- Ejército inicial ----
   for (const i of validateOob(project, mapCtx?.map, game))
     issues.push({ severity: i.severity, kind: 'Ejército', message: i.message })
+
+  // ---- Extras (música, pantallas de carga, idiomas) ----
+  for (const i of validateExtras(project))
+    issues.push({ severity: i.severity, kind: 'Extras', message: i.message })
 
   // ---- Seguridad de rutas: lista negra, carpetas permitidas y archivos del juego ----
   const regCtx = { gameFiles: opts.gameFiles }

@@ -585,3 +585,13 @@ Por verificar: clave `province_based` en `common/buildings` (`PROVINCE_BASED_KEY
 Pestaña **Ejército**: se elige un país y se diseñan sus **plantillas de división** (cuadrícula de combate 5×5 + columna de apoyo; arrastra batallones desde la paleta, que sale de `common/units` del juego), sus **divisiones** (provincia elegida en el mini mapa en modo **provincia**, solo tierra; nombre u orden, experiencia y equipo) y una **producción inicial** opcional. Exporta `history/units/<mod>_<TAG>_1936.txt` (archivo NUEVO; nunca `<TAG>_1936.txt` del juego) y la historia del país apunta a él con el parche mínimo de la línea `oob`. Un país del juego con ejército propio **reemplaza todo su ejército original** (el validador lo avisa). Además se corrigió que, con un árbol de focos abierto, la barra de bloques de Blockly se veía por encima de las pestañas nuevas.
 
 Pendiente: flotas y aviación (formato sin verificar), estadísticas de la plantilla y `common/units/names_divisions`. Por verificar: cuadrícula 5×5 / apoyo de 5, `division_name` ordenado, producción en `instant_effect` y el nombre de grupo `support` en `common/units`.
+
+## Extras (S9)
+
+Pestaña **Extras**:
+- **Idiomas**: elige idiomas además del inglés (obligatorio); tabla de traducción por clave con filtro de las que faltan. Se exporta un `.yml` por idioma y por sección (UTF-8 con BOM, cabecera `l_<idioma>:`, en `localisation/<idioma>/`); lo no traducido sale en inglés.
+- **Música**: sube `.ogg` (se valida la firma Ogg); escribe `music/<mod>_music.asset`, una lista de canciones por estación `music/<mod>_<estación>_songs.txt` y los `.ogg` con nombres propios (nunca `music/music.asset`).
+- **Pantallas de carga** (`gfx/loadingscreens/*.dds` + `.gfx`) y **portada** (recorte cuadrado, `thumbnail.png` en la raíz y `picture="thumbnail.png"` en el descriptor; se publica desde el launcher).
+- **Importar un mod** (solo lectura): trae focos, eventos, decisiones y espíritus nacionales de la carpeta de otro mod con su localización en inglés. Lo que no se entiende se conserva como texto («Avanzado (texto)») y se exporta tal cual; los bloques de script importados se muestran como texto editable.
+
+Pendiente: portada de estaciones de radio propias, y el resto de idiomas en mods importados. Por verificar: forma de `chance`/`music_station` en `music/*.txt`, tamaño y nombre del `.gfx` de pantallas de carga (`LOADING_SIZE`), tamaño de la portada (`COVER_SIZE`).

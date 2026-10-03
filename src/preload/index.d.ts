@@ -151,6 +151,12 @@ export interface ElectronAPI {
   getExportInfo: () => Promise<ExportInfo>
   exportExists: (folder: string, modName: string) => Promise<boolean>
   /** Archivos del juego (minúsculas, con "/") para no pisarlos al exportar */
+  /** Lee (solo lectura) la carpeta de un mod para importarlo */
+  readModFolder: (folder: string) => Promise<{
+    files: { path: string; text: string }[]
+    name: string | null
+    skipped: number
+  }>
   listGameFiles: (gamePath: string) => Promise<string[]>
   getMemory: () => Promise<{
     main: number

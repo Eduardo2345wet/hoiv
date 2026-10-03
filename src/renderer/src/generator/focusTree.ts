@@ -51,6 +51,7 @@ function focusToScript(
     lines.push(`mutually_exclusive = { ${ids.join(' ')} }`)
   }
   let body = lines.join('\n') + '\n'
+  if (focus.extraText?.trim()) body += focus.extraText.replace(/^\t/gm, '').replace(/\s*$/, '\n')
   body += section('available', focus.scripts.available)
   body += section('bypass', focus.scripts.bypass)
   body += section('completion_reward', focus.scripts.reward) || 'completion_reward = { }\n'
