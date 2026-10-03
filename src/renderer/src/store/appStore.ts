@@ -209,6 +209,8 @@ export interface AppState {
   propsDialog: boolean
   /** Pedido de abrir el asistente de un país (lo consume el editor) */
   wizardRequest: { uid?: string; step?: number; n: number } | null
+  /** Elemento elegido en la lista de la sección abierta (para habilitar Duplicar y Borrar en la cinta) */
+  sectionSel: string | null
   settingsDialog: boolean
   /** Pregunta con varios botones (guardar / no guardar / cancelar…) */
   ask: AskRequest | null
@@ -291,6 +293,7 @@ let state: AppState = {
   newProjectDialog: null,
   propsDialog: false,
   wizardRequest: null,
+  sectionSel: null,
   settingsDialog: false,
   ask: null,
   exportDialog: null,

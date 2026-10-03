@@ -235,6 +235,7 @@ export default function Ribbon(): JSX.Element {
   const on = !!project
   const tab: RibbonId = on ? ui.ribbon : preview
   const off = !on
+  const sectionSel = useApp((s) => s.sectionSel)
   const noNation = project ? noNationActive(project) : false
   const menuRef = useRef<HTMLDivElement>(null)
   useEffect(() => {
@@ -304,26 +305,37 @@ export default function Ribbon(): JSX.Element {
   // Pestañas de las secciones nuevas: mismos grupos (Crear · Editar · Ver · Probar) en todas
   const sectionTab = (def: SectionDef): JSX.Element => (
     <>
-      {def.groups.map((g) => (
-        <Group key={g.title} title={g.title}>
-          {g.actions.map((a) => (
-            <RBtn
-              key={a.id}
-              icon={g.title === 'Crear' ? <Plus size={20} /> : <FileCheck size={20} />}
-              label={g.title === 'Crear' ? def.createLabel : a.label}
-              disabled={off || (a.id !== 'validate' && !sectionHas(def.id, a.id))}
-              title={
-                sectionHas(def.id, a.id) || a.id === 'validate'
-                  ? undefined
-                  : 'No disponible en esta sección'
-              }
-              onClick={() =>
-                runCommand(a.id === 'validate' ? 'validate' : `section:${def.id}:${a.id}`)
-              }
-            />
-          ))}
-        </Group>
-      ))}
+      {def.groups
+        .map((g) => ({
+          ...g,
+          // Si la función no existe en esta sección, el botón no se muestra
+          actions: g.actions.filter((a) => a.id === 'validate' || sectionHas(def.id, a.id))
+        }))
+        .filter((g) => g.actions.length)
+        .map((g) => (
+          <Group key={g.title} title={g.title}>
+            {g.actions.map((a) => {
+              const needsSel = a.id === 'duplicate' || a.id === 'delete'
+              const why = off
+                ? 'Abre un proyecto primero'
+                : needsSel && !sectionSel
+                  ? 'Elige un elemento de la lista'
+                  : undefined
+              return (
+                <RBtn
+                  key={a.id}
+                  icon={g.title === 'Crear' ? <Plus size={20} /> : <FileCheck size={20} />}
+                  label={g.title === 'Crear' ? def.createLabel : a.label}
+                  disabled={!!why}
+                  title={why}
+                  onClick={() =>
+                    runCommand(a.id === 'validate' ? 'validate' : `section:${def.id}:${a.id}`)
+                  }
+                />
+              )
+            })}
+          </Group>
+        ))}
     </>
   )
   const content: Record<RibbonId, JSX.Element> = {
@@ -657,7 +669,9 @@ export default function Ribbon(): JSX.Element {
         >
           <Redo2 size={16} />
         </button>
-        <span className="hidden shrink-0 px-3 text-xs 2xl:block text-hoi-muted">HOI4 Mod Studio</span>
+        <span className="hidden shrink-0 px-3 text-xs 2xl:block text-hoi-muted">
+          HOI4 Mod Studio
+        </span>
       </div>
       <div className="flex min-h-[84px] items-stretch overflow-x-auto px-1 py-1">
         {content[tab]}

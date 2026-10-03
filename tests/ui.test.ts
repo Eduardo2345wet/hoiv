@@ -2465,6 +2465,16 @@ describe('esqueleto común en todas las secciones (rediseño)', () => {
       ).toBeGreaterThanOrEqual(1)
       expect(await page.locator('button[data-create]').count(), `${name}: crear`).toBe(1)
       expect(await page.locator('[data-create]').innerText(), name).toMatch(/^\s*Crear /)
+      // ningún botón de la cinta está en gris sin explicación (al pasar el mouse dice por qué)
+      const greyed = await page.$$eval('button[disabled].min-w-\\[56px\\]', (bs) =>
+        bs.map((b) => `${b.textContent?.trim()}|${b.getAttribute('title') ?? ''}`)
+      )
+      for (const g of greyed) {
+        const [label, title] = g.split('|')
+        expect(title.length > 0 && title !== label, `${name}: "${label}" en gris sin motivo`).toBe(
+          true
+        )
+      }
       // el botón "Crear …" de la cinta también está activo y abre la ventana Nuevo
       const ribbonCreate = page
         .locator('button:not([data-create])')

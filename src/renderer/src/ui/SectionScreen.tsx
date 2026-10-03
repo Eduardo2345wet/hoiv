@@ -62,6 +62,11 @@ export default function SectionScreen({
     void Promise.resolve(create?.()).then((uid) => uid && setSelected(uid))
   }
 
+  useEffect(() => {
+    store.set({ sectionSel: selected })
+    return () => store.set({ sectionSel: null })
+  }, [selected])
+
   // Comandos de la cinta (Editar): duplicar y borrar el elemento elegido
   useEffect(
     () =>
