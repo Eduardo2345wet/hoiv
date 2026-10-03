@@ -1811,12 +1811,8 @@ describe('eventos (rediseño)', () => {
   }, 60_000)
 })
 
-describe('decisiones (S3)', () => {
-  it('crear una misión desde la plantilla, ver su script y la lista por categoría', async ({
-    skip
-  }) => {
-    if (!browser) skip()
-    const page = await fresh()
+describe('decisiones (rediseño)', () => {
+  const prep = async (page: Page): Promise<void> => {
     await focusEditor(page)
     await page.evaluate(() => {
       const st = (window as unknown as HoiWindow).__hoiStore as never as {
@@ -1826,6 +1822,7 @@ describe('decisiones (S3)', () => {
         ...p,
         countries: [],
         events: [],
+        eventGroups: [],
         superEvents: [],
         decisionCategories: [],
         decisions: [],
@@ -1840,12 +1837,52 @@ describe('decisiones (S3)', () => {
         languages: [{ code: 'english' }]
       }))
     })
+  }
+
+  it('galería de tipos; crear pide categoría (nueva ahí mismo) y nunca un ID; editor en tarjetas y vista previa', async ({
+    skip
+  }) => {
+    if (!browser) skip()
+    const page = await fresh()
+    await prep(page)
     await page.locator('button:text-is("Decisiones")').first().click()
-    await page.waitForSelector('text=Aún no hay decisiones')
-    await page.locator('[data-create]').first().click()
-    // se creó una categoría y la decisión dentro de ella
-    await page.waitForSelector('[data-item]')
-    expect(await page.locator('[data-item]:has-text("▸")').count()).toBe(1)
+    await page.waitForSelector('[data-empty]')
+    expect(await page.locator('[data-empty] [data-template]').count()).toBe(4)
+    await page.locator('[data-empty] [data-template="mission"]').click()
+    await page.waitForSelector('input[data-new-name]')
+    const idLabels = await page.evaluate(() => {
+      const dlg =
+        document.querySelector('input[data-new-name]')!.closest('.shadow-2xl') ?? document.body
+      return [...dlg.querySelectorAll('label')].filter((l) => /^ID\b/.test(l.textContent ?? ''))
+        .length
+    })
+    expect(idLabels).toBe(0)
+    await page.fill('input[data-new-name]', 'Reconstruir el puerto')
+    await page.fill('input[data-new-group-name]', 'Obras públicas')
+    await page.locator('button:text-is("Crear")').click()
+    await page.waitForSelector('[data-decision-editor]')
+    // lista: categoría plegable con la decisión adentro (nombre normal)
+    expect(await page.locator('[data-group] >> text=Obras públicas').count()).toBeGreaterThan(0)
+    expect(await page.locator('[data-item]:has-text("Reconstruir el puerto")').count()).toBe(1)
+    // vista previa: la categoría con su decisión
+    await page.waitForSelector('[data-decision-preview]')
+    expect(await page.locator('[data-preview-category]').innerText()).toContain('Obras públicas')
+    expect(await page.locator('[data-preview-decision]').count()).toBe(1)
+    // "Ver código" está plegado
+    expect(await page.locator('[data-code-view][open]').count()).toBe(0)
+    // el modelo: una categoría y una decisión de misión dentro de ella
+    const m = await page.evaluate(() => {
+      const p = (window as unknown as HoiWindow).__hoiStore.get().project as unknown as {
+        decisionCategories: { uid: string; name: string }[]
+        decisions: { kind: string; categoryUid: string }[]
+      }
+      return {
+        cats: p.decisionCategories.length,
+        kind: p.decisions[0].kind,
+        ok: p.decisions[0].categoryUid === p.decisionCategories[0].uid
+      }
+    })
+    expect(m).toEqual({ cats: 1, kind: 'mission', ok: true })
     await page.close()
   }, 60_000)
 })
@@ -2087,7 +2124,6 @@ describe('extras (S9)', () => {
     })
     await page.locator('button:text-is("Decisiones")').first().click()
     await page.locator('[data-item]:has-text("Dec")').last().click()
-    await page.locator('button[role="tab"]:text-is("Condiciones")').click()
     await page.waitForSelector('[data-advanced-text] textarea')
     expect(await page.locator('[data-advanced-text] textarea').first().inputValue()).toContain(
       'has_war = yes'

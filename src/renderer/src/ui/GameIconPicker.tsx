@@ -3,11 +3,18 @@ import { useEffect, useMemo, useState } from 'react'
 import { useApp } from '../store/appStore'
 import { loadSprites } from '../catalog/gameSprites'
 import { fold } from '../catalog/gameIdeas'
-import { prefixOf } from '../../../shared/gfxSprites'
+import { prefixOf, type SpriteKind } from '../../../shared/gfxSprites'
 import GameSprite from './GameSprite'
 import Modal from './Modal'
 import { FOCUS_ICONS } from './icons'
 
+const TITLES: Record<SpriteKind, string> = {
+  idea: 'Íconos de espíritus del juego',
+  goal: 'Íconos de focos del juego',
+  event: 'Imágenes de eventos del juego',
+  decision: 'Íconos de decisiones del juego',
+  decisionCategory: 'Íconos de categorías del juego'
+}
 const CELL_W = 100
 const CELL_H = 92
 const VIEW_H = 400
@@ -19,7 +26,7 @@ export default function GameIconPicker({
   onPick,
   onClose
 }: {
-  kind: 'idea' | 'goal' | 'event'
+  kind: SpriteKind
   /** Sprite elegido ahora (con prefijo) */
   current: string | null
   onPick: (sprite: string) => void
@@ -53,13 +60,7 @@ export default function GameIconPicker({
   const visible = list.slice(first * cols, last * cols)
   return (
     <Modal
-      title={
-        kind === 'idea'
-          ? 'Íconos de espíritus del juego'
-          : kind === 'goal'
-            ? 'Íconos de focos del juego'
-            : 'Imágenes de eventos del juego'
-      }
+      title={TITLES[kind]}
       width={GRID_W + 40}
       onClose={onClose}
       footer={

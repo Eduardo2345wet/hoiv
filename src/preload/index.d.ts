@@ -156,11 +156,11 @@ export interface ElectronAPI {
   exportExists: (folder: string, modName: string) => Promise<boolean>
   /** Archivos del juego (minúsculas, con "/") para no pisarlos al exportar */
   /** Sprites del juego (GFX_idea_* o GFX_goal_*), con prefijo */
-  listGameSprites: (gamePath: string, kind: 'idea' | 'goal' | 'event') => Promise<string[]>
+  listGameSprites: (gamePath: string, kind: import('../shared/gfxSprites').SpriteKind) => Promise<string[]>
   /** Miniaturas PNG (data URL) desde la caché; null = formato no soportado */
   getSpriteThumbs: (gamePath: string, names: string[]) => Promise<Record<string, string | null>>
   /** Genera en segundo plano las miniaturas que falten */
-  prewarmSprites: (gamePath: string, kind: 'idea' | 'goal' | 'event') => Promise<{ done: number; total: number }>
+  prewarmSprites: (gamePath: string, kind: import('../shared/gfxSprites').SpriteKind) => Promise<{ done: number; total: number }>
   /** Lee (solo lectura) la carpeta de un mod para importarlo */
   readModFolder: (folder: string) => Promise<{
     files: { path: string; text: string }[]

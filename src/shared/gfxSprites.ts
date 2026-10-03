@@ -38,12 +38,23 @@ export const IDEA_PREFIX = 'GFX_idea_'
 export const GOAL_PREFIX = 'GFX_goal_'
 /** Imagen de evento (GFX_report_event_<nombre>) */
 export const EVENT_PREFIX = 'GFX_report_event_'
-export type SpriteKind = 'idea' | 'goal' | 'event'
+export const DECISION_PREFIX = 'GFX_decision_'
+export const DECISION_CATEGORY_PREFIX = 'GFX_decision_category_'
+export type SpriteKind = 'idea' | 'goal' | 'event' | 'decision' | 'decisionCategory'
 export const prefixOf = (k: SpriteKind): string =>
-  k === 'idea' ? IDEA_PREFIX : k === 'goal' ? GOAL_PREFIX : EVENT_PREFIX
+  k === 'idea'
+    ? IDEA_PREFIX
+    : k === 'goal'
+      ? GOAL_PREFIX
+      : k === 'event'
+        ? EVENT_PREFIX
+        : k === 'decision'
+          ? DECISION_PREFIX
+          : DECISION_CATEGORY_PREFIX
 
 /** ¿Es un sprite que se ofrece como ícono? (se descartan variantes de brillo y fondos) */
 export function isPickable(name: string, kind: SpriteKind): boolean {
   if (!name.startsWith(prefixOf(kind))) return false
+  if (kind === 'decision' && name.startsWith(DECISION_CATEGORY_PREFIX)) return false
   return !/_(shine|bg|frame|locked|disabled)$/i.test(name)
 }

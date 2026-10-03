@@ -1,4 +1,5 @@
 // Puente seguro entre la interfaz (renderer) y Node (proceso principal)
+import type { SpriteKind } from '../shared/gfxSprites'
 import { contextBridge, ipcRenderer } from 'electron'
 import type { ExportModPayload } from './index.d'
 
@@ -21,11 +22,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getMemory: () => ipcRenderer.invoke('get-memory'),
   cacheInfo: () => ipcRenderer.invoke('cache-info'),
   clearCache: () => ipcRenderer.invoke('clear-cache'),
-  listGameSprites: (gamePath: string, kind: 'idea' | 'goal' | 'event') =>
+  listGameSprites: (gamePath: string, kind: SpriteKind) =>
     ipcRenderer.invoke('list-game-sprites', gamePath, kind),
   getSpriteThumbs: (gamePath: string, names: string[]) =>
     ipcRenderer.invoke('get-sprite-thumbs', gamePath, names),
-  prewarmSprites: (gamePath: string, kind: 'idea' | 'goal' | 'event') =>
+  prewarmSprites: (gamePath: string, kind: SpriteKind) =>
     ipcRenderer.invoke('prewarm-sprites', gamePath, kind),
   readModFolder: (folder: string) => ipcRenderer.invoke('read-mod-folder', folder),
   listGameFiles: (gamePath: string) => ipcRenderer.invoke('list-game-files', gamePath),

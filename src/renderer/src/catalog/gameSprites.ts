@@ -1,5 +1,6 @@
 // Miniaturas de sprites del juego en la interfaz: se piden por lotes y se guardan en memoria
 // (las PNG viven en la caché de la app). `null` = formato no soportado (miniatura genérica).
+import type { SpriteKind } from '../../../shared/gfxSprites'
 import { useEffect, useState } from 'react'
 import { store } from '../store/appStore'
 
@@ -54,7 +55,7 @@ export function useSpriteThumb(name: string | null): string | null | undefined {
 }
 
 /** Sprites que existen en el juego (con prefijo); se piden una sola vez por carpeta y tipo */
-export function loadSprites(gamePath: string | null, kind: 'idea' | 'goal' | 'event'): Promise<string[]> {
+export function loadSprites(gamePath: string | null, kind: SpriteKind): Promise<string[]> {
   if (!gamePath || typeof window === 'undefined' || !window.electronAPI?.listGameSprites)
     return Promise.resolve([])
   const key = `${gamePath}|${kind}`

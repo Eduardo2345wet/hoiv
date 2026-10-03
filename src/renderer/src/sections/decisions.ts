@@ -175,8 +175,12 @@ export const DECISION_TEMPLATES = [
   { id: 'target-country', label: 'Decisión contra otros países' },
   { id: 'target-state', label: 'Decisión sobre estados' }
 ] as const
-export function decisionFromTemplate(p: Project, kind: DecisionKind): Decision {
-  const base = { name: '', kind }
+export function decisionFromTemplate(
+  p: Project,
+  kind: DecisionKind,
+  over: Partial<Decision> = {}
+): Decision {
+  const base = { name: '', kind, ...over }
   if (kind === 'normal')
     return newDecision(p, { ...base, cost: { ...newDecision(p).cost, mode: 'pp', pp: 50 } })
   if (kind === 'mission') return newDecision(p, { ...base, missionTimeoutDays: 60, isGood: true })
