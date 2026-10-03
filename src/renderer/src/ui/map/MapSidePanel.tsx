@@ -7,6 +7,7 @@ import { countryStates, effectiveCores, effectiveOwner, isChanged } from '../../
 import { validateProject } from '../../export/validator'
 import { STEP } from '../../countries/validateCountry'
 import FlagThumb from '../FlagThumb'
+import StateDataPanel from './StateDataPanel'
 
 interface Props {
   project: Project
@@ -72,17 +73,13 @@ export default function MapSidePanel({ project, onOpenWizard, onGoTab }: Props):
             k="Provincias"
             v={`${state.provinces.length}: ${state.provinces.slice(0, 20).join(', ')}${state.provinces.length > 20 ? '…' : ''}`}
           />
-          <Row
-            k="Victory points"
-            v={state.victoryPoints.map(([p, v]) => `${p}: ${v}`).join(' · ') || 'ninguno'}
-          />
-          <Row k="Categoría" v={state.category || '—'} />
           <Row k="Archivo" v={<span className="font-mono text-xs">{state.file}</span>} />
           <Row
             k="Cambios con fecha"
             v={state.hasDatedChanges ? '⚠ sí (1939.1.1 = { … } u otros)' : 'no'}
           />
           <Row k="Modificado" v={isChanged(state, project) ? 'sí' : 'no'} />
+          <StateDataPanel state={state} project={project} />
           <button
             className="btn mt-3 w-full justify-center text-xs"
             onClick={() => store.focusState(state.id)}

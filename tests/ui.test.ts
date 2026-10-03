@@ -1750,3 +1750,54 @@ describe('decisiones (S3)', () => {
     await page.close()
   }, 60_000)
 })
+
+// ---------- Estados a fondo (S6) ----------
+describe('estados a fondo (S6)', () => {
+  it('seleccionar un estado y editar población, edificios y provincia costera desde el panel', async ({
+    skip
+  }) => {
+    if (!browser) skip()
+    const page = await fresh()
+    await focusEditor(page)
+    const demoUrl = '/@fs' + path.resolve('src/shared/map/demo.ts')
+    const info = await page.evaluate(async (url) => {
+      const { generateDemoMap } = await new Function('u', 'return import(u)')(url)
+      const map = generateDemoMap()
+      const st = (window as unknown as HoiWindow).__hoiStore as never as {
+        set(p: unknown): void
+        setUi(p: unknown): void
+        updateProject(f: (p: object) => object): void
+      }
+      st.updateProject((p) => ({ ...p, countries: [] }))
+      const s = map.states[0]
+      const coastal = s.provinces.find((x: number) => map.provinceCoastal[x])
+      st.set({ map, mapKey: 'demo', selectedStateId: s.id, selectedProvince: coastal ?? null })
+      st.setUi({ ribbon: 'mapa' })
+      return { id: s.id as number, coastal: coastal as number }
+    }, demoUrl)
+    await page.waitForSelector('[data-testid="state-data"]')
+    await page.locator('[data-testid="state-data"] input[type="number"]').first().fill('4321')
+    // edificios: industrial_complex del estado y naval_base de la provincia costera
+    await page.locator('label:has-text("industrial_complex") input').fill('2')
+    await page.locator('label:has-text("naval_base") input').fill('3')
+    const edit = await page.evaluate(
+      (id) =>
+        (
+          (window as unknown as HoiWindow).__hoiStore.get().project as unknown as {
+            stateEdits: Record<number, unknown>
+          }
+        ).stateEdits[id],
+      info.id
+    )
+    expect(edit).toMatchObject({
+      manpower: 4321,
+      buildings: { industrial_complex: 2 },
+      provinceBuildings: { [info.coastal]: { naval_base: 3 } }
+    })
+    // modo de vista Edificios
+    await page.evaluate(() =>
+      (window as unknown as HoiWindow).__hoiStore.setUi({ mapMode: 'edificios' })
+    )
+    await page.close()
+  }, 60_000)
+})

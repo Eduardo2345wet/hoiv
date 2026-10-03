@@ -249,6 +249,16 @@ export interface StateEdit {
   owner?: string
   addCores?: string[]
   removeCores?: string[]
+  /** S6: otros datos del estado (valores finales; se parchan solo esas líneas) */
+  manpower?: number
+  category?: string
+  resources?: Record<string, number>
+  /** Edificios del estado */
+  buildings?: Record<string, number>
+  /** Edificios por provincia: provincia → { tipo: nivel } */
+  provinceBuildings?: Record<string, Record<string, number>>
+  /** Puntos de victoria: provincia → valor (0 = quitar) */
+  victoryPoints?: Record<string, number>
 }
 
 /** Plantilla con la que se CREÓ el proyecto (queda fija; ver templates.ts) */

@@ -66,6 +66,24 @@ export async function planStatePatches(
       for (const t of req.targets) {
         const s = parsed.find((x) => x.id === t.id)
         const want = [...new Set(t.cores)].sort().join(',')
+        const pr = t.props
+        const badProps =
+          !!s &&
+          !!pr &&
+          ((pr.manpower !== undefined && s.manpower !== Math.round(pr.manpower)) ||
+            (pr.category !== undefined && s.category !== pr.category) ||
+            Object.entries(pr.resources ?? {}).some(([k, v]) => (s.resources?.[k] ?? 0) !== v) ||
+            Object.entries(pr.buildings ?? {}).some(([k, v]) => (s.buildings?.[k] ?? 0) !== v) ||
+            Object.entries(pr.provinceBuildings ?? {}).some(([p, b]) =>
+              Object.entries(b).some(([k, v]) => (s.provinceBuildings?.[Number(p)]?.[k] ?? 0) !== v)
+            ) ||
+            Object.entries(pr.victoryPoints ?? {}).some(
+              ([p, v]) => (s.victoryPoints.find((x) => x[0] === Number(p))?.[1] ?? 0) !== v
+            ))
+        if (badProps) {
+          ok = false
+          err(`Tras el parche, el estado ${t.id} no quedó con los datos esperados.`, t.id)
+        }
         if (!s || s.owner !== t.owner || s.cores.join(',') !== want) {
           ok = false
           err(

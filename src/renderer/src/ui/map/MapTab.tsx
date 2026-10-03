@@ -210,6 +210,8 @@ export default function MapTab({
       store.finishPick(String(stateId))
       return
     }
+    if (tool === 'select' && phase === 'start')
+      store.set({ selectedProvince: hover?.stateId === stateId ? (hover?.province ?? null) : null })
     handleStroke(tool, phase, stateId, e, { toast, brush: brushOpts })
   }
 

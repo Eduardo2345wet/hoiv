@@ -41,6 +41,16 @@ export function statesFromParsed(parsed: any, file: string): MapState[] {
     const hasDatedChanges = Object.keys(history).some(
       (k) => DATE_KEY.test(k) && asArray<any>(history[k]).some((blk) => hasChange(blk))
     )
+    const num = (o: any): Record<string, number> => {
+      const r: Record<string, number> = {}
+      for (const [k, v] of Object.entries(o ?? {})) if (typeof v === 'number') r[k] = v
+      return r
+    }
+    const bl = asArray<any>(history.buildings)[0] ?? {}
+    const provinceBuildings: Record<number, Record<string, number>> = {}
+    for (const [k, v] of Object.entries(bl))
+      if (/^\d+$/.test(k) && v && typeof v === 'object' && !Array.isArray(v))
+        provinceBuildings[Number(k)] = num(v)
     const nameKey = String(st.name ?? `STATE_${id}`)
     out.push({
       id,
@@ -54,6 +64,10 @@ export function statesFromParsed(parsed: any, file: string): MapState[] {
       cores: [...new Set(asArray<any>(history.add_core_of).map(String))].sort(),
       victoryPoints: pairs,
       category: String(st.state_category ?? ''),
+      manpower: Number.isFinite(Number(st.manpower)) ? Number(st.manpower) : undefined,
+      resources: num(asArray<any>(st.resources)[0]),
+      buildings: num(bl),
+      provinceBuildings,
       hasDatedChanges
     })
   }

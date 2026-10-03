@@ -15,6 +15,21 @@ export interface StateTarget {
    * superior. Se usa en el modo Sin nación para que en 1939 no se devuelvan los estados.
    */
   stripDated?: string[]
+  /** Otros datos del estado (S6): valores finales deseados; 0 quita la línea */
+  props?: StateProps
+}
+
+/** Datos editables del estado además de dueño y cores. Solo se tocan las líneas indicadas. */
+export interface StateProps {
+  manpower?: number
+  category?: string
+  resources?: Record<string, number>
+  /** Edificios del estado (infrastructure, industrial_complex…) */
+  buildings?: Record<string, number>
+  /** Edificios por provincia: provincia → { naval_base, bunker… } */
+  provinceBuildings?: Record<number, Record<string, number>>
+  /** Puntos de victoria: provincia → valor (0 = quitar) */
+  victoryPoints?: Record<number, number>
 }
 
 const DATE_KEY = /^\d{1,4}\.\d{1,2}\.\d{1,2}$/
@@ -189,6 +204,91 @@ export function patchStateText(text: string, targets: StateTarget[]): PatchResul
   const eol = text.includes('\r\n') ? '\r\n' : '\n'
   const edits: Edit[] = []
 
+  /** Quita una sentencia: la línea entera si está sola, o solo la sentencia si comparte línea */
+  const removeStmt = (c: Stmt): void => {
+    const s = toks[c.keyTok].s
+    const e = toks[c.valEnd].e
+    const ls = lineStart(text, s)
+    const le = lineEnd(text, e)
+    const before = text.slice(ls, s)
+    const after = text.slice(e, le).replace(/\r$/, '')
+    if (!before.trim() && !after.trim()) {
+      // Línea completa: se quita con su salto de línea
+      edits.push({ s: ls, e: Math.min(text.length, le + 1), text: '' })
+    } else {
+      // Comparte línea con otras cosas: solo la sentencia y los espacios que la siguen
+      const m = /^[ \t]*/.exec(text.slice(e))![0]
+      edits.push({ s, e: e + m.length, text: '' })
+    }
+  }
+
+  /**
+   * Fija `key = value` entre las sentencias `stmts` de un bloque (llaves en los tokens open/close):
+   * cambia solo el valor si existe, la quita si value es null, o la agrega tras la última sentencia
+   * cuya clave esté en `after` (o al principio del bloque). Respeta sangría y finales de línea.
+   */
+  const setEntry = (
+    stmts: Stmt[],
+    open: number,
+    close: number,
+    key: string,
+    value: string | null,
+    after: string[]
+  ): void => {
+    const cur = stmts.find((x) => x.key === key && !x.block)
+    if (cur) {
+      if (value === null) removeStmt(cur)
+      else if (toks[cur.valStart].v !== value)
+        edits.push({ s: toks[cur.valStart].s, e: toks[cur.valStart].e, text: value })
+      return
+    }
+    if (value === null) return
+    const line = `${key} = ${value}`
+    const anchor = [...stmts].reverse().find((x) => after.includes(x.key))
+    const singleLine = lineStart(text, toks[open].s) === lineStart(text, toks[close].s)
+    if (anchor) {
+      const aEnd = toks[anchor.valEnd].e
+      let pos = lineEnd(text, aEnd)
+      if (text[pos - 1] === '\r') pos--
+      if (text.slice(aEnd, pos).trim() || singleLine) {
+        edits.push({ s: aEnd, e: aEnd, text: ` ${line}` })
+      } else {
+        edits.push({ s: pos, e: pos, text: eol + indentOf(text, toks[anchor.keyTok].s) + line })
+      }
+      return
+    }
+    const pos = toks[open].e
+    if (singleLine || !stmts.length) {
+      const ind = indentOf(text, toks[open].s)
+      if (singleLine) edits.push({ s: pos, e: pos, text: ` ${line}` })
+      else edits.push({ s: pos, e: pos, text: eol + ind + '\t' + line })
+    } else
+      edits.push({ s: pos, e: pos, text: eol + indentOf(text, toks[stmts[0].keyTok].s) + line })
+  }
+
+  /** Un bloque `key = { a = 1 … }` con números: cambia solo esas claves; si falta, lo crea */
+  const setNumBlock = (
+    stmts: Stmt[],
+    open: number,
+    close: number,
+    key: string,
+    entries: Record<string, number>,
+    after: string[]
+  ): void => {
+    const list = Object.entries(entries)
+    if (!list.length) return
+    const blk = stmts.find((x) => x.key === key && x.block)
+    if (blk) {
+      const sub = statements(toks, blk.valStart + 1, blk.valEnd)
+      if (!sub) return
+      for (const [k, v] of list)
+        setEntry(sub, blk.valStart, blk.valEnd, k, v > 0 ? String(v) : null, [])
+      return
+    }
+    const body = list.filter(([, v]) => v > 0).map(([k, v]) => `${k} = ${v}`)
+    if (body.length) setEntry(stmts, open, close, key, `{ ${body.join(' ')} }`, after)
+  }
+
   for (const target of targets) {
     const stateStmt = top.find((s) => {
       if (s.key !== 'state' || !s.block) return false
@@ -242,24 +342,6 @@ export function patchStateText(text: string, targets: StateTarget[]): PatchResul
       edits.push({ s: vt.s, e: vt.e, text: target.owner })
     }
 
-    /** Quita una sentencia: la línea entera si está sola, o solo la sentencia si comparte línea */
-    const removeStmt = (c: Stmt): void => {
-      const s = toks[c.keyTok].s
-      const e = toks[c.valEnd].e
-      const ls = lineStart(text, s)
-      const le = lineEnd(text, e)
-      const before = text.slice(ls, s)
-      const after = text.slice(e, le).replace(/\r$/, '')
-      if (!before.trim() && !after.trim()) {
-        // Línea completa: se quita con su salto de línea
-        edits.push({ s: ls, e: Math.min(text.length, le + 1), text: '' })
-      } else {
-        // Comparte línea con otras cosas: solo la sentencia y los espacios que la siguen
-        const m = /^[ \t]*/.exec(text.slice(e))![0]
-        edits.push({ s, e: e + m.length, text: '' })
-      }
-    }
-
     // Quitar cores que ya no quiero
     const kept = cores.filter((c) => want.has(toks[c.valStart].v))
     for (const c of cores) if (!want.has(toks[c.valStart].v)) removeStmt(c)
@@ -276,6 +358,115 @@ export function patchStateText(text: string, targets: StateTarget[]): PatchResul
           continue
         }
         for (const st of datedKills(toks, inner, target.stripDated)) removeStmt(st)
+      }
+    }
+
+    // Otros datos del estado (población, categoría, recursos, edificios, puntos de victoria)
+    const pr = target.props
+    if (pr) {
+      const sOpen = stateStmt.valStart
+      const sClose = stateStmt.valEnd
+      if (pr.manpower !== undefined)
+        setEntry(inner, sOpen, sClose, 'manpower', String(Math.round(pr.manpower)), ['name', 'id'])
+      if (pr.category)
+        setEntry(inner, sOpen, sClose, 'state_category', pr.category, ['manpower', 'name', 'id'])
+      if (pr.resources)
+        setNumBlock(inner, sOpen, sClose, 'resources', pr.resources, [
+          'state_category',
+          'manpower',
+          'name'
+        ])
+      const wantsBuildings =
+        (pr.buildings && Object.keys(pr.buildings).length) ||
+        (pr.provinceBuildings && Object.keys(pr.provinceBuildings).length)
+      if (wantsBuildings) {
+        const hOpen = h.valStart
+        const hClose = h.valEnd
+        const bl = items.filter((x) => x.key === 'buildings' && x.block)
+        if (bl.length > 1) {
+          errors.push({
+            id: target.id,
+            message: `El estado ${target.id} tiene varios bloques buildings; no se puede parchar con seguridad.`
+          })
+          continue
+        }
+        const provs = pr.provinceBuildings ?? {}
+        if (bl.length) {
+          const b = bl[0]
+          const bi = statements(toks, b.valStart + 1, b.valEnd)
+          if (!bi) {
+            errors.push({
+              id: target.id,
+              message: `No se pudo leer el bloque buildings del estado ${target.id}.`
+            })
+            continue
+          }
+          for (const [k, v] of Object.entries(pr.buildings ?? {}))
+            setEntry(bi, b.valStart, b.valEnd, k, v > 0 ? String(v) : null, [
+              ...Object.keys(pr.buildings ?? {}),
+              'infrastructure'
+            ])
+          for (const [prov, vals] of Object.entries(provs))
+            setNumBlock(bi, b.valStart, b.valEnd, prov, vals, [])
+        } else {
+          const parts = [
+            ...Object.entries(pr.buildings ?? {})
+              .filter(([, v]) => v > 0)
+              .map(([k, v]) => `${k} = ${v}`),
+            ...Object.entries(provs)
+              .map(([prov, vals]) => {
+                const body = Object.entries(vals)
+                  .filter(([, v]) => v > 0)
+                  .map(([k, v]) => `${k} = ${v}`)
+                return body.length ? `${prov} = { ${body.join(' ')} }` : ''
+              })
+              .filter(Boolean)
+          ]
+          if (parts.length)
+            setEntry(items, hOpen, hClose, 'buildings', `{ ${parts.join(' ')} }`, [
+              'owner',
+              'controller',
+              'add_core_of'
+            ])
+        }
+      }
+      for (const [prov, val] of Object.entries(pr.victoryPoints ?? {})) {
+        const vp = items.find((x) => {
+          if (x.key !== 'victory_points' || !x.block) return false
+          const first = toks[x.valStart + 1]
+          return first?.t === 'w' && first.v === prov
+        })
+        if (vp) {
+          const valTok = toks[vp.valStart + 2]
+          if (!valTok || valTok.t !== 'w') continue
+          if (val > 0) {
+            if (valTok.v !== String(val))
+              edits.push({ s: valTok.s, e: valTok.e, text: String(val) })
+          } else removeStmt(vp)
+        } else if (val > 0) {
+          const last = [...items].reverse().find((x) => x.key === 'victory_points' && x.block)
+          const aft = last ?? [...items].reverse().find((x) => x.key === 'buildings' && x.block)
+          const hOpen = h.valStart
+          const hClose = h.valEnd
+          const line = `victory_points = { ${prov} ${val} }`
+          if (aft) {
+            const aEnd = toks[aft.valEnd].e
+            let pos = lineEnd(text, aEnd)
+            if (text[pos - 1] === '\r') pos--
+            if (text.slice(aEnd, pos).trim()) edits.push({ s: aEnd, e: aEnd, text: ` ${line}` })
+            else
+              edits.push({
+                s: pos,
+                e: pos,
+                text: eol + indentOf(text, toks[aft.keyTok].s) + line
+              })
+          } else
+            setEntry(items, hOpen, hClose, 'victory_points', `{ ${prov} ${val} }`, [
+              'owner',
+              'controller',
+              'add_core_of'
+            ])
+        }
       }
     }
 
@@ -310,6 +501,14 @@ export function patchStateText(text: string, targets: StateTarget[]): PatchResul
   }
 
   if (errors.length) return { text, errors }
+  // Varias inserciones en la misma posición se unen en el orden en que se pidieron
+  const pooled = new Map<number, string>()
+  const real: Edit[] = []
+  for (const ed of edits)
+    if (ed.s === ed.e) pooled.set(ed.s, (pooled.get(ed.s) ?? '') + ed.text)
+    else real.push(ed)
+  edits.length = 0
+  edits.push(...real, ...[...pooled].map(([pos, t]) => ({ s: pos, e: pos, text: t })))
   edits.sort((a, b) => b.s - a.s || b.e - a.e)
   let out = text
   for (const ed of edits) out = out.slice(0, ed.s) + ed.text + out.slice(ed.e)

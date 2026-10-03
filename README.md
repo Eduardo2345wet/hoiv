@@ -573,3 +573,9 @@ Por verificar: tamaño de retratos de general y consejero, `retire_character` / 
 En **Países**, cada tarjeta tiene «Situación inicial»: estabilidad, apoyo a la guerra, convoyes, ranuras de investigación, espíritus iniciales, tecnologías iniciales (buscador sobre `common/technologies` del juego), diplomacia (facción propia o unirse a otra, títeres con autonomía leída de `common/autonomous_states`, garantías) y guerras al inicio (`on_actions` + `declare_war_on`). Todo va a la historia del país (archivo generado si es nuevo, parche mínimo si es del juego). Con fecha 1939, los cambios van en un bloque `1939.1.1`. «Escenarios de inicio…» edita `common/bookmarks`. No hay vista de resumen en el mapa con colores de facción (pendiente).
 
 Por verificar: `declare_war_on` en `on_startup`, imagen de escenario 640×220, forma del bloque `bookmark` (`"---"`).
+
+## Estados a fondo (S6)
+
+En **Mapa → Seleccionar**, el panel derecho «Estado» edita población, categoría (lista de `common/state_category`), recursos, edificios del estado (máximos leídos de `common/buildings`), puntos de victoria y edificios por provincia (haz clic en una provincia; `naval_base` y `coastal_bunker` solo en costa). Los cambios se guardan en `stateEdits` y se exportan con el **parche mínimo** del archivo real del estado: solo cambian las líneas tocadas (comentarios, CRLF y bloques con fecha quedan idénticos, y el parche es idempotente). No se crean `history/states` nuevos ni `map/definition.csv`. Hay dos modos de vista nuevos: Edificios y Recursos. El validador revisa niveles, costa, provincias del estado, población y categoría, y avisa si el estado tiene cambios con fecha.
+
+Por verificar: clave `province_based` en `common/buildings` (`PROVINCE_BASED_KEY`), máximos de reserva (`BUILDING_DEFAULTS`) y lista de categorías de reserva.

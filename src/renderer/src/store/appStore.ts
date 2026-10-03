@@ -197,6 +197,8 @@ export interface AppState {
   /** "Ver pendientes": resaltar los estados sin pintar (modo Sin nación) */
   pendingView: boolean
   selectedStateId: number | null
+  /** Provincia elegida con Seleccionar (para edificios y puntos de victoria del panel Estado) */
+  selectedProvince: number | null
   /** Avisos pequeños que se cierran solos (nunca ventanas durante el pintado) */
   toasts: Toast[]
   /** Pedido para centrar la vista del mapa en un estado (lo consume el mapa) */
@@ -281,6 +283,7 @@ let state: AppState = {
   recentTags: [],
   pendingView: false,
   selectedStateId: null,
+  selectedProvince: null,
   focusStateRequest: null,
   newProjectDialog: null,
   propsDialog: false,

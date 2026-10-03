@@ -8,6 +8,7 @@ import path from 'path'
 import { shineShape } from '../shared/shine'
 import { parseFocusFile } from '../shared/gameFocus'
 import { parseTechnologies, topLevelKeys, type GameTech } from '../shared/gameTech'
+import { parseBuildings, parseStateCategories } from '../shared/gameBuildings'
 import { parseTraits, type GameTrait } from '../shared/gameTraits'
 
 export interface Settings {
@@ -198,6 +199,10 @@ export interface GameCatalogResult {
   /** Tecnologías (common/technologies) y estados de autonomía (common/autonomous_states) */
   technologies?: GameTech[]
   autonomyStates?: string[]
+  /** Edificios con su nivel máximo y si van por provincia (common/buildings) */
+  buildingMax?: Record<string, { max: number; provincial: boolean }>
+  /** Categorías de estado (common/state_category) */
+  stateCategories?: string[]
   unitTraits?: GameTrait[]
   decisionCategoryIcons?: string[]
   /** Cuadrícula del árbol de focos (interface/nationalfocusview.gui) */
@@ -412,10 +417,36 @@ export function readGameCatalog(gamePath: string): GameCatalogResult | null {
   } catch {
     // sin la carpeta: lista integrada
   }
+  let buildingMax: Record<string, { max: number; provincial: boolean }> | undefined
+  let stateCategories: string[] | undefined
+  try {
+    const dir = path.join(gamePath, 'common', 'buildings')
+    const all: Record<string, { max: number; provincial: boolean }> = {}
+    for (const f of fs.readdirSync(dir))
+      if (f.endsWith('.txt'))
+        for (const b of parseBuildings(fs.readFileSync(path.join(dir, f), 'utf-8')))
+          if (b.max > 0) all[b.id] = { max: b.max, provincial: b.provincial }
+    if (Object.keys(all).length) buildingMax = all
+  } catch {
+    // sin la carpeta: máximos de reserva
+  }
+  try {
+    const dir = path.join(gamePath, 'common', 'state_category')
+    const all = new Set<string>()
+    for (const f of fs.readdirSync(dir))
+      if (f.endsWith('.txt'))
+        for (const k of parseStateCategories(fs.readFileSync(path.join(dir, f), 'utf-8')))
+          all.add(k)
+    if (all.size) stateCategories = [...all]
+  } catch {
+    // sin la carpeta: lista de reserva
+  }
   const leaderTraits = readTraits('country_leader')
   const unitTraits = readTraits('unit_leader')
 
   const result: GameCatalogResult = {
+    buildingMax,
+    stateCategories,
     leaderTraits,
     unitTraits,
     technologies,

@@ -41,7 +41,7 @@ const BIG_KEYS = new Set<string>(ARRAYS.map((s) => s.name.split('.')[0]))
 // 2: añade stateLabels (centro visual de cada estado)
 // 3: añade las fronteras vectoriales (borders)
 // 4: añade los rectángulos de las etiquetas (labelBoxes)
-export const MAP_CACHE_VERSION = 4
+export const MAP_CACHE_VERSION = 5
 
 export function serializeMap(map: MapData): Uint8Array {
   const meta: Record<string, unknown> = { v: MAP_CACHE_VERSION }

@@ -5,6 +5,7 @@ import type { Project } from '../types'
 import { lookup, ownerWithBase } from './mapOps'
 import { exportOwner, noNationActive, pendingStates, technicalCountry } from './noNation'
 import { validateTag } from '../export/validator'
+import { validateStateData } from './validateStateData'
 import { lostCapitals, planCapitalMoves } from './capitals'
 
 export function validateMap(project: Project, ctx: MapContext): Issue[] {
@@ -235,6 +236,9 @@ export function validateMap(project: Project, ctx: MapContext): Issue[] {
         stateId: s.id
       })
   }
+
+  // Datos de estado (población, edificios, recursos, puntos de victoria)
+  issues.push(...validateStateData(project, map, ctx.game))
 
   if (map.unknownColorPixels > 0)
     issues.push({

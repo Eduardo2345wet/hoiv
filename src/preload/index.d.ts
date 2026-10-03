@@ -108,6 +108,8 @@ export interface GameCatalogData {
   focusTreeTags?: Record<string, number>
   goalsShineShape?: string
   eventPictures?: string[]
+  buildingMax?: Record<string, { max: number; provincial: boolean }>
+  stateCategories?: string[]
   decisionIcons?: string[]
   technologies?: {
     id: string

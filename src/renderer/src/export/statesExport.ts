@@ -5,11 +5,19 @@ import type { MapData } from '../../../shared/map/types'
 import { DATED_KEYS_TO_STRIP, exportCores, exportOwner, noNationActive } from '../map/noNation'
 import type { ModFile } from './exportMod'
 import type { GameCatalog } from '../catalog/catalog'
+import { propsOf } from '../map/stateProps'
+import type { StateProps } from '../../../shared/map/statePatch'
 import { planCapitalMoves, type CapitalMove } from '../map/capitals'
 
 export interface StatePatchRequest {
   file: string
-  targets: { id: number; owner: string; cores: string[]; stripDated?: string[] }[]
+  targets: {
+    id: number
+    owner: string
+    cores: string[]
+    stripDated?: string[]
+    props?: StateProps
+  }[]
 }
 
 /**
@@ -21,16 +29,17 @@ export function stateRequests(project: Project, map: MapData): StatePatchRequest
   const noNation = noNationActive(project)
   for (const s of map.states) {
     const painted = !!project.stateEdits[s.id]?.owner
+    const props = propsOf(project.stateEdits[s.id])
     if (!project.stateEdits[s.id] && !noNation) continue
     const owner = exportOwner(s, project)
     const cores = exportCores(s, project)
     const pending = noNation && !painted
-    if (!pending && owner === s.owner && cores.join(',') === [...s.cores].sort().join(',')) continue
+    if (!pending && !props && owner === s.owner && cores.join(',') === [...s.cores].sort().join(',')) continue
     const req = byFile.get(s.file) ?? { file: s.file, targets: [] }
     req.targets.push(
       pending
-        ? { id: s.id, owner, cores, stripDated: DATED_KEYS_TO_STRIP }
-        : { id: s.id, owner, cores }
+        ? { id: s.id, owner, cores, stripDated: DATED_KEYS_TO_STRIP, ...(props ? { props } : {}) }
+        : { id: s.id, owner, cores, ...(props ? { props } : {}) }
     )
     byFile.set(s.file, req)
   }

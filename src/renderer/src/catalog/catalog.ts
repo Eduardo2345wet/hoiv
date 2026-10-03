@@ -54,6 +54,8 @@ export interface GameCatalog {
     leadsTo: string[]
   }[]
   autonomyStates?: string[]
+  buildingMax?: Record<string, { max: number; provincial: boolean }>
+  stateCategories?: string[]
   leaderTraits?: { id: string; slot?: string; type?: string }[]
   unitTraits?: { id: string; slot?: string; type?: string }[]
   decisionCategoryIcons?: string[]

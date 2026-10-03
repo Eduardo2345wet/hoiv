@@ -21,6 +21,13 @@ export interface MapState {
   /** [provincia, puntos] */
   victoryPoints: [number, number][]
   category: string
+  /** Población (manpower), recursos y edificios ORIGINALES (opcionales: el mapa de demostración no los trae) */
+  manpower?: number
+  resources?: Record<string, number>
+  /** Edificios del estado (infrastructure, industrial_complex…) */
+  buildings?: Record<string, number>
+  /** Edificios por provincia: provincia → { naval_base, bunker… } */
+  provinceBuildings?: Record<number, Record<string, number>>
   /** Tiene bloques con fecha (1939.1.1 = { … }) que cambian owner o cores */
   hasDatedChanges: boolean
 }

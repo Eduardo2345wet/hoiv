@@ -6,14 +6,17 @@ import type { MapData } from '../../../shared/map/types'
 import { mapColor, hsvToRgb, type RGB } from '../countries/color'
 import { colorForTag } from '../countries/countryOps'
 import { THEME_RGB } from '../../../shared/map/theme'
+import { buildingsOf, resourcesOf } from './stateProps'
 import { effectiveCores, effectiveOwner, isChanged } from './mapOps'
 
-export type ViewMode = 'politico' | 'estados' | 'cores' | 'cambios'
+export type ViewMode = 'politico' | 'estados' | 'cores' | 'cambios' | 'edificios' | 'recursos'
 export const VIEW_MODES: [ViewMode, string][] = [
   ['politico', 'Político'],
   ['estados', 'Estados'],
   ['cores', 'Cores del país activo'],
-  ['cambios', 'Cambios']
+  ['cambios', 'Cambios'],
+  ['edificios', 'Edificios'],
+  ['recursos', 'Recursos']
 ]
 
 /** Bits del canal alfa de la paleta */
@@ -93,6 +96,18 @@ export function buildPalette(
   const ownerIds = new Map<string, number>()
   const colorCache = new Map<string, RGB>()
   const grey: RGB = [200, 200, 204]
+  // Edificios / Recursos: color según la cantidad (claro → naranja), relativo al máximo del mapa
+  const total = (rec: Record<string, number>, keys?: string[]): number =>
+    Object.entries(rec).reduce((a, [k, v]) => a + (!keys || keys.includes(k) ? v : 0), 0)
+  const amount = (s: (typeof map.states)[number]): number =>
+    !project
+      ? 0
+      : mode === 'edificios'
+        ? total(buildingsOf(s, project), ['industrial_complex', 'arms_factory', 'dockyard'])
+        : total(resourcesOf(s, project))
+  let maxAmount = 1
+  if (mode === 'edificios' || mode === 'recursos')
+    for (const s of map.states) maxAmount = Math.max(maxAmount, amount(s))
   map.states.forEach((s, i) => {
     const painted = isPainted(s.id, project)
     const blank = opts.blankUnpainted && !painted
@@ -109,6 +124,13 @@ export function buildPalette(
     else if (mode === 'cores') {
       const cores = project ? effectiveCores(s, project) : s.cores
       c = activeTag && cores.includes(activeTag) ? [240, 175, 50] : grey
+    } else if (mode === 'edificios' || mode === 'recursos') {
+      const t = Math.min(1, amount(s) / maxAmount)
+      c = [
+        Math.round(235 + (232 - 235) * t),
+        Math.round(235 + (120 - 235) * t),
+        Math.round(235 + (30 - 235) * t)
+      ]
     } else if (mode === 'cambios') {
       if (project && isChanged(s, project)) c = [240, 130, 50]
       else if (blank) {

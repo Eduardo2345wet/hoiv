@@ -111,7 +111,12 @@ function withEdit(
 ): Project {
   const orig = new Set(s.cores)
   const now = new Set(cores)
-  const edit: StateEdit = {}
+  // Lo que no es dueño ni cores (población, edificios…) se conserva
+  const { owner: _o, addCores: _a, removeCores: _r, ...kept } = p.stateEdits[s.id] ?? {}
+  void _o
+  void _a
+  void _r
+  const edit: StateEdit = { ...kept }
   if (owner !== undefined && (owner !== s.owner || keepOwner)) edit.owner = owner
   const add = [...now].filter((t) => !orig.has(t)).sort()
   const remove = [...orig].filter((t) => !now.has(t)).sort()
@@ -124,7 +129,8 @@ function withEdit(
 }
 
 export function isChanged(s: MapState, p: Project): boolean {
-  return !!p.stateEdits[s.id]
+  const e = p.stateEdits[s.id]
+  return !!e && (e.owner !== undefined || !!e.addCores?.length || !!e.removeCores?.length)
 }
 
 export interface PaintOptions {
@@ -209,7 +215,15 @@ export function removeCore(p: Project, map: MapData, id: number, tag: string): P
 export function eraseStates(p: Project, ids: number[]): Project {
   if (!ids.some((id) => p.stateEdits[id])) return p
   const edits = { ...p.stateEdits }
-  for (const id of ids) delete edits[id]
+  for (const id of ids) {
+    // El borrador devuelve dueño y cores; población, edificios, etc. se conservan
+    const { owner: _o, addCores: _a, removeCores: _r, ...kept } = edits[id] ?? {}
+    void _o
+    void _a
+    void _r
+    if (Object.keys(kept).length) edits[id] = kept
+    else delete edits[id]
+  }
   return { ...p, stateEdits: edits }
 }
 
