@@ -123,6 +123,7 @@ export interface GameCatalogData {
     gfx?: string | null
   }[]
   unitNames?: Record<string, { es?: string; en?: string }>
+  techInfo?: Record<string, { name?: string; gfx?: string }>
   techFolders?: {
     id: string
     name: string
@@ -141,6 +142,8 @@ export interface GameCatalogData {
     cost?: number
     year?: number
     leadsTo: string[]
+    dependencies?: string[]
+    effects?: [string, string][]
   }[]
   autonomyStates?: string[]
   leaderTraits?: { id: string; slot?: string; type?: string }[]

@@ -682,3 +682,46 @@ se comprobó además contra el commit anterior al rediseño.
 - Las ya existentes: tamaño de imagen de evento (si el juego no se puede leer), íconos y categorías de
   decisiones, edificios y categorías de estado de reserva, `chance` de la música, tamaños de pantallas
   de carga y de portada, retratos y `legacy_id`.
+
+## Ronda de correcciones: espíritus, íconos del ejército, ideologías y árbol de tecnologías
+
+- **Espíritus nacionales** usa el esqueleto común: lista agrupada por país (el país que los tiene como
+  espíritu inicial, o «Sin país»), editor en tarjetas (Básico, Modificadores y Opciones avanzadas con el
+  ID) y vista previa con el espíritu como en la pantalla de gobierno y su globo de información. La galería
+  ofrece «Espíritu en blanco», «Copiar uno del juego» (abre «Elegir del juego»), «Bonificación económica» y
+  «Penalización temporal».
+- **Íconos del ejército.** El sprite de cada batallón es `GFX_unit_<sprite>_icon_medium` (confirmado en
+  1.19.3, `interface/subuniticons.gfx`), se busca en todos los `interface/*.gfx` y se usa el `textureFile`
+  del `.gfx` (nunca se adivina la ruta), con rutas normalizadas (`//`) y sin distinguir mayúsculas.
+  Con `noOfFrames = 2` se muestra solo el primer cuadro. El lector DDS ya aceptaba sin compresión
+  (máscaras de 16, 24 y 32 bits) y DXT1/3/5; un formato no soportado da el ícono genérico del tipo.
+  Aparecen en la paleta, en las casillas y en la lista de plantillas.
+- **Ideologías y Tecnologías** son dos secciones con su pestaña, su grupo en el Navegador, su botón
+  «Crear», su ventana «Nuevo …» y su galería. Ideologías se agrupa en Democracia, Comunismo, Fascismo y No
+  alineado; Tecnologías, por carpeta de investigación, y solo ahí está el Modo avanzado. Los proyectos
+  existentes no cambian (mismos datos, mismo formato de exportación).
+- **Carpetas de investigación.** El nombre sale de la localización del juego, todas en un mismo idioma
+  (español si lo cubre; si no, el del juego). Se detectan los DLC instalados (carpeta `dlc/`) y las
+  condiciones `has_dlc` de `common/technology_tags`; solo se ofrece la carpeta que el juego usa de verdad
+  (la de un DLC instalado oculta a la normal del mismo nombre). «Mostrar todas» enseña las ocultas con la
+  etiqueta del DLC, y una tecnología en una carpeta que no aplica lleva un aviso suave.
+- **Árbol interactivo.** La vista previa de una tecnología es el árbol de su carpeta: tarjetas con ícono
+  (`GFX_<id>`) y nombre localizado, líneas, años a un lado, zoom con la rueda, arrastre del fondo,
+  «Centrar en mi tecnología» y «Ver en grande». Mi tecnología (borde naranja) se arrastra a una casilla
+  libre (no se puede encimar); al pasar el mouse sale un globo con nombre, año, costo y efectos. Para
+  conectar se arrastra desde el punto de abajo de una tecnología hasta otra; clic en una línea mía y Supr la
+  borra. Las tecnologías y líneas del juego no se mueven ni se borran. Se leen las variables `@` de los
+  archivos de tecnologías (por ejemplo `@1936`).
+- **Cambio de exportación (pedido):** un requisito que sale de una tecnología del juego ya NO parcha el
+  archivo del juego: se declara en la tecnología nueva con `dependencies = { <tecnología> = 1 }`. Entre
+  dos tecnologías propias se sigue usando `path` → `leads_to_tech`. Nunca se escribe
+  `countrytechtreeview.gui`.
+- **Cinta.** Los botones de funciones que una sección no tiene ya no se muestran; los deshabilitados
+  explican el motivo al pasar el mouse (por ejemplo «Elige un elemento de la lista»). Las pestañas se
+  hicieron un poco más angostas para que entren las 15 en una pantalla de 1366 px.
+
+Por verificar: que `dependencies = { … }` exija la tecnología en el juego; la forma de la condición de DLC
+en `common/technology_tags` y los nombres de las claves de localización de las carpetas; los prefijos y
+nombres de los DLC; el espaciado de la cuadrícula del árbol frente al del juego (`TREE_CELL`). El fondo de
+la carpeta del juego no se dibuja (fondo neutro) y la caché de nombres de tecnologías es la del catálogo del
+juego en memoria, no un archivo en `userData`.

@@ -20,6 +20,8 @@ import {
 import { serialize } from '../export/clausewitz'
 import type { Technology } from '../sections/types'
 import Help from './Help'
+import TechTree from './TechTree'
+import { createPortal } from 'react-dom'
 import { Card, Field, NumberField, Select, type CardNote } from './kit'
 
 const patchT = (uid: string, p: Partial<Technology>, g?: string): void =>
@@ -244,25 +246,28 @@ function TechEditor({ project, t }: { project: Project; t: Technology }): JSX.El
   )
 }
 
-function TechPreview({ t }: { t: Technology }): JSX.Element {
+/** Vista del árbol: pequeña a la derecha o en grande sobre el centro y la derecha */
+function TreePreview({ project, tech }: { project: Project; tech: Technology }): JSX.Element {
+  const [full, setFull] = useState(false)
+  const tree = (
+    <TechTree project={project} tech={tech} full={full} onToggleFull={() => setFull((f) => !f)} />
+  )
+  if (!full) return tree
+  const left = document.querySelector('[data-pane="center"]')?.getBoundingClientRect().left ?? 300
   return (
-    <div className="mx-auto w-full max-w-[320px]">
-      <div className="mb-1 text-xs text-hoi-muted">
-        {t.folder ? folderName(t.folder, store.catalogGame()) : 'Elige una carpeta'} · columna {t.x}
-        , fila {t.y}
-      </div>
-      <div data-tech-preview className="w-40 rounded-sm border-2 border-[#8c7b4f] bg-[#232b36] p-2">
-        <div className="flex h-12 items-center justify-center rounded-sm bg-black/30">
-          <FlaskConical size={22} className="text-hoi-muted" />
-        </div>
-        <div className="mt-1 truncate text-center text-xs font-semibold text-hoi-text">
-          {t.name || 'Tecnología sin nombre'}
-        </div>
-        <div className="text-center text-[10px] text-hoi-muted">
-          {t.cost} de costo · {t.year}
-        </div>
-      </div>
-    </div>
+    <>
+      <p className="text-xs text-hoi-muted">El árbol está en grande.</p>
+      {createPortal(
+        <div
+          data-tree-full
+          className="fixed bottom-0 right-0 top-[7.5rem] z-[90] bg-hoi-bg p-2"
+          style={{ left }}
+        >
+          {tree}
+        </div>,
+        document.body
+      )}
+    </>
   )
 }
 
@@ -356,7 +361,7 @@ registerSectionScreen('tecnologias', {
   },
   renderPreview: (p, sel) => {
     const t = (p.technologies ?? []).find((x) => x.uid === sel)
-    return t ? <TechPreview t={t} /> : null
+    return t ? <TreePreview project={p} tech={t} /> : null
   },
   code: (p, sel) => {
     const t = (p.technologies ?? []).find((x) => x.uid === sel)

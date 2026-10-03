@@ -1752,6 +1752,159 @@ describe('ideologías y tecnologías, secciones separadas (rediseño)', () => {
   }, 60_000)
 })
 
+describe('árbol de tecnologías interactivo (rediseño)', () => {
+  async function treePage(): Promise<Page> {
+    const page = await fresh()
+    await focusEditor(page)
+    await page.evaluate(() => {
+      const st = (window as unknown as HoiWindow).__hoiStore as never as {
+        set(p: unknown): void
+        updateProject(f: (p: object) => object): void
+      }
+      st.set({
+        game: {
+          ideas: [],
+          technologies: [
+            {
+              id: 'a',
+              folder: 'f',
+              x: 0,
+              y: 0,
+              year: 1936,
+              cost: 2,
+              leadsTo: ['b'],
+              effects: [['stability_factor', '0.1']]
+            },
+            { id: 'b', folder: 'f', x: 0, y: 2, year: 1938, leadsTo: [] },
+            { id: 'c', folder: 'f', x: 3, y: 2, year: 1938, leadsTo: [] }
+          ],
+          techInfo: { a: { name: 'Fusil básico' }, b: { name: 'Fusil mejor' }, c: { name: 'Otra' } }
+        }
+      })
+      st.updateProject((p) => ({
+        ...p,
+        technologies: [
+          {
+            uid: 't1',
+            id: 'mi_t',
+            name: 'Mi fusil',
+            description: '',
+            folder: 'f',
+            x: 1,
+            y: 2,
+            cost: 3,
+            year: 1938,
+            categories: [],
+            leadsTo: [],
+            prerequisites: []
+          }
+        ],
+        ideologies: [],
+        techAdvanced: true
+      }))
+    })
+    await page.locator('button:text-is("Tecnologías")').first().click()
+    await page.locator('[data-item]').first().click()
+    await page.waitForSelector('[data-tech-tree]')
+    return page
+  }
+  const tech = (
+    page: Page
+  ): Promise<{ x: number; y: number; prerequisites: string[]; leadsTo: string[] }> =>
+    page.evaluate(
+      () =>
+        (
+          (window as unknown as HoiWindow).__hoiStore.get().project as unknown as {
+            technologies: { x: number; y: number; prerequisites: string[]; leadsTo: string[] }[]
+          }
+        ).technologies[0]
+    )
+  const center = async (page: Page, id: string): Promise<{ x: number; y: number }> => {
+    const b = (await page.locator(`[data-tech-node="${id}"]`).boundingBox())!
+    return { x: b.x + b.width / 2, y: b.y + b.height / 2 }
+  }
+
+  it('dibuja la carpeta: tecnologías del juego, la mía resaltada, años y globo al pasar el mouse', async ({
+    skip
+  }) => {
+    if (!browser) skip()
+    const page = await treePage()
+    expect(await page.locator('[data-tech-node]').count()).toBe(4)
+    expect(await page.locator('[data-tech-node][data-mine="true"]').count()).toBe(1)
+    expect(await page.locator('[data-tech-tree] >> text=1936').count()).toBeGreaterThan(0)
+    const a = await center(page, 'a')
+    await page.mouse.move(a.x, a.y)
+    await page.waitForSelector('[data-tech-tooltip]')
+    const tip = await page.locator('[data-tech-tooltip]').innerText()
+    expect(tip).toContain('Fusil básico')
+    expect(tip).toContain('Año 1936')
+    expect(tip).toContain('Estabilidad')
+    await page.close()
+  }, 60_000)
+
+  it('arrastrar mi tecnología la acomoda en una casilla libre y no deja encimarla; las del juego no se mueven', async ({
+    skip
+  }) => {
+    if (!browser) skip()
+    const page = await treePage()
+    const mine = await center(page, 'mi_t')
+    const c = await center(page, 'c') // casilla (3,2)
+    // casilla libre (2,2): una celda a la derecha de la mía
+    const cell = (c.x - mine.x) / 2
+    await page.mouse.move(mine.x, mine.y)
+    await page.mouse.down()
+    await page.mouse.move(mine.x + cell, mine.y, { steps: 4 })
+    await page.mouse.up()
+    expect(await tech(page)).toMatchObject({ x: 2, y: 2 })
+    // encima de la del juego (3,2): se queda donde estaba
+    const m2 = await center(page, 'mi_t')
+    await page.mouse.move(m2.x, m2.y)
+    await page.mouse.down()
+    await page.mouse.move(c.x, c.y, { steps: 4 })
+    await page.mouse.up()
+    expect(await tech(page)).toMatchObject({ x: 2, y: 2 })
+    // arrastrar una del juego no cambia nada
+    const a = await center(page, 'a')
+    await page.mouse.move(a.x, a.y)
+    await page.mouse.down()
+    await page.mouse.move(a.x + 100, a.y + 10, { steps: 3 })
+    await page.mouse.up()
+    expect(await page.locator('[data-tech-node="a"]').getAttribute('data-x')).toBe('0')
+    await page.close()
+  }, 60_000)
+
+  it('conectar desde una del juego crea el requisito en la mía; mi línea se borra con Supr y la del juego no', async ({
+    skip
+  }) => {
+    if (!browser) skip()
+    const page = await treePage()
+    const h = (await page.locator('[data-tech-handle="a"]').boundingBox())!
+    const mine = await center(page, 'mi_t')
+    await page.mouse.move(h.x + h.width / 2, h.y + h.height / 2)
+    await page.mouse.down()
+    await page.mouse.move(mine.x, mine.y, { steps: 5 })
+    await page.mouse.up()
+    expect((await tech(page)).prerequisites).toEqual(['a'])
+    // la línea del juego (a>b) no es mía: no se puede seleccionar
+    expect(await page.locator('[data-tech-edge="a>b"]').count()).toBe(0)
+    await page.locator('[data-tech-edge="a>mi_t"]').dispatchEvent('pointerdown')
+    await page.keyboard.press('Delete')
+    expect((await tech(page)).prerequisites).toEqual([])
+    expect(await page.locator('svg path').count()).toBeGreaterThan(0) // la del juego sigue
+    await page.close()
+  }, 60_000)
+
+  it('botón para ver en grande y centrar', async ({ skip }) => {
+    if (!browser) skip()
+    const page = await treePage()
+    await page.locator('[data-tree-full]').click()
+    await page.waitForSelector('[data-tree-full]')
+    expect(await page.locator('[data-tech-tree]').count()).toBe(1)
+    await page.locator('[data-tree-center]').click()
+    await page.close()
+  }, 60_000)
+})
+
 describe('espíritus con el esqueleto común (rediseño)', () => {
   it('galería, lista por país, tarjetas, vista previa tipo gobierno y Ver código plegado', async ({
     skip

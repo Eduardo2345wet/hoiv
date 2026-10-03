@@ -62,6 +62,8 @@ export interface GameCatalog {
     year?: number
     file?: string
     leadsTo: string[]
+    dependencies?: string[]
+    effects?: [string, string][]
   }[]
   autonomyStates?: string[]
   buildingMax?: Record<string, { max: number; provincial: boolean }>
@@ -79,6 +81,7 @@ export interface GameCatalog {
     gfx?: string | null
   }[]
   unitNames?: Record<string, { es?: string; en?: string }>
+  techInfo?: Record<string, { name?: string; gfx?: string }>
   techFolders?: {
     id: string
     name: string

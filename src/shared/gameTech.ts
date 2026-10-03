@@ -17,6 +17,8 @@ export interface GameTech {
   leadsTo: string[]
   /** dependencies = { tecnología = 1 }: requisitos que declara la propia tecnología */
   dependencies?: string[]
+  /** Efectos sencillos (clave = valor) para el globo de información */
+  effects?: [string, string][]
 }
 
 /** Variables `@nombre = número` definidas en el mismo archivo (por ejemplo @1936 = 0) */
@@ -25,6 +27,29 @@ export function techVariables(text: string): Record<string, number> {
   for (const m of text.matchAll(/^\s*@([A-Za-z0-9_]+)\s*=\s*(-?\d+(?:\.\d+)?)/gm))
     out[m[1]] = Number(m[2])
   return out
+}
+
+const STRUCTURAL = new Set([
+  'research_cost',
+  'start_year',
+  'show_effect_as_desc',
+  'xp_research_bonus',
+  'xp_unlock_cost',
+  'doctrine',
+  'is_special_project_tech'
+])
+
+/** Pares clave = valor del primer nivel de una tecnología (sin bloques anidados) */
+function simpleEffects(body: string): [string, string][] {
+  let flat = body
+  for (let prev = ''; prev !== flat;) {
+    prev = flat
+    flat = flat.replace(/\{[^{}]*\}/g, '')
+  }
+  return [...flat.matchAll(/([a-z_0-9]+)\s*=\s*(-?[\d.]+|yes|no)/g)]
+    .filter((m) => !STRUCTURAL.has(m[1]))
+    .map((m): [string, string] => [m[1], m[2]])
+    .slice(0, 6)
 }
 
 export function parseTechnologies(text: string): GameTech[] {
@@ -59,7 +84,8 @@ export function parseTechnologies(text: string): GameTech[] {
         ...(cost !== undefined ? { cost } : {}),
         ...(year !== undefined ? { year } : {}),
         leadsTo,
-        ...(dependencies.length ? { dependencies } : {})
+        ...(dependencies.length ? { dependencies } : {}),
+        ...(simpleEffects(c.body).length ? { effects: simpleEffects(c.body) } : {})
       })
     }
   return out

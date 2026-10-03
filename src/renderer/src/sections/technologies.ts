@@ -200,6 +200,17 @@ export function techNode(p: Project, t: Technology): Node {
   kids.push(
     block('folder', [kv('name', t.folder), block('position', [kv('x', t.x), kv('y', t.y)])])
   )
+  // Requisitos que vienen de una tecnología del juego: se declaran AQUÍ, en la mía, y la del juego
+  // no se toca. por verificar en el juego: que `dependencies = { <tecnología> = 1 }` los exija.
+  const mineIds = new Set(exportedTechs(p).map((x) => x.id))
+  const fromGame = t.prerequisites.filter((pre) => !mineIds.has(pre))
+  if (fromGame.length)
+    kids.push(
+      block(
+        'dependencies',
+        fromGame.map((pre) => kv(pre, 1))
+      )
+    )
   for (const c of childrenOfMine(p, t))
     kids.push(block('path', [kv('leads_to_tech', c), kv('research_cost_coeff', LINK_COEFF)]))
   if (t.categories.length) kids.push(list('categories', t.categories))
@@ -284,16 +295,7 @@ export type TextPatchReq =
 /** Parches que pide el proyecto sobre archivos del juego (técnologías con prerrequisito del juego y subideologías) */
 export function textPatchRequests(p: Project, game?: GameCatalog | null): TextPatchReq[] {
   const out: TextPatchReq[] = []
-  // Tecnologías del juego que deben llevar un leads_to_tech hacia una mía
-  const gameTech = new Map((game?.technologies ?? []).map((t) => [t.id, t]))
-  const byFile = new Map<string, { from: string; to: string }[]>()
-  for (const t of exportedTechs(p))
-    for (const pre of t.prerequisites) {
-      const g = gameTech.get(pre)
-      if (!g?.file) continue
-      byFile.set(g.file, [...(byFile.get(g.file) ?? []), { from: pre, to: t.id }])
-    }
-  for (const [f, links] of byFile) out.push({ kind: 'tech', file: f, links })
+  // Las tecnologías del juego NUNCA se parchan: los requisitos van en la tecnología nueva.
   // Subideologías
   const ideo = new Map<string, { group: string; id: string; lines?: string[] }[]>()
   for (const i of p.ideologies ?? []) {
@@ -353,12 +355,9 @@ export function validateTechnologies(p: Project, game?: GameCatalog | null): Tec
     for (const c of t.leadsTo)
       if (!mineIds.has(c) && !gameIds.has(c) && game?.technologies)
         at('error', `desbloquea ${c}, que no existe.`)
-    for (const pre of t.prerequisites) {
-      if (!mineIds.has(pre) && !gameIds.has(pre)) {
-        if (game?.technologies) at('error', `su prerrequisito ${pre} no existe.`)
-      } else if (gameIds.has(pre) && !game?.technologies?.find((g) => g.id === pre)?.file)
-        at('error', `no se sabe en qué archivo del juego está ${pre}, así que no se puede enlazar.`)
-    }
+    for (const pre of t.prerequisites)
+      if (!mineIds.has(pre) && !gameIds.has(pre) && game?.technologies)
+        at('error', `su prerrequisito ${pre} no existe.`)
   }
   const cyc = findTechCycle(techEdges(p, game))
   if (cyc)
@@ -430,4 +429,109 @@ export function folderChoices(
 export function folderApplies(game: GameCatalog | null | undefined, id: string): boolean {
   const f = game?.techFolders?.find((x) => x.id === id)
   return !f || f.visible
+}
+
+// ---------------------------------------------------------------- árbol interactivo
+
+/** Tamaño de una casilla de la cuadrícula del árbol, en píxeles. por verificar: espaciado frente al juego */
+export const TREE_CELL = { w: 96, h: 64 }
+
+export interface TreeNode {
+  id: string
+  x: number
+  y: number
+  year?: number
+  mine: boolean
+  /** Es la tecnología que se está editando */
+  selected: boolean
+}
+export interface TreeEdge {
+  from: string
+  to: string
+  /** Línea mía (se puede seleccionar y borrar) */
+  mine: boolean
+}
+
+/** Tecnologías de una carpeta (juego + mías) y sus líneas, solo entre las de esa carpeta */
+export function treeOf(
+  p: Project,
+  game: GameCatalog | null | undefined,
+  folder: string,
+  selectedUid: string | null
+): { nodes: TreeNode[]; edges: TreeEdge[] } {
+  const nodes: TreeNode[] = []
+  const mineAll = p.technologies ?? []
+  const mineIds = new Set(mineAll.map((t) => t.id))
+  for (const g of game?.technologies ?? [])
+    if (g.folder === folder && g.x !== undefined && g.y !== undefined && !mineIds.has(g.id))
+      nodes.push({ id: g.id, x: g.x, y: g.y, year: g.year, mine: false, selected: false })
+  for (const t of mineAll)
+    if (t.folder === folder)
+      nodes.push({
+        id: t.id,
+        x: t.x,
+        y: t.y,
+        year: t.year,
+        mine: true,
+        selected: t.uid === selectedUid
+      })
+  const here = new Set(nodes.map((n) => n.id))
+  const seen = new Set<string>()
+  const edges: TreeEdge[] = []
+  const add = (from: string, to: string, mine: boolean): void => {
+    const k = `${from}>${to}`
+    if (!here.has(from) || !here.has(to) || seen.has(k)) return
+    seen.add(k)
+    edges.push({ from, to, mine })
+  }
+  for (const g of game?.technologies ?? [])
+    if (g.folder === folder && !mineIds.has(g.id)) {
+      for (const c of g.leadsTo) add(g.id, c, false)
+      for (const d of g.dependencies ?? []) add(d, g.id, false)
+    }
+  for (const t of mineAll) {
+    for (const c of t.leadsTo) add(t.id, c, true)
+    for (const pre of t.prerequisites) add(pre, t.id, true)
+  }
+  return { nodes, edges }
+}
+
+/** ¿Está libre la casilla? (ninguna otra tecnología de la carpeta la ocupa) */
+export const cellFree = (nodes: TreeNode[], x: number, y: number, ignoreId: string): boolean =>
+  x >= 0 && y >= 0 && !nodes.some((n) => n.id !== ignoreId && n.x === x && n.y === y)
+
+/**
+ * Conecta dos tecnologías: del juego → mía = requisito en la mía (dependencies); mía → otra (mía o
+ * del juego) = leads_to_tech en la mía. Nunca se modifica una tecnología del juego.
+ */
+export function connectTechs(
+  p: Project,
+  from: string,
+  to: string,
+  game?: GameCatalog | null
+): { project: Project } | { error: string } {
+  if (from === to) return { error: 'Una tecnología no puede requerirse a sí misma.' }
+  const mine = p.technologies ?? []
+  const src = mine.find((t) => t.id === from)
+  const dst = mine.find((t) => t.id === to)
+  if (!src && !dst) return { error: 'Una de las dos tecnologías tiene que ser tuya.' }
+  const next: Project =
+    dst && !src
+      ? updateTech(p, dst.uid, { prerequisites: [...new Set([...dst.prerequisites, from])] })
+      : updateTech(p, src!.uid, { leadsTo: [...new Set([...src!.leadsTo, to])] })
+  if (findTechCycle(techEdges(next, game)))
+    return { error: 'Eso crearía un ciclo entre tecnologías.' }
+  return { project: next }
+}
+
+/** Quita una línea mía (nunca una del juego) */
+export function disconnectTechs(p: Project, from: string, to: string): Project {
+  let out = p
+  for (const t of p.technologies ?? []) {
+    if (t.id === from && t.leadsTo.includes(to))
+      out = updateTech(out, t.uid, { leadsTo: t.leadsTo.filter((x) => x !== to) })
+    if (t.id === to && t.prerequisites.includes(from))
+      out = updateTech(out, t.uid, { prerequisites: t.prerequisites.filter((x) => x !== from) })
+  }
+  return out
 }

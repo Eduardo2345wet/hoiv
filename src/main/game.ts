@@ -197,6 +197,30 @@ function readLocKeys(gamePath: string, lang: string, wanted: Set<string>): Map<s
   return out
 }
 
+/** Nombre (español, si cubre; si no, el del juego) y sprite GFX_<id> de cada tecnología */
+function readTechInfo(
+  gamePath: string,
+  techs: GameTech[]
+): Record<string, { name?: string; gfx?: string }> {
+  const wanted = new Set(techs.map((t) => t.id))
+  const es = readLocKeys(gamePath, 'spanish', wanted)
+  const en = readLocKeys(gamePath, 'english', wanted)
+  const names = es.size >= techs.length / 2 ? es : en
+  let sprites: Set<string> | null = null
+  try {
+    sprites = new Set(spriteIndex(gamePath).sprites.keys())
+  } catch {
+    // sin interface/
+  }
+  const out: Record<string, { name?: string; gfx?: string }> = {}
+  for (const t of techs) {
+    const name = names.get(t.id) ?? en.get(t.id)
+    const gfx = sprites?.has(`GFX_${t.id}`) ? `GFX_${t.id}` : undefined
+    if (name || gfx) out[t.id] = { ...(name ? { name } : {}), ...(gfx ? { gfx } : {}) }
+  }
+  return out
+}
+
 /** Carpetas de investigación: nombre del juego en UN idioma, DLC y reemplazos */
 function readTechFolders(gamePath: string, techs: GameTech[]): FolderInfo[] {
   const folders = [...new Set(techs.map((t) => t.folder).filter((f): f is string => !!f))]
@@ -346,6 +370,8 @@ export interface GameCatalogResult {
   unitNames?: Record<string, UnitNames>
   /** Carpetas de investigación con nombre del juego, DLC y si se usan de verdad */
   techFolders?: FolderInfo[]
+  /** Nombre localizado y sprite de cada tecnología del juego */
+  techInfo?: Record<string, { name?: string; gfx?: string }>
   equipments?: string[]
   unitTraits?: GameTrait[]
   decisionCategoryIcons?: string[]
@@ -537,6 +563,7 @@ export function readGameCatalog(gamePath: string): GameCatalogResult | null {
   }
   let technologies: GameTech[] | undefined
   let techFolders: FolderInfo[] | undefined
+  let techInfo: Record<string, { name?: string; gfx?: string }> | undefined
   let autonomyStates: string[] | undefined
   try {
     const all = new Map<string, GameTech>()
@@ -548,6 +575,7 @@ export function readGameCatalog(gamePath: string): GameCatalogResult | null {
           all.set(t.id, { ...t, file: f })
     technologies = [...all.values()]
     techFolders = readTechFolders(gamePath, technologies)
+    techInfo = readTechInfo(gamePath, technologies)
   } catch {
     // sin la carpeta: no hay lista de tecnologías
   }
@@ -649,6 +677,7 @@ export function readGameCatalog(gamePath: string): GameCatalogResult | null {
     subUnits,
     unitNames,
     techFolders,
+    techInfo,
     equipments,
     buildingMax,
     stateCategories,

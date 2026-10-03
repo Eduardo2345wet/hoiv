@@ -1,11 +1,17 @@
 import { describe, expect, it } from 'vitest'
 import { Jomini } from 'jomini'
+import { serialize } from '../src/renderer/src/export/clausewitz'
 import * as Blockly from 'blockly'
 import { registerAllBlocks } from '../src/renderer/src/blocks'
 import { generateArea } from '../src/renderer/src/blocks/area'
 import { emptyProjectFor } from '../src/renderer/src/templates'
 import {
+  cellFree,
   childrenOfMine,
+  connectTechs,
+  disconnectTechs,
+  treeOf,
+  techNode,
   createIdeology,
   createTech,
   findTechCycle,
@@ -94,14 +100,13 @@ describe('tecnologías e ideologías (S8)', () => {
     ).toBe(true)
   })
 
-  it('pide parches mínimos: tecnología del juego con enlace nuevo y subideología en su archivo', () => {
+  it('solo se parcha el archivo de ideologías: la tecnología del juego NO se toca y el requisito va en la mía', () => {
     const r = textPatchRequests(base(), game)
+    expect(r.some((x) => x.kind === 'tech')).toBe(false)
+    const mine = techFiles(base())[0].text!
+    expect(mine).toContain('dependencies = {')
+    expect(mine).toMatch(/infantry_a = 1/)
     expect(r).toEqual([
-      {
-        kind: 'tech',
-        file: 'infantry.txt',
-        links: [{ from: 'infantry_a', to: 'mi_mod_fusil_nuevo' }]
-      },
       {
         kind: 'ideology',
         file: '00_ideologies.txt',
@@ -185,15 +190,8 @@ describe('tecnologías e ideologías (S8)', () => {
     )
     const res = await planTextPatches(dir, textPatchRequests(base(), game) as never)
     expect(res.errors).toEqual([])
-    expect(res.files.map((f) => f.path)).toEqual([
-      'common/technologies/infantry.txt',
-      'common/ideologies/00_ideologies.txt'
-    ])
-    const tech = Buffer.from(res.files[0].data).toString('latin1')
-    expect(tech.startsWith('ï»¿technologies')).toBe(true)
-    expect(tech).toContain('path = { leads_to_tech = mi_mod_fusil_nuevo research_cost_coeff = 1 }')
-    expect(parseTechnologies(tech.slice(3))[0].leadsTo).toEqual(['mi_mod_fusil_nuevo'])
-    const ideo = Buffer.from(res.files[1].data).toString('latin1')
+    expect(res.files.map((f) => f.path)).toEqual(['common/ideologies/00_ideologies.txt'])
+    const ideo = Buffer.from(res.files[0].data).toString('latin1')
     expect(readIdeologyGroups(ideo)[0].types).toEqual(['liberalism', 'mi_mod_liberal_social'])
     // el original del juego no se toca
     expect(fs.readFileSync(path.join(dir, 'common/technologies/infantry.txt'), 'latin1')).toBe(
@@ -295,5 +293,80 @@ describe('rediseño: color, grupos y carpetas en español', () => {
     expect(groupLabel('neutrality')).toBe('No alineado')
     expect(folderLabel('infantry_folder')).toBe('Infantería')
     expect(folderLabel('algo_raro_folder')).toBe('Algo raro')
+  })
+})
+
+describe('árbol interactivo: operaciones', () => {
+  const g = {
+    technologies: [
+      { id: 'a', folder: 'f', x: 0, y: 0, year: 1936, leadsTo: ['b'] },
+      { id: 'b', folder: 'f', x: 0, y: 2, year: 1938, leadsTo: [] },
+      { id: 'z', folder: 'otra', x: 0, y: 0, leadsTo: [] }
+    ]
+  } as never
+  const mk = (): { p: Project; uid: string } => {
+    const r = createTech(emptyProjectFor('Mi Mod', 'content'), {
+      name: 'Mía',
+      folder: 'f',
+      x: 2,
+      y: 2
+    })
+    return { p: { ...r.project, techAdvanced: true }, uid: r.tech.uid }
+  }
+
+  it('solo dibuja la carpeta elegida, con las líneas del juego y las mías, y no deja encimar', () => {
+    const { p, uid } = mk()
+    const t = treeOf(p, g, 'f', uid)
+    expect(t.nodes.map((n) => n.id).sort()).toEqual(['a', 'b', 'mi_mod_mia'])
+    expect(t.nodes.find((n) => n.id === 'mi_mod_mia')).toMatchObject({ mine: true, selected: true })
+    expect(t.edges).toEqual([{ from: 'a', to: 'b', mine: false }])
+    expect(cellFree(t.nodes, 2, 2, 'mi_mod_mia')).toBe(true)
+    expect(cellFree(t.nodes, 0, 2, 'mi_mod_mia')).toBe(false)
+    expect(cellFree(t.nodes, -1, 0, 'mi_mod_mia')).toBe(false)
+  })
+
+  it('una conexión del juego hacia la mía queda en MI tecnología (dependencies) y no toca la del juego', () => {
+    const { p } = mk()
+    const r = connectTechs(p, 'a', 'mi_mod_mia', g)
+    expect('project' in r).toBe(true)
+    if (!('project' in r)) return
+    expect(r.project.technologies[0].prerequisites).toEqual(['a'])
+    const code = serialize([techNode(r.project, r.project.technologies[0])])
+    expect(code).toContain('dependencies')
+    expect(code).toContain('a = 1')
+    expect(code).not.toContain('leads_to_tech = a')
+    expect(textPatchRequests(r.project, g).some((x) => x.kind === 'tech')).toBe(false)
+    // la línea se dibuja igual en la vista
+    expect(treeOf(r.project, g, 'f', null).edges).toContainEqual({
+      from: 'a',
+      to: 'mi_mod_mia',
+      mine: true
+    })
+  })
+
+  it('entre dos mías usa leads_to_tech; las líneas del juego no se pueden borrar', () => {
+    let { p } = mk()
+    p = createTech(p, { name: 'Otra', folder: 'f', x: 3, y: 4 }).project
+    const r = connectTechs(p, 'mi_mod_mia', 'mi_mod_otra', g)
+    if (!('project' in r)) throw new Error('debía conectar')
+    expect(serialize([techNode(r.project, r.project.technologies[0])])).toContain(
+      'leads_to_tech = mi_mod_otra'
+    )
+    const back = disconnectTechs(r.project, 'mi_mod_mia', 'mi_mod_otra')
+    expect(back.technologies[0].leadsTo).toEqual([])
+    // intentar borrar a>b (del juego) no cambia nada
+    expect(disconnectTechs(p, 'a', 'b')).toEqual(p)
+    // ciclo rechazado y conexión entre dos del juego rechazada
+    const c1 = connectTechs(r.project, 'mi_mod_otra', 'mi_mod_mia', g)
+    expect('error' in c1).toBe(true)
+    expect('error' in connectTechs(p, 'a', 'b', g)).toBe(true)
+  })
+
+  it('la exportación lleva la posición y los requisitos correctos', () => {
+    const { p } = mk()
+    const r = connectTechs(p, 'b', 'mi_mod_mia', g) as { project: Project }
+    const text = techFiles(r.project)[0].text!
+    expect(text).toMatch(/position = \{\s*x = 2\s*y = 2\s*\}/)
+    expect(text).toMatch(/dependencies = \{\s*b = 1\s*\}/)
   })
 })
