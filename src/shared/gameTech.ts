@@ -15,24 +15,51 @@ export interface GameTech {
   file?: string
   /** Tecnologías que desbloquea (path = { leads_to_tech = … }) */
   leadsTo: string[]
+  /** dependencies = { tecnología = 1 }: requisitos que declara la propia tecnología */
+  dependencies?: string[]
+}
+
+/** Variables `@nombre = número` definidas en el mismo archivo (por ejemplo @1936 = 0) */
+export function techVariables(text: string): Record<string, number> {
+  const out: Record<string, number> = {}
+  for (const m of text.matchAll(/^\s*@([A-Za-z0-9_]+)\s*=\s*(-?\d+(?:\.\d+)?)/gm))
+    out[m[1]] = Number(m[2])
+  return out
 }
 
 export function parseTechnologies(text: string): GameTech[] {
   const out: GameTech[] = []
+  const vars = techVariables(text)
+  const num = (v: string | undefined): number | undefined => {
+    if (v === undefined) return undefined
+    if (v.startsWith('@')) return vars[v.slice(1)]
+    const n = Number(v)
+    return Number.isFinite(n) ? n : undefined
+  }
   for (const b of bodies(text, 'technologies'))
     for (const c of children(b)) {
       const folder = /folder\s*=\s*\{[^}]*?name\s*=\s*([A-Za-z0-9_]+)/.exec(c.body)?.[1]
-      const pos = /position\s*=\s*\{\s*x\s*=\s*(-?\d+)\s*y\s*=\s*(-?\d+)/.exec(c.body)
-      const cost = /research_cost\s*=\s*([\d.]+)/.exec(c.body)?.[1]
-      const year = /start_year\s*=\s*(\d+)/.exec(c.body)?.[1]
+      const pos =
+        /position\s*=\s*\{\s*x\s*=\s*(-?\d+|@[A-Za-z0-9_]+)\s*y\s*=\s*(-?\d+|@[A-Za-z0-9_]+)/.exec(
+          c.body
+        )
+      const x = num(pos?.[1])
+      const y = num(pos?.[2])
+      const cost = num(/research_cost\s*=\s*(@?[\w.]+)/.exec(c.body)?.[1])
+      const year = num(/start_year\s*=\s*(@?\w+)/.exec(c.body)?.[1])
       const leadsTo = [...c.body.matchAll(/leads_to_tech\s*=\s*([A-Za-z0-9_]+)/g)].map((m) => m[1])
+      const dep = bodies(c.body, 'dependencies')[0]
+      const dependencies = dep
+        ? [...dep.matchAll(/([A-Za-z0-9_]+)\s*=\s*\d+/g)].map((m) => m[1])
+        : []
       out.push({
         id: c.id,
         ...(folder ? { folder } : {}),
-        ...(pos ? { x: Number(pos[1]), y: Number(pos[2]) } : {}),
-        ...(cost ? { cost: Number(cost) } : {}),
-        ...(year ? { year: Number(year) } : {}),
-        leadsTo
+        ...(x !== undefined && y !== undefined ? { x, y } : {}),
+        ...(cost !== undefined ? { cost } : {}),
+        ...(year !== undefined ? { year } : {}),
+        leadsTo,
+        ...(dependencies.length ? { dependencies } : {})
       })
     }
   return out

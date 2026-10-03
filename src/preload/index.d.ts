@@ -123,6 +123,14 @@ export interface GameCatalogData {
     gfx?: string | null
   }[]
   unitNames?: Record<string, { es?: string; en?: string }>
+  techFolders?: {
+    id: string
+    name: string
+    dlc?: string
+    active: boolean
+    replacedBy?: string
+    visible: boolean
+  }[]
   equipments?: string[]
   decisionIcons?: string[]
   technologies?: {

@@ -8,7 +8,9 @@ import { registerSectionScreen, type GroupNode, type TemplateCard } from '../sec
 import {
   createTech,
   deleteTech,
-  folderLabel,
+  folderApplies,
+  folderChoices,
+  folderName,
   newTech,
   techNode,
   textPatchRequests,
@@ -89,15 +91,22 @@ function IdList({
 
 function TechEditor({ project, t }: { project: Project; t: Technology }): JSX.Element {
   const game = useApp(() => store.catalogGame())
-  const folders = [
-    ...new Set((game?.technologies ?? []).map((g) => g.folder).filter(Boolean))
-  ] as string[]
   const all = [
     ...(game?.technologies ?? []).map((g) => g.id),
     ...(project.technologies ?? []).filter((x) => x.uid !== t.uid).map((x) => x.id)
   ]
   const patches = textPatchRequests(project, game).filter((r) => r.kind === 'tech')
+  const [showAll, setShowAll] = useState(false)
+  const choices = folderChoices(game, showAll)
   const notes: CardNote[] = [
+    ...(t.folder && !folderApplies(game, t.folder)
+      ? [
+          {
+            severity: 'aviso' as const,
+            text: 'Esta carpeta no se usa en tu juego (falta un DLC o la reemplaza otra): la tecnología no se vería.'
+          }
+        ]
+      : []),
     ...(project.techAdvanced
       ? []
       : [
@@ -130,15 +139,31 @@ function TechEditor({ project, t }: { project: Project; t: Technology }): JSX.El
       </Card>
       <Card title="Dónde va en el árbol">
         <Field label="Carpeta de investigación">
-          {folders.length ? (
-            <Select
-              value={t.folder}
-              options={[
-                { value: '', label: 'Elige una carpeta…' },
-                ...folders.map((f) => ({ value: f, label: folderLabel(f) }))
-              ]}
-              onChange={(v) => patchT(t.uid, { folder: v })}
-            />
+          {choices.length ? (
+            <>
+              <Select
+                value={t.folder}
+                options={[
+                  { value: '', label: 'Elige una carpeta…' },
+                  ...(t.folder && !choices.some((c) => c.id === t.folder)
+                    ? [{ value: t.folder, label: folderName(t.folder, game) }]
+                    : []),
+                  ...choices.map((c) => ({ value: c.id, label: c.label }))
+                ]}
+                onChange={(v) => patchT(t.uid, { folder: v })}
+              />
+              {game?.techFolders && (
+                <label className="mt-1 flex items-center gap-1 text-xs text-hoi-muted">
+                  <input
+                    type="checkbox"
+                    data-show-all-folders
+                    checked={showAll}
+                    onChange={(e) => setShowAll(e.target.checked)}
+                  />
+                  Mostrar todas
+                </label>
+              )}
+            </>
           ) : (
             <input
               className="input"
@@ -223,7 +248,8 @@ function TechPreview({ t }: { t: Technology }): JSX.Element {
   return (
     <div className="mx-auto w-full max-w-[320px]">
       <div className="mb-1 text-xs text-hoi-muted">
-        {t.folder ? folderLabel(t.folder) : 'Elige una carpeta'} · columna {t.x}, fila {t.y}
+        {t.folder ? folderName(t.folder, store.catalogGame()) : 'Elige una carpeta'} · columna {t.x}
+        , fila {t.y}
       </div>
       <div data-tech-preview className="w-40 rounded-sm border-2 border-[#8c7b4f] bg-[#232b36] p-2">
         <div className="flex h-12 items-center justify-center rounded-sm bg-black/30">
@@ -257,14 +283,18 @@ registerSectionScreen('tecnologias', {
     nameLabel: 'Nombre',
     namePlaceholder: 'Por ejemplo: Fusil mejorado',
     templates: cards,
-    create: ({ name }) => {
+    groupLabel: 'Carpeta de investigación',
+    groupOptional: true,
+    groups: () =>
+      folderChoices(store.catalogGame(), false).map((c) => ({ id: c.id, name: c.label })),
+    create: ({ name, groupId }) => {
       if (!store.get().project?.techAdvanced) {
         store.toast('Activa el Modo avanzado para crear tecnologías.')
         return null
       }
       let uid = ''
       store.updateProject((p) => {
-        const r = createTech(p, { name })
+        const r = createTech(p, { name, ...(groupId ? { folder: groupId } : {}) })
         uid = r.tech.uid
         return r.project
       })
@@ -276,7 +306,7 @@ registerSectionScreen('tecnologias', {
     for (const t of p.technologies ?? []) by.set(t.folder, [...(by.get(t.folder) ?? []), t])
     return [...by.entries()].map(([f, list]) => ({
       id: f || '_sin_carpeta',
-      title: f ? folderLabel(f) : 'Sin carpeta',
+      title: f ? folderName(f, store.catalogGame()) : 'Sin carpeta',
       items: list.map((t) => ({
         uid: t.uid,
         title: t.name,

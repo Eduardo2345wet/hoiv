@@ -79,6 +79,14 @@ export interface GameCatalog {
     gfx?: string | null
   }[]
   unitNames?: Record<string, { es?: string; en?: string }>
+  techFolders?: {
+    id: string
+    name: string
+    dlc?: string
+    active: boolean
+    replacedBy?: string
+    visible: boolean
+  }[]
   equipments?: string[]
   leaderTraits?: { id: string; slot?: string; type?: string }[]
   unitTraits?: { id: string; slot?: string; type?: string }[]

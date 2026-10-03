@@ -402,3 +402,32 @@ export function validateIdeologies(p: Project, game?: GameCatalog | null): TechI
   }
   return out
 }
+
+/** Nombre de una carpeta: el del juego si se pudo leer; si no, el de reserva */
+export function folderName(id: string, game?: GameCatalog | null): string {
+  const f = game?.techFolders?.find((x) => x.id === id)
+  return f ? f.name : folderLabel(id)
+}
+
+/** Carpetas para elegir: solo las que el juego usa de verdad, o todas con la etiqueta del DLC */
+export function folderChoices(
+  game: GameCatalog | null | undefined,
+  showAll: boolean
+): { id: string; label: string }[] {
+  const list = game?.techFolders
+  if (!list) {
+    const ids = [
+      ...new Set((game?.technologies ?? []).map((t) => t.folder).filter(Boolean))
+    ] as string[]
+    return ids.map((id) => ({ id, label: folderLabel(id) }))
+  }
+  return list
+    .filter((f) => showAll || f.visible)
+    .map((f) => ({ id: f.id, label: showAll && f.dlc ? `${f.name} · ${f.dlc}` : f.name }))
+}
+
+/** ¿La carpeta de una tecnología del proyecto aplica hoy (DLC instalado y sin reemplazo)? */
+export function folderApplies(game: GameCatalog | null | undefined, id: string): boolean {
+  const f = game?.techFolders?.find((x) => x.id === id)
+  return !f || f.visible
+}

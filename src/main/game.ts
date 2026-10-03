@@ -20,6 +20,7 @@ import {
   type UnitNames
 } from '../shared/gameUnits'
 import { decodeGameText } from '../shared/map/text'
+import { buildFolders, parseTechTags, type FolderInfo } from '../shared/techFolders'
 import { parseTraits, type GameTrait } from '../shared/gameTraits'
 
 export interface Settings {
@@ -166,6 +167,71 @@ function readUnitNames(gamePath: string, ids: string[]): Record<string, UnitName
   return out
 }
 
+/** Textos de claves concretas en la localización de un idioma (replace/ gana) */
+function readLocKeys(gamePath: string, lang: string, wanted: Set<string>): Map<string, string> {
+  const out = new Map<string, string>()
+  const files: string[] = []
+  const walkYml = (dir: string): void => {
+    try {
+      for (const it of fs.readdirSync(dir, { withFileTypes: true })) {
+        const full = path.join(dir, it.name)
+        if (it.isDirectory()) walkYml(full)
+        else if (it.name.endsWith('.yml')) files.push(full)
+      }
+    } catch {
+      // idioma ausente
+    }
+  }
+  walkYml(path.join(gamePath, 'localisation', lang))
+  const isReplace = (f: string): boolean => /[\\/]replace[\\/]/i.test(f)
+  for (const f of [...files.filter((x) => !isReplace(x)), ...files.filter(isReplace)])
+    try {
+      for (const [k, v] of parseUnitNames(
+        decodeGameText(new Uint8Array(fs.readFileSync(f))),
+        wanted
+      ))
+        out.set(k, v)
+    } catch {
+      // archivo ilegible
+    }
+  return out
+}
+
+/** Carpetas de investigación: nombre del juego en UN idioma, DLC y reemplazos */
+function readTechFolders(gamePath: string, techs: GameTech[]): FolderInfo[] {
+  const folders = [...new Set(techs.map((t) => t.folder).filter((f): f is string => !!f))]
+  const keysOf = (f: string): string[] => [f, f.replace(/_folder$/, ''), `${f}_name`, `${f}_title`]
+  const wanted = new Set(folders.flatMap(keysOf))
+  const pick = (m: Map<string, string>): Record<string, string> => {
+    const r: Record<string, string> = {}
+    for (const f of folders) {
+      const k = keysOf(f).find((x) => m.has(x))
+      if (k) r[f] = m.get(k)!
+    }
+    return r
+  }
+  const es = pick(readLocKeys(gamePath, 'spanish', wanted))
+  const en = pick(readLocKeys(gamePath, 'english', wanted))
+  // Todos en un mismo idioma: el español si cubre las carpetas; si no, el del juego
+  const names = Object.keys(es).length >= folders.length / 2 ? es : en
+  const conditions: Record<string, string> = {}
+  try {
+    const dir = path.join(gamePath, 'common', 'technology_tags')
+    for (const f of fs.readdirSync(dir))
+      if (f.endsWith('.txt'))
+        Object.assign(conditions, parseTechTags(fs.readFileSync(path.join(dir, f), 'utf-8')))
+  } catch {
+    // sin technology_tags: se usan los prefijos de DLC
+  }
+  let installedDlc: string[] = []
+  try {
+    installedDlc = fs.readdirSync(path.join(gamePath, 'dlc'))
+  } catch {
+    // sin DLC
+  }
+  return buildFolders({ folders, names, conditions, installedDlc })
+}
+
 /** Sprite GFX de cada batallón: el primer nombre habitual que exista en interface/*.gfx */
 function unitSprites(gamePath: string, units: GameSubUnit[]): GameSubUnit[] {
   let known: Map<string, string>
@@ -278,6 +344,8 @@ export interface GameCatalogResult {
   subUnits?: GameSubUnit[]
   /** Nombres de los batallones según la localización del juego (español e inglés) */
   unitNames?: Record<string, UnitNames>
+  /** Carpetas de investigación con nombre del juego, DLC y si se usan de verdad */
+  techFolders?: FolderInfo[]
   equipments?: string[]
   unitTraits?: GameTrait[]
   decisionCategoryIcons?: string[]
@@ -468,6 +536,7 @@ export function readGameCatalog(gamePath: string): GameCatalogResult | null {
     }
   }
   let technologies: GameTech[] | undefined
+  let techFolders: FolderInfo[] | undefined
   let autonomyStates: string[] | undefined
   try {
     const all = new Map<string, GameTech>()
@@ -478,6 +547,7 @@ export function readGameCatalog(gamePath: string): GameCatalogResult | null {
         ))
           all.set(t.id, { ...t, file: f })
     technologies = [...all.values()]
+    techFolders = readTechFolders(gamePath, technologies)
   } catch {
     // sin la carpeta: no hay lista de tecnologías
   }
@@ -578,6 +648,7 @@ export function readGameCatalog(gamePath: string): GameCatalogResult | null {
     ideologyFiles,
     subUnits,
     unitNames,
+    techFolders,
     equipments,
     buildingMax,
     stateCategories,
