@@ -24,6 +24,7 @@ import { decisionImagePaths, decisionImages } from '../sections/decisions'
 import { characterImagePaths, characterImages } from '../sections/characters'
 import { bookmarkImages } from '../sections/start'
 import { coverBytes, loadingImages } from '../sections/extras'
+import { ideologyImages } from '../sections/technologies'
 import { baseMod } from './statesExport'
 import { withTechnicalCapital } from '../map/noNation'
 import { withMovedCapitals } from '../map/capitals'
@@ -97,6 +98,10 @@ export async function buildExtraFiles(
       const img = await read(i.png, i.w, i.h)
       files.push({ path: i.path, data: writeDDS(img.width, img.height, img.rgba) })
     }
+    for (const i of ideologyImages(project)) {
+      const img = await read(i.png, i.w, i.h)
+      files.push({ path: i.path, data: writeDDS(img.width, img.height, img.rgba) })
+    }
     for (const i of loadingImages(project)) {
       const img = await read(i.png, i.w, i.h)
       files.push({ path: i.path, data: writeDDS(img.width, img.height, img.rgba) })
@@ -143,6 +148,7 @@ export function plannedPaths(project: Project, game: GameCatalog | null = null):
   paths.push(...characterImagePaths(project))
   paths.push(...bookmarkImages(project).map((i) => i.path))
   paths.push(...loadingImages(project).map((i) => i.path))
+  paths.push(...ideologyImages(project).map((i) => i.path))
   if (coverBytes(project)) paths.push('thumbnail.png')
   return paths
 }

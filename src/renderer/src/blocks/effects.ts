@@ -73,7 +73,8 @@ export const effectBlocks = [
     type: 'eff_activate_advisor',
     message0: 'Activar asesor %1',
     args0: [{ type: 'field_catalog', name: 'CHARACTER', kind: 'character', value: '' }],
-    tooltip: 'activate_advisor: el consejero ocupa su ranura. por verificar con effects_documentation',
+    tooltip:
+      'activate_advisor: el consejero ocupa su ranura. por verificar con effects_documentation',
     ...base
   },
   {
@@ -81,6 +82,43 @@ export const effectBlocks = [
     message0: 'Activar misión %1',
     args0: [{ type: 'field_catalog', name: 'MISSION', kind: 'decision', value: '' }],
     tooltip: 'Empieza el temporizador de una misión (activate_mission)',
+    ...base
+  },
+  {
+    type: 'eff_add_research_slot',
+    message0: 'Ranuras de investigación %1',
+    args0: [{ type: 'field_number', name: 'AMOUNT', value: 1 }],
+    tooltip: 'add_research_slot: suma (o resta con negativo) ranuras de investigación',
+    ...base
+  },
+  {
+    type: 'eff_add_tech_bonus',
+    message0: 'Bono de investigación %1 de %2 usos %3 para %4 %5',
+    args0: [
+      { type: 'field_input', name: 'NAME', text: 'mi_bono' },
+      { type: 'field_number', name: 'BONUS', value: 0.5, min: 0 },
+      { type: 'field_number', name: 'USES', value: 1, min: 1 },
+      {
+        type: 'field_dropdown',
+        name: 'KIND',
+        options: [
+          ['la categoría', 'category'],
+          ['la tecnología', 'technology']
+        ]
+      },
+      { type: 'field_input', name: 'TARGET', text: 'infantry_weapons' }
+    ],
+    tooltip: 'add_tech_bonus (por verificar con effects_documentation del juego)',
+    ...base
+  },
+  {
+    type: 'eff_set_technology',
+    message0: 'Dar la tecnología %1 nivel %2',
+    args0: [
+      { type: 'field_catalog', name: 'TECH', kind: 'technology', value: '' },
+      { type: 'field_number', name: 'LEVEL', value: 1, min: 0, max: 1 }
+    ],
+    tooltip: 'set_technology: la tecnología queda investigada',
     ...base
   },
   {

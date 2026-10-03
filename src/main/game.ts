@@ -8,6 +8,7 @@ import path from 'path'
 import { shineShape } from '../shared/shine'
 import { parseFocusFile } from '../shared/gameFocus'
 import { parseTechnologies, topLevelKeys, type GameTech } from '../shared/gameTech'
+import { readIdeologyGroups } from '../shared/textPatch'
 import { parseBuildings, parseStateCategories } from '../shared/gameBuildings'
 import { parseEquipments, parseSubUnits, type GameSubUnit } from '../shared/gameUnits'
 import { parseTraits, type GameTrait } from '../shared/gameTraits'
@@ -204,6 +205,8 @@ export interface GameCatalogResult {
   buildingMax?: Record<string, { max: number; provincial: boolean }>
   /** Categorías de estado (common/state_category) */
   stateCategories?: string[]
+  /** Archivos de common/ideologies con sus grupos y subideologías */
+  ideologyFiles?: { file: string; groups: { group: string; types: string[] }[] }[]
   /** Batallones de common/units y equipos de common/units/equipment */
   subUnits?: GameSubUnit[]
   equipments?: string[]
@@ -404,7 +407,7 @@ export function readGameCatalog(gamePath: string): GameCatalogResult | null {
         for (const t of parseTechnologies(
           fs.readFileSync(path.join(gamePath, 'common', 'technologies', f), 'utf-8')
         ))
-          all.set(t.id, t)
+          all.set(t.id, { ...t, file: f })
     technologies = [...all.values()]
   } catch {
     // sin la carpeta: no hay lista de tecnologías
@@ -445,6 +448,19 @@ export function readGameCatalog(gamePath: string): GameCatalogResult | null {
   } catch {
     // sin la carpeta: lista de reserva
   }
+  let ideologyFiles: { file: string; groups: { group: string; types: string[] }[] }[] | undefined
+  try {
+    const dir = path.join(gamePath, 'common', 'ideologies')
+    const list: NonNullable<typeof ideologyFiles> = []
+    for (const f of fs.readdirSync(dir))
+      if (f.endsWith('.txt')) {
+        const groups = readIdeologyGroups(fs.readFileSync(path.join(dir, f)).toString('latin1'))
+        if (groups.length) list.push({ file: f, groups })
+      }
+    if (list.length) ideologyFiles = list
+  } catch {
+    // sin la carpeta: no se pueden agregar subideologías
+  }
   let subUnits: GameSubUnit[] | undefined
   let equipments: string[] | undefined
   try {
@@ -471,6 +487,7 @@ export function readGameCatalog(gamePath: string): GameCatalogResult | null {
   const unitTraits = readTraits('unit_leader')
 
   const result: GameCatalogResult = {
+    ideologyFiles,
     subUnits,
     equipments,
     buildingMax,

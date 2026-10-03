@@ -595,3 +595,13 @@ Pestaña **Extras**:
 - **Importar un mod** (solo lectura): trae focos, eventos, decisiones y espíritus nacionales de la carpeta de otro mod con su localización en inglés. Lo que no se entiende se conserva como texto («Avanzado (texto)») y se exporta tal cual; los bloques de script importados se muestran como texto editable.
 
 Pendiente: portada de estaciones de radio propias, y el resto de idiomas en mods importados. Por verificar: forma de `chance`/`music_station` en `music/*.txt`, tamaño y nombre del `.gfx` de pantallas de carga (`LOADING_SIZE`), tamaño de la portada (`COVER_SIZE`).
+
+## Tecnologías e ideologías (S8)
+
+Pestaña **Tecnologías**, «lo seguro primero»:
+- **Subideologías** (siempre disponibles): se agregan dentro de uno de los 4 grupos del juego. Al exportar se parte del archivo REAL `common/ideologies/*.txt` de tu juego y un **parche mínimo** inserta solo el `type` en `types = { … }` (idempotente; nunca se escribe ese archivo sin partir del real), más su localización (nombre, descripción y nombre de partido de los países del mod) y un ícono opcional.
+- **Bloques nuevos de efecto**: «Ranuras de investigación» (`add_research_slot`), «Bono de investigación» (`add_tech_bonus`) y «Dar la tecnología» (`set_technology`).
+- **Modo avanzado** (interruptor en la pestaña): tecnologías nuevas DENTRO de carpetas existentes de la pantalla de investigación. Se escribe `common/technologies/<mod>_technologies.txt` y, si un prerrequisito es una tecnología del juego, un parche mínimo de su `path` en su archivo real. **Nunca se escribe `interface/countrytechtreeview.gui`**: la tecnología se ve porque el gridbox de su carpeta ya existe en el juego.
+- Validador: sin ciclos, referencias y carpetas existentes, ID que no pisa al juego, nombre (localización) obligatorio; un archivo parchado se vuelve a leer con jomini antes de exportarlo y los originales del juego jamás se modifican.
+
+Por verificar: forma exacta de `add_tech_bonus`, `research_cost_coeff = 1`, que una carpeta existente muestre tecnologías nuevas sin tocar el .gui, el sprite/tamaño del ícono de subideología y los nombres de partido (`<TAG>_<id>_party`) con un ejemplo real.

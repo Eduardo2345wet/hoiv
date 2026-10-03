@@ -258,20 +258,40 @@ export interface Oob {
   production: { equipment: string; factories: number }[]
 }
 
+/** Tecnología nueva dentro de una carpeta EXISTENTE de la pantalla de investigación (modo avanzado) */
 export interface Technology {
   uid: string
   id: string
+  name: string
+  description: string
+  /** Carpeta del juego (folder = { name = … }), ej. infantry_folder */
   folder: string
+  /** Posición en la cuadrícula de la carpeta */
+  x: number
+  y: number
+  /** research_cost */
   cost: number
+  /** start_year */
   year: number
+  /** Categorías (ej. infantry_weapons) */
+  categories: string[]
+  /** Qué desbloquea (tecnologías hijas): van en el path de ESTA tecnología */
   leadsTo: string[]
+  /** Quién la desbloquea (líneas): si es del juego, se parchea su path con parche mínimo */
+  prerequisites: string[]
 }
 
+/** Subideología nueva dentro de uno de los 4 grupos del juego */
 export interface IdeologyDef {
   uid: string
   group: 'democratic' | 'communism' | 'fascism' | 'neutrality'
   id: string
   name: string
+  description: string
+  /** Color opcional de la subideología (r g b) */
+  color: [number, number, number] | null
+  /** Ícono opcional (PNG en data URL) */
+  icon: string | null
 }
 
 export interface Bookmark {

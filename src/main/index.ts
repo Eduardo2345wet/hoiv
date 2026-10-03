@@ -1,4 +1,5 @@
 import { readModFolder } from './modReader'
+import { planTextPatches, type TextPatchRequest } from './textPatches'
 import { app, BrowserWindow, ipcMain, dialog, shell } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
@@ -305,6 +306,12 @@ app.whenReady().then(() => {
     'plan-capital-patches',
     async (_, gamePath: string, requests: CapitalPatchRequest[], mod: ModLayer | null) =>
       planCapitalPatches(gamePath, requests, mod)
+  )
+
+  ipcMain.handle(
+    'plan-text-patches',
+    async (_, gamePath: string, requests: TextPatchRequest[], mod: ModLayer | null) =>
+      planTextPatches(gamePath, requests, mod)
   )
 
   ipcMain.handle('export-mod', async (_, payload) => {

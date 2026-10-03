@@ -11,6 +11,8 @@ export interface GameTech {
   y?: number
   cost?: number
   year?: number
+  /** Archivo de common/technologies donde está definida */
+  file?: string
   /** Tecnologías que desbloquea (path = { leads_to_tech = … }) */
   leadsTo: string[]
 }

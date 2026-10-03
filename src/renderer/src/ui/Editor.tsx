@@ -24,6 +24,7 @@ import './SuperEventsScreen'
 import './DecisionsScreen'
 import './OobScreen'
 import './ExtrasScreen'
+import './TechnologiesScreen'
 import './CharactersScreen'
 import { sectionById } from '../sections/ui'
 import { autoLayout, dropFocus, repairTree } from '../focus/layout'
@@ -178,6 +179,7 @@ export default function Editor(): JSX.Element {
         gamePath,
         patchErrors: statePlan.current.errors,
         capitalErrors: statePlan.current.capitalErrors,
+        textPatchErrors: statePlan.current.textErrors,
         gameTags: game?.countries.map(([t]) => t)
       },
       { gameFiles }

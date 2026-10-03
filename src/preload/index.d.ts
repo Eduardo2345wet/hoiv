@@ -110,6 +110,7 @@ export interface GameCatalogData {
   eventPictures?: string[]
   buildingMax?: Record<string, { max: number; provincial: boolean }>
   stateCategories?: string[]
+  ideologyFiles?: { file: string; groups: { group: string; types: string[] }[] }[]
   subUnits?: { id: string; group: string }[]
   equipments?: string[]
   decisionIcons?: string[]
@@ -221,6 +222,22 @@ export interface ElectronAPI {
   ) => Promise<{
     files: { path: string; data: Uint8Array }[]
     errors: { file: string; id?: number; message: string }[]
+  }>
+  /** Parchea (sin escribir) archivos de tecnologías e ideologías del juego (parche mínimo) */
+  planTextPatches: (
+    gamePath: string,
+    requests: (
+      | { kind: 'tech'; file: string; links: { from: string; to: string }[] }
+      | {
+          kind: 'ideology'
+          file: string
+          adds: { group: string; id: string; lines?: string[] }[]
+        }
+    )[],
+    mod?: ModLayer | null
+  ) => Promise<{
+    files: { path: string; data: Uint8Array }[]
+    errors: { file: string; message: string }[]
   }>
   /** Parchea (sin escribir) la capital de history/countries de los países del juego que la perdieron */
   planCapitalPatches: (

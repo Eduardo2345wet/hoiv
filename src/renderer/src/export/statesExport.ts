@@ -7,6 +7,7 @@ import type { ModFile } from './exportMod'
 import type { GameCatalog } from '../catalog/catalog'
 import { propsOf } from '../map/stateProps'
 import type { StateProps } from '../../../shared/map/statePatch'
+import { planTextPatchExport } from './textPatchExport'
 import { planCapitalMoves, type CapitalMove } from '../map/capitals'
 
 export interface StatePatchRequest {
@@ -60,6 +61,8 @@ export interface StateExportPlan {
   moves?: CapitalMove[]
   /** Errores del parche de capitales: ese archivo no se exporta */
   capitalErrors?: { file: string; message: string }[]
+  /** Errores de los parches de tecnologías e ideologías (ese archivo no se exporta) */
+  textErrors?: { file: string; message: string }[]
 }
 
 /** Mod usado como base del mapa (o null) */
@@ -114,5 +117,8 @@ export async function planStateExport(
     files.push(...res.files.map((f) => ({ path: f.path, data: f.data })))
     capitalErrors.push(...res.errors)
   }
-  return { files, errors, moves, capitalErrors }
+  // Tecnologías e ideologías: parches mínimos de archivos del juego (si el proyecto los pide)
+  const text = await planTextPatchExport(project, gamePath, mod, game)
+  files.push(...text.files)
+  return { files, errors, moves, capitalErrors, textErrors: text.errors }
 }

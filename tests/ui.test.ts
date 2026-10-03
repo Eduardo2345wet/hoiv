@@ -1648,19 +1648,23 @@ describe('memoria del mapa (parte F)', () => {
 
 // ---------- Secciones nuevas: pestañas con estado vacío (B0) ----------
 describe('pestañas de secciones nuevas (B0)', () => {
-  it('cada pestaña muestra su estado vacío con el botón Crear (aún sin acción) y sin datos de ejemplo', async ({
+  it('Tecnologías: estado vacío, subideología desde el botón y Modo avanzado para tecnologías', async ({
     skip
   }) => {
     if (!browser) skip()
     const page = await fresh()
     await focusEditor(page)
-    for (const [tab, texto, crear] of [
-      ['Tecnologías', 'Aún no hay tecnologías', 'Crear tecnología']
-    ] as const) {
-      await page.locator(`button:text-is("${tab}")`).first().click()
-      await page.waitForSelector(`text=${texto}`)
-      expect(await page.locator(`button:has-text("${crear}")`).first().isDisabled()).toBe(true)
-    }
+    await page.evaluate(() => {
+      const st = (window as unknown as HoiWindow).__hoiStore as never as {
+        updateProject(f: (p: object) => object): void
+      }
+      st.updateProject((p) => ({ ...p, technologies: [], ideologies: [] }))
+    })
+    await page.locator('button:text-is("Tecnologías")').first().click()
+    await page.waitForSelector('text=Aún no hay subideologías')
+    expect(await page.locator('text=Modo avanzado').count()).toBeGreaterThan(0)
+    await page.locator('button:has-text("Crear subideología")').first().click()
+    await page.waitForSelector('text=Se inserta en types')
     await page.close()
   }, 60_000)
 })

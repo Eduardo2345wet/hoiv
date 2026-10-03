@@ -67,6 +67,7 @@ export default function SectionScreen({
                   {def.createLabel}
                 </button>
               )}
+              {screen?.renderHeader?.(project)}
               {screen?.templates?.map((t) => (
                 <button
                   key={t.id}

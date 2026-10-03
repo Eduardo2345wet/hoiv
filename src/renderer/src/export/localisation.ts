@@ -24,7 +24,7 @@ export function locValue(s: string): string {
 }
 
 export function langFolders(project: Project): string[] {
-  const codes = project.languages.map((l) => l.code)
+  const codes = (project.languages ?? []).map((l) => l.code)
   return codes.includes('english') ? codes : ['english', ...codes]
 }
 
@@ -41,7 +41,7 @@ export function localisationFiles(
     const body = keys
       .map((k) => {
         const t = entries[k]
-        const own = project.languages.find((l) => l.code === lang)?.strings?.[k]
+        const own = (project.languages ?? []).find((l) => l.code === lang)?.strings?.[k]
         const text = own ?? (typeof t === 'string' ? t : (t[lang] ?? t.english ?? ''))
         return ` ${k}:0 "${locValue(text)}"`
       })

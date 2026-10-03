@@ -112,7 +112,8 @@ export function buildMenu(kind: CatalogKind, current: string | null): Option[] {
       if (!opts.some((o) => o.id === id)) menu.push([`${id}  (juego)`, id])
   }
   menu.push(['──────────', SPECIAL.separator])
-  if (kind !== 'country' && kind !== 'state') menu.push(['+ Crear nuevo…', SPECIAL.create])
+  if (kind !== 'country' && kind !== 'state' && kind !== 'technology')
+    menu.push(['+ Crear nuevo…', SPECIAL.create])
   if (kind === 'idea') menu.push(['+ Crear a partir de uno del juego…', SPECIAL.createFromGame])
   menu.push(['Escribir otro ID…', SPECIAL.other])
   return menu

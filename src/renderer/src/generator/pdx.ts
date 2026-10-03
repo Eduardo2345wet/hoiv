@@ -95,6 +95,10 @@ g['eff_fire_event'] = (b) => {
 g['eff_recruit_character'] = (b) => `recruit_character = ${id(b, 'CHARACTER')}\n`
 g['eff_retire_character'] = (b) => `retire_character = ${id(b, 'CHARACTER')}\n`
 g['eff_activate_advisor'] = (b) => `activate_advisor = ${id(b, 'CHARACTER')}\n`
+g['eff_add_research_slot'] = (b) => `add_research_slot = ${f(b, 'AMOUNT')}\n`
+g['eff_add_tech_bonus'] = (b) =>
+  `add_tech_bonus = {\n\tname = ${cleanId(f(b, 'NAME'))}\n\tbonus = ${f(b, 'BONUS')}\n\tuses = ${f(b, 'USES')}\n\t${f(b, 'KIND')} = ${cleanId(f(b, 'TARGET'))}\n}\n`
+g['eff_set_technology'] = (b) => `set_technology = { ${id(b, 'TECH')} = ${f(b, 'LEVEL')} }\n`
 g['eff_activate_mission'] = (b) => `activate_mission = ${id(b, 'MISSION')}\n`
 g['eff_show_super_event'] = (b) => `${id(b, 'SUPER')}_show = yes\n`
 g['eff_set_country_flag'] = (b) => `set_country_flag = ${id(b, 'FLAG')}\n`

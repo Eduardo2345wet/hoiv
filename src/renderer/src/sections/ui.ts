@@ -79,8 +79,8 @@ export const SECTIONS: SectionDef[] = [
     id: 'tecnologias',
     label: 'Tecnologías',
     collection: 'technologies',
-    createLabel: 'Crear tecnología',
-    empty: 'Aún no hay tecnologías ni ideologías propias.',
+    createLabel: 'Crear subideología',
+    empty: 'Aún no hay subideologías ni tecnologías propias. Empieza con una subideología (lo seguro); las tecnologías nuevas están en el Modo avanzado.',
     groups: groups('Tecnología')
   },
   {
@@ -114,6 +114,8 @@ export interface SectionScreen {
   label?: (item: Record<string, unknown>) => string
   /** Lista del panel izquierdo si no es la colección principal (p. ej. categorías + decisiones) */
   items?: (project: Project) => Record<string, unknown>[]
+  /** Encabezado del panel izquierdo (por ejemplo un interruptor de modo avanzado) */
+  renderHeader?: (project: Project) => ReactNode
 }
 const screens = new Map<string, SectionScreen>()
 export function registerSectionScreen(id: SectionDef['id'], s: SectionScreen): void {

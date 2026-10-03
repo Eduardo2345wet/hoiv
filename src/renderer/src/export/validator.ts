@@ -14,6 +14,7 @@ import { validateCharacters } from '../sections/characters'
 import { validateStart } from '../sections/start'
 import { validateOob } from '../sections/oob'
 import { validateExtras } from '../sections/extras'
+import { validateIdeologies, validateTechnologies } from '../sections/technologies'
 import { validateDecisions } from '../sections/decisions'
 import { validateSuperEvents } from '../sections/superEvents'
 import { sectionFiles } from '../sections/generators'
@@ -87,6 +88,8 @@ export interface MapContext {
   patchErrors?: { file: string; id?: number; message: string }[]
   /** Errores del parche de capitales (history/countries) */
   capitalErrors?: { file: string; message: string }[]
+  /** Errores de los parches de tecnologías e ideologías (proceso principal) */
+  textPatchErrors?: { file: string; message: string }[]
   /** Contenido del juego (capitales originales); validateProject lo completa */
   game?: GameCatalog | null
 }
@@ -434,6 +437,19 @@ export function validateProject(
   // ---- Extras (música, pantallas de carga, idiomas) ----
   for (const i of validateExtras(project))
     issues.push({ severity: i.severity, kind: 'Extras', message: i.message })
+
+  // ---- Tecnologías e ideologías ----
+  for (const i of validateTechnologies(project, game))
+    issues.push({ severity: i.severity, kind: 'Tecnologías', message: i.message })
+  for (const i of validateIdeologies(project, game))
+    issues.push({ severity: i.severity, kind: 'Ideologías', message: i.message })
+
+  for (const e of mapCtx?.textPatchErrors ?? [])
+    issues.push({
+      severity: 'error',
+      kind: 'Tecnologías',
+      message: `No se puede exportar ${e.file}: ${e.message}`
+    })
 
   // ---- Seguridad de rutas: lista negra, carpetas permitidas y archivos del juego ----
   const regCtx = { gameFiles: opts.gameFiles }

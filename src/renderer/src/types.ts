@@ -277,6 +277,8 @@ export interface Project extends SectionData {
   modName: string
   /** Portada del mod (PNG cuadrado en data URL) → thumbnail.png */
   cover?: string | null
+  /** Modo avanzado de Tecnologías (tecnologías nuevas con parches mínimos del juego) */
+  techAdvanced?: boolean
   /** Tag con el que se creó el mod (compatibilidad); los países mandan */
   tag: string
   countries: Country[]

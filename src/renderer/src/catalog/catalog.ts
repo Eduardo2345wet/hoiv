@@ -4,7 +4,16 @@ import type { Project } from '../types'
 import { BUILTIN_COUNTRIES, BUILTIN_IDEAS } from './builtin'
 
 export type CatalogKind =
-  'focus' | 'idea' | 'countryFlag' | 'country' | 'state' | 'event' | 'superEvent' | 'decision' | 'character'
+  | 'focus'
+  | 'idea'
+  | 'countryFlag'
+  | 'country'
+  | 'state'
+  | 'event'
+  | 'superEvent'
+  | 'decision'
+  | 'technology'
+  | 'character'
 
 export interface CatalogOption {
   id: string
@@ -51,11 +60,13 @@ export interface GameCatalog {
     y?: number
     cost?: number
     year?: number
+    file?: string
     leadsTo: string[]
   }[]
   autonomyStates?: string[]
   buildingMax?: Record<string, { max: number; provincial: boolean }>
   stateCategories?: string[]
+  ideologyFiles?: { file: string; groups: { group: string; types: string[] }[] }[]
   subUnits?: { id: string; group: string }[]
   equipments?: string[]
   leaderTraits?: { id: string; slot?: string; type?: string }[]
@@ -118,6 +129,11 @@ export function getCatalogOptions(
       case 'character':
         for (const c of project.characters ?? [])
           mod.push({ id: c.id, etiqueta: c.name || c.id, origen: 'mod', uid: c.uid })
+        break
+      case 'technology':
+        for (const t of project.technologies ?? [])
+          mod.push({ id: t.id, etiqueta: t.name || t.id, origen: 'mod', uid: t.uid })
+        base = (game?.technologies ?? []).map((t): [string, string] => [t.id, t.id])
         break
       case 'decision':
         for (const d of project.decisions ?? [])
