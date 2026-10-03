@@ -151,21 +151,14 @@ export function parseUnitNames(text: string, ids: Set<string>): Map<string, stri
 // ---------------------------------------------------------------- íconos
 
 /**
- * por verificar con interface/*.gfx: el sprite del batallón. Se prueban varios nombres habituales
- * (GFX_unit_<sprite>_icon_strip, GFX_unit_<sprite>_icon…); el primero que exista gana.
+ * Sprite del batallón: confirmado en 1.19.3, GFX_unit_<sprite>_icon_medium (interface/subuniticons.gfx).
+ * Se dejan nombres de reserva por si algún mod usa otro.
  */
 export function unitSpriteCandidates(u: { id: string; sprite?: string }): string[] {
   const out: string[] = []
   for (const s of [u.sprite, u.id]) {
     if (!s) continue
-    for (const c of [
-      `GFX_unit_${s}_icon_strip`,
-      `GFX_unit_${s}_icon`,
-      `GFX_unit_${s}`,
-      `GFX_${s}_icon_strip`,
-      `GFX_${s}_icon`,
-      `GFX_${s}`
-    ])
+    for (const c of [`GFX_unit_${s}_icon_medium`, `GFX_unit_${s}_icon_strip`, `GFX_unit_${s}_icon`])
       if (!out.includes(c)) out.push(c)
   }
   return out

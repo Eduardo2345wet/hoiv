@@ -26,7 +26,14 @@ export function parseGfxSprites(text: string): GfxSprite[] {
     const tex = /\btexturefile\s*=\s*"([^"]+)"/i.exec(body)?.[1]
     if (!name || !tex) continue
     const frames = Number(/\bnoOfFrames\s*=\s*(\d+)/i.exec(body)?.[1] ?? 1) || 1
-    out.push({ name, texture: tex.replace(/\\/g, '/'), frames })
+    out.push({
+      name,
+      texture: tex
+        .replace(/\\/g, '/')
+        .replace(/\/{2,}/g, '/')
+        .replace(/^\//, ''),
+      frames
+    })
     re.lastIndex = i
   }
   return out

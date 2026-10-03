@@ -6,7 +6,11 @@
 
 const MAX_DEPTH = 5
 
-export function cleanLoc(raw: string, lookup: (key: string) => string | undefined, depth = 0): string {
+export function cleanLoc(
+  raw: string,
+  lookup: (key: string) => string | undefined,
+  depth = 0
+): string {
   let s = raw
   // $CLAVE$ → texto de la clave
   s = s.replace(/\$([A-Za-z0-9_.\-']+)(?:\|[^$]*)?\$/g, (_, k: string) => {

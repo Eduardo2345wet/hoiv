@@ -702,8 +702,9 @@ registerSectionScreen('ejercito', {
       return templateUid(groupId, index)
     }
   },
-  groups: (p): GroupNode[] =>
-    (p.oobs ?? []).map((o) => ({
+  groups: (p): GroupNode[] => {
+    const all = new Map(landUnits(store.catalogGame()).map((u) => [u.id, u]))
+    return (p.oobs ?? []).map((o) => ({
       id: o.country,
       title: nameOfTag(o.country),
       selectUid: o.country,
@@ -712,7 +713,8 @@ registerSectionScreen('ejercito', {
           uid: templateUid(o.country, i),
           heading: i === 0 ? 'Plantillas' : undefined,
           title: t.name,
-          subtitle: `${t.regiments.length} batallones · ${t.support.length} de apoyo`
+          subtitle: `${t.regiments.length} batallones · ${t.support.length} de apoyo`,
+          thumb: <UnitIcon unit={all.get(t.regiments[0]?.type) ?? null} h={20} />
         })),
         ...o.divisions.map((d, i) => ({
           uid: divisionUid(o.country, d.uid),
@@ -721,7 +723,8 @@ registerSectionScreen('ejercito', {
           subtitle: `${d.template} · provincia ${d.province}`
         }))
       ]
-    })),
+    }))
+  },
   duplicate: (uid) => {
     const s = parseSel(uid)
     if (!s) return null

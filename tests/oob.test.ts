@@ -34,6 +34,8 @@ import {
   unitSpriteCandidates
 } from '../src/shared/gameUnits'
 import { readGameCatalog } from '../src/main/game'
+import { spriteThumb } from '../src/main/gameSprites'
+import { decodeDds, thumbnail } from '../src/shared/dds'
 import type { Project } from '../src/renderer/src/types'
 
 const map = generateDemoMap()
@@ -259,8 +261,8 @@ describe('Ejército: solo unidades terrestres, nombres e íconos del juego', () 
     w(
       'interface/units.gfx',
       `spriteTypes = {
-  spriteType = { name = "GFX_unit_infantry_icon_strip" texturefile = "gfx/interface/units/infantry.dds" noOfFrames = 2 }
-  spriteType = { name = "GFX_unit_engineer_icon" texturefile = "gfx/interface/units/engineer.dds" }
+  spriteType = { name = "GFX_unit_infantry_icon_medium" texturefile = "gfx/interface/units/infantry.dds" noOfFrames = 2 }
+  spriteType = { name = "GFX_unit_engineer_icon_medium" texturefile = "gfx/interface/units/engineer.dds" }
 }`
     )
     // El archivo del juego trae BOM; el español gana sobre el inglés
@@ -296,8 +298,8 @@ describe('Ejército: solo unidades terrestres, nombres e íconos del juego', () 
   it('el catálogo trae nombres (español antes que inglés) y el sprite de cada batallón', () => {
     const cat = readGameCatalog(gameDir())!
     const u = Object.fromEntries(cat.subUnits!.map((x) => [x.id, x]))
-    expect(u.infantry.gfx).toBe('GFX_unit_infantry_icon_strip')
-    expect(u.engineer.gfx).toBe('GFX_unit_engineer_icon')
+    expect(u.infantry.gfx).toBe('GFX_unit_infantry_icon_medium')
+    expect(u.engineer.gfx).toBe('GFX_unit_engineer_icon_medium')
     expect(u.motorized.gfx ?? null).toBeNull()
     expect(cat.unitNames!.infantry).toEqual({ es: 'Infantería', en: 'Infantry' })
     expect(cat.unitNames!.engineer).toEqual({ en: 'Engineer' })
@@ -350,7 +352,7 @@ describe('Ejército: solo unidades terrestres, nombres e íconos del juego', () 
       ['engineer', 'Engineer']
     ])
     expect(unitSpriteCandidates({ id: 'infantry', sprite: 'infantry' })[0]).toBe(
-      'GFX_unit_infantry_icon_strip'
+      'GFX_unit_infantry_icon_medium'
     )
   })
 
@@ -369,5 +371,96 @@ describe('Ejército: solo unidades terrestres, nombres e íconos del juego', () 
     const armor = templateFromPreset(o, 'armor', 'Bl', cat)
     // medium_armor no existe en ese juego: no se agrega
     expect(armor.regiments.some((r) => r.type === 'medium_armor')).toBe(false)
+  })
+})
+
+describe('íconos reales de los batallones (subuniticons.gfx)', () => {
+  const cc = (t: string): number =>
+    t.charCodeAt(0) | (t.charCodeAt(1) << 8) | (t.charCodeAt(2) << 16) | (t.charCodeAt(3) << 24)
+  /** DDS sin FourCC con máscaras BGRA de 32 bits; mitad izquierda roja, derecha azul */
+  const raw = (w: number, h: number): Buffer => {
+    const b = Buffer.alloc(128 + w * h * 4)
+    b.writeUInt32LE(0x20534444, 0)
+    b.writeUInt32LE(h, 12)
+    b.writeUInt32LE(w, 16)
+    b.writeUInt32LE(32, 76)
+    b.writeUInt32LE(0x41, 80) // RGB + alfa, sin FourCC
+    b.writeUInt32LE(32, 88)
+    b.writeUInt32LE(0xff0000, 92)
+    b.writeUInt32LE(0xff00, 96)
+    b.writeUInt32LE(0xff, 100)
+    b.writeUInt32LE(0xff000000, 104)
+    for (let y = 0; y < h; y++)
+      for (let x = 0; x < w; x++) {
+        const o = 128 + (y * w + x) * 4
+        if (x < w / 2) b[o + 2] = 255
+        else b[o] = 255
+        b[o + 3] = 255
+      }
+    return b
+  }
+  const bc7 = (): Buffer => {
+    const b = Buffer.alloc(128 + 64)
+    b.writeUInt32LE(0x20534444, 0)
+    b.writeUInt32LE(8, 12)
+    b.writeUInt32LE(8, 16)
+    b.writeUInt32LE(4, 80)
+    b.writeUInt32LE(cc('DX10'), 84)
+    return b
+  }
+  const mk = (): string => {
+    const g = fs.mkdtempSync(path.join(os.tmpdir(), 'hoi-unit-ico-'))
+    const w = (rel: string, data: Buffer | string): void => {
+      fs.mkdirSync(path.dirname(path.join(g, rel)), { recursive: true })
+      fs.writeFileSync(path.join(g, rel), data)
+    }
+    w('common/country_tags/00.txt', 'GER = "countries/Germany.txt"\n')
+    w(
+      'common/units/a.txt',
+      `sub_units = {
+  infantry = { sprite = infantry group = infantry }
+  amphibious_armor = { sprite = amphibious_armor group = armor }
+  odd = { sprite = odd group = armor }
+}`
+    )
+    w(
+      'interface/subuniticons.gfx',
+      `spriteTypes = {
+  spriteType = { name = "GFX_unit_infantry_icon_medium" textureFile = "gfx//interface//counters/Divisions_Large/unit_infantry_icon.dds" noOfFrames = 2 }
+  spriteType = { name = "GFX_unit_amphibious_armor_icon_medium" textureFile = "gfx/interface/counters/divisions_large/unit_amphibious_tank_icon.dds" noOfFrames = 2 }
+  spriteType = { name = "GFX_unit_odd_icon_medium" textureFile = "gfx/interface/counters/divisions_large/odd.dds" noOfFrames = 2 }
+}`
+    )
+    w('gfx/interface/counters/divisions_large/unit_infantry_icon.dds', raw(16, 8))
+    w('gfx/interface/counters/divisions_large/unit_amphibious_tank_icon.dds', raw(16, 8))
+    w('gfx/interface/counters/divisions_large/odd.dds', bc7())
+    return g
+  }
+
+  it('resuelve GFX_unit_<sprite>_icon_medium con la ruta del .gfx, aunque el archivo tenga otro nombre', () => {
+    const cat = readGameCatalog(mk())!
+    const u = Object.fromEntries(cat.subUnits!.map((x) => [x.id, x.gfx]))
+    expect(u.infantry).toBe('GFX_unit_infantry_icon_medium')
+    expect(u.amphibious_armor).toBe('GFX_unit_amphibious_armor_icon_medium')
+  })
+
+  it('la miniatura recorta el primer cuadro, normaliza "//" y mayúsculas, y un formato no soportado da null', () => {
+    const g = mk()
+    const cache = fs.mkdtempSync(path.join(os.tmpdir(), 'hoi-cache-'))
+    const a = spriteThumb(g, cache, 'GFX_unit_infantry_icon_medium')!
+    // el primer cuadro (mitad izquierda) es rojo: el PNG no es del color azul de la derecha
+    expect(a).toMatch(/^data:image\/png;base64,/)
+    expect(spriteThumb(g, cache, 'GFX_unit_amphibious_armor_icon_medium')).toMatch(/^data:image/)
+    expect(spriteThumb(g, cache, 'GFX_unit_odd_icon_medium')).toBeNull()
+  })
+
+  it('el decodificador sin FourCC lee las máscaras y el primer cuadro es el izquierdo', () => {
+    const r = decodeDds(new Uint8Array(raw(16, 8)))
+    expect(r.ok).toBe(true)
+    if (!r.ok) return
+    const t = thumbnail(r.image, 8, 2)
+    expect(t.width).toBe(8)
+    expect([...t.rgba.slice(0, 4)]).toEqual([255, 0, 0, 255])
+    expect(decodeDds(new Uint8Array(bc7())).ok).toBe(false)
   })
 })

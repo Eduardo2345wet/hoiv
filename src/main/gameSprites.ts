@@ -69,7 +69,7 @@ export function textureSize(gamePath: string, kind: SpriteKind): { w: number; h:
     const sp = idx.sprites.get(name)
     if (!sp) continue
     for (const r of idx.roots) {
-      const file = path.join(r, ...sp.texture.split('/'))
+      const file = resolveTexture(r, sp.texture) ?? path.join(r, ...sp.texture.split('/'))
       try {
         const fd = fs.openSync(file, 'r')
         const buf = Buffer.alloc(32)
@@ -93,6 +93,27 @@ export const forgetSpriteIndex = (gamePath: string): void => void indexes.delete
 /** Nombres (con prefijo GFX_) de los sprites que se ofrecen como ícono, ordenados */
 export function listSprites(gamePath: string, kind: SpriteKind): string[] {
   return [...spriteIndex(gamePath).sprites.keys()].filter((n) => isPickable(n, kind)).sort()
+}
+
+/** Archivo de una textura con rutas normalizadas y sin distinguir mayúsculas (Windows) */
+export function resolveTexture(root: string, texture: string): string | null {
+  let cur = root
+  for (const part of texture.split('/').filter(Boolean)) {
+    const direct = path.join(cur, part)
+    if (fs.existsSync(direct)) {
+      cur = direct
+      continue
+    }
+    let hit: string | undefined
+    try {
+      hit = fs.readdirSync(cur).find((n) => n.toLowerCase() === part.toLowerCase())
+    } catch {
+      return null
+    }
+    if (!hit) return null
+    cur = path.join(cur, hit)
+  }
+  return fs.existsSync(cur) ? cur : null
 }
 
 const dirFor = (cacheDir: string, gamePath: string): string =>
@@ -119,8 +140,8 @@ export function spriteThumb(gamePath: string, cacheDir: string, name: string): s
   let result: Buffer | null = null
   if (sp) {
     for (const r of idx.roots) {
-      const file = path.join(r, ...sp.texture.split('/'))
-      if (!fs.existsSync(file) || !/\.dds$/i.test(file)) continue
+      const file = resolveTexture(r, sp.texture)
+      if (!file || !/\.dds$/i.test(file)) continue
       try {
         const dds = decodeDds(new Uint8Array(fs.readFileSync(file)))
         if (dds.ok) {
