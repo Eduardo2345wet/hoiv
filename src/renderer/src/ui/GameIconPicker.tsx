@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useApp } from '../store/appStore'
 import { loadSprites } from '../catalog/gameSprites'
 import { fold } from '../catalog/gameIdeas'
-import { GOAL_PREFIX, IDEA_PREFIX } from '../../../shared/gfxSprites'
+import { prefixOf } from '../../../shared/gfxSprites'
 import GameSprite from './GameSprite'
 import Modal from './Modal'
 import { FOCUS_ICONS } from './icons'
@@ -19,14 +19,14 @@ export default function GameIconPicker({
   onPick,
   onClose
 }: {
-  kind: 'idea' | 'goal'
+  kind: 'idea' | 'goal' | 'event'
   /** Sprite elegido ahora (con prefijo) */
   current: string | null
   onPick: (sprite: string) => void
   onClose: () => void
 }): JSX.Element {
   const gamePath = useApp((s) => s.gamePath)
-  const prefix = kind === 'idea' ? IDEA_PREFIX : GOAL_PREFIX
+  const prefix = prefixOf(kind)
   const [names, setNames] = useState<string[] | null>(null)
   const [query, setQuery] = useState('')
   const [scroll, setScroll] = useState(0)
@@ -53,7 +53,13 @@ export default function GameIconPicker({
   const visible = list.slice(first * cols, last * cols)
   return (
     <Modal
-      title={kind === 'idea' ? 'Íconos de espíritus del juego' : 'Íconos de focos del juego'}
+      title={
+        kind === 'idea'
+          ? 'Íconos de espíritus del juego'
+          : kind === 'goal'
+            ? 'Íconos de focos del juego'
+            : 'Imágenes de eventos del juego'
+      }
       width={GRID_W + 40}
       onClose={onClose}
       footer={

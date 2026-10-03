@@ -1680,12 +1680,9 @@ describe('pestañas de secciones nuevas (B0)', () => {
 })
 
 // ---------- Eventos (S1) ----------
-describe('eventos (S1)', () => {
-  it('crear un evento desde la pestaña, editarlo y ver su script y la cadena', async ({ skip }) => {
-    if (!browser) skip()
-    const page = await fresh()
+describe('eventos (rediseño)', () => {
+  const prep = async (page: Page): Promise<void> => {
     await focusEditor(page)
-    // El proyecto de prueba es de formato viejo: se le agregan las colecciones de las secciones
     await page.evaluate(() => {
       const st = (window as unknown as HoiWindow).__hoiStore as never as {
         updateProject(f: (p: object) => object): void
@@ -1694,6 +1691,7 @@ describe('eventos (S1)', () => {
         ...p,
         countries: [],
         events: [],
+        eventGroups: [],
         superEvents: [],
         decisionCategories: [],
         decisions: [],
@@ -1708,18 +1706,105 @@ describe('eventos (S1)', () => {
         languages: [{ code: 'english' }]
       }))
     })
+  }
+
+  it('estado vacío con galería; crear pide grupo (nuevo en la misma ventana) y nunca un ID', async ({
+    skip
+  }) => {
+    if (!browser) skip()
+    const page = await fresh()
+    await prep(page)
     await page.locator('button:text-is("Eventos")').first().click()
-    await page.waitForSelector('text=Aún no hay eventos')
-    await page.locator('button:has-text("Crear evento")').first().click()
-    await page.waitForSelector('text=General')
-    await page.locator('button[role="tab"]:text-is("Texto")').click()
-    await page.locator('label:text-is("Título") + input').fill('Mi evento')
-    await page.waitForSelector('text=country_event = {')
-    expect(await page.locator('pre').first().textContent()).toContain('id = capas.1')
-    // la lista muestra el evento y la cadena abre
-    expect(await page.locator('[data-item]:has-text("Mi evento")').count()).toBeGreaterThan(0)
-    await page.locator('button:has-text("Cadena de eventos")').first().click()
+    await page.waitForSelector('[data-empty]')
+    // galería de plantillas con nombre y una frase, sin enlaces "+ …"
+    expect(await page.locator('[data-empty] [data-template]').count()).toBeGreaterThanOrEqual(3)
+    await page.locator('[data-empty] [data-template="noticias"]').click()
+    await page.waitForSelector('input[data-new-name]')
+    // la ventana nunca pide un ID (ninguna etiqueta de campo empieza por ID)
+    const idLabels = await page.evaluate(() => {
+      const dlg = document.querySelector('input[data-new-name]')!.closest('.shadow-2xl') ?? document.body
+      return [...dlg.querySelectorAll('label')].filter((l) => /^ID\b/.test(l.textContent ?? '')).length
+    })
+    expect(idLabels).toBe(0)
+    await page.fill('input[data-new-name]', 'Gran titular')
+    // sin grupos aún: se crea uno ahí mismo
+    await page.fill('input[data-new-group-name]', 'Guerra civil de México')
+    await page.locator('button:text-is("Crear")').click()
+    await page.waitForSelector('[data-event-editor]')
+    // la lista muestra el grupo plegable y el evento con su TÍTULO
+    expect(
+      await page.locator('[data-group] >> text=Guerra civil de México').count()
+    ).toBeGreaterThan(0)
+    expect(await page.locator('[data-item]:has-text("Gran titular")').count()).toBe(1)
+    // el namespace se generó solo y está en Opciones avanzadas
+    const ns = await page.evaluate(
+      () => (window as unknown as HoiWindow).__hoiStore.get().project!.events[0].namespace
+    )
+    expect(ns).toBe('guerra_civil_de_mexico')
+    await page.close()
+  }, 60_000)
+
+  it('la vista previa cambia en vivo (título, texto, opciones) y según el tipo; Ver código plegado', async ({
+    skip
+  }) => {
+    if (!browser) skip()
+    const page = await fresh()
+    await prep(page)
+    await page.locator('button:text-is("Eventos")').first().click()
+    await page.locator('[data-empty] [data-template="pais"]').click()
+    await page.fill('input[data-new-name]', 'Primero')
+    await page.fill('input[data-new-group-name]', 'Grupo A')
+    await page.locator('button:text-is("Crear")').click()
+    await page.waitForSelector('[data-event-preview="country"]')
+    await page.fill('[data-ev-title]', 'Nuevo título')
+    await page.fill('[data-ev-text]', 'Línea uno\nLínea dos')
+    expect(await page.locator('[data-preview-title]').textContent()).toBe('Nuevo título')
+    expect(await page.locator('[data-preview-text]').textContent()).toContain('Línea dos')
+    expect(await page.locator('[data-preview-option]').count()).toBe(1)
+    await page.locator('button:text-is("Añadir opción")').click()
+    expect(await page.locator('[data-preview-option]').count()).toBe(2)
+    // cambiar a noticia cambia el estilo de la ventana
+    await page.locator('[data-event-editor] [data-template="news_event"]').click()
+    await page.waitForSelector('[data-event-preview="news"]')
+    // «Ver código» está plegado por defecto
+    expect(
+      await page.locator('[data-code-view]').evaluate((d) => (d as HTMLDetailsElement).open)
+    ).toBe(false)
+    expect(await page.locator('[data-code-view] pre').isVisible()).toBe(false)
+    // la cadena se abre desde el grupo
+    await page.locator('[data-group="grupo_a"] button:has-text("Grupo A")').click()
+    await page.waitForSelector('[data-group-editor]')
+    await page.locator('button:has-text("Ver la cadena de eventos")').click()
     await page.waitForSelector('text=Volver al editor')
+    await page.close()
+  }, 60_000)
+
+  it('la ayuda "?" aparece al pasar el mouse, se cierra al quitarlo y con Esc', async ({
+    skip
+  }) => {
+    if (!browser) skip()
+    const page = await fresh()
+    await prep(page)
+    await page.locator('button:text-is("Eventos")').first().click()
+    await page.locator('[data-empty] [data-template="pais"]').click()
+    await page.fill('input[data-new-name]', 'Algo')
+    await page.fill('input[data-new-group-name]', 'G')
+    await page.locator('button:text-is("Crear")').click()
+    await page.waitForSelector('[data-event-editor]')
+    const help = page.locator('[data-help="evento.unaVez"]')
+    await help.hover()
+    await page.waitForSelector('[role="tooltip"]')
+    expect(await page.locator('[role="tooltip"]').textContent()).toContain('no vuelve a aparecer')
+    await page.mouse.move(5, 5)
+    await page.waitForFunction(() => !document.querySelector('[role="tooltip"]'))
+    await help.hover()
+    await page.waitForSelector('[role="tooltip"]')
+    await page.keyboard.press('Escape')
+    await page.waitForFunction(() => !document.querySelector('[role="tooltip"]'))
+    // campos obvios no llevan ayuda
+    expect(
+      await page.locator('[data-event-editor] label:has-text("Título") [data-help]').count()
+    ).toBe(0)
     await page.close()
   }, 60_000)
 })

@@ -36,8 +36,11 @@ export function parseGfxSprites(text: string): GfxSprite[] {
 export const IDEA_PREFIX = 'GFX_idea_'
 /** Sprite de ícono de foco (GFX_goal_<nombre>) */
 export const GOAL_PREFIX = 'GFX_goal_'
-export type SpriteKind = 'idea' | 'goal'
-export const prefixOf = (k: SpriteKind): string => (k === 'idea' ? IDEA_PREFIX : GOAL_PREFIX)
+/** Imagen de evento (GFX_report_event_<nombre>) */
+export const EVENT_PREFIX = 'GFX_report_event_'
+export type SpriteKind = 'idea' | 'goal' | 'event'
+export const prefixOf = (k: SpriteKind): string =>
+  k === 'idea' ? IDEA_PREFIX : k === 'goal' ? GOAL_PREFIX : EVENT_PREFIX
 
 /** ¿Es un sprite que se ofrece como ícono? (se descartan variantes de brillo y fondos) */
 export function isPickable(name: string, kind: SpriteKind): boolean {

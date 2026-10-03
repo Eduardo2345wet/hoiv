@@ -54,7 +54,7 @@ export function useSpriteThumb(name: string | null): string | null | undefined {
 }
 
 /** Sprites que existen en el juego (con prefijo); se piden una sola vez por carpeta y tipo */
-export function loadSprites(gamePath: string | null, kind: 'idea' | 'goal'): Promise<string[]> {
+export function loadSprites(gamePath: string | null, kind: 'idea' | 'goal' | 'event'): Promise<string[]> {
   if (!gamePath || typeof window === 'undefined' || !window.electronAPI?.listGameSprites)
     return Promise.resolve([])
   const key = `${gamePath}|${kind}`

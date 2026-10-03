@@ -1,6 +1,7 @@
 // Componentes comunes de las secciones nuevas (tokens: tema oscuro, acento #e8913a).
 import { useState, type ReactNode } from 'react'
 import { AlertTriangle, ChevronDown, ChevronRight, Info } from 'lucide-react'
+import Help from '../Help'
 
 export function Button({
   children,
@@ -57,17 +58,23 @@ export function IconButton({
 export function Field({
   label,
   help,
+  helpId,
   error,
   children
 }: {
   label: string
   help?: string
+  /** Ayuda "?" con globo (solo para conceptos que un principiante no entiende) */
+  helpId?: string
   error?: string | null
   children: ReactNode
 }): JSX.Element {
   return (
     <div className="mb-3">
-      <label className="label">{label}</label>
+      <label className="label">
+        {label}
+        {helpId && <Help id={helpId} />}
+      </label>
       {children}
       {help && !error && <p className="mt-1 text-xs text-hoi-muted">{help}</p>}
       {error && <p className="mt-1 text-xs text-red-400">{error}</p>}

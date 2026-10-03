@@ -129,6 +129,8 @@ export interface NewSpec {
   templates: TemplateCard[]
   /** Si se da, la ventana pide un grupo (existente o nuevo) */
   groupLabel?: string
+  /** Ayuda "?" junto al nombre del grupo */
+  groupHelp?: string
   groups?: (p: Project) => { id: string; name: string }[]
   /** ¿Esta plantilla necesita grupo? (por omisión sí, cuando hay groupLabel) */
   needsGroup?: (template: string) => boolean

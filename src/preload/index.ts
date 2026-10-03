@@ -21,11 +21,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getMemory: () => ipcRenderer.invoke('get-memory'),
   cacheInfo: () => ipcRenderer.invoke('cache-info'),
   clearCache: () => ipcRenderer.invoke('clear-cache'),
-  listGameSprites: (gamePath: string, kind: 'idea' | 'goal') =>
+  listGameSprites: (gamePath: string, kind: 'idea' | 'goal' | 'event') =>
     ipcRenderer.invoke('list-game-sprites', gamePath, kind),
   getSpriteThumbs: (gamePath: string, names: string[]) =>
     ipcRenderer.invoke('get-sprite-thumbs', gamePath, names),
-  prewarmSprites: (gamePath: string, kind: 'idea' | 'goal') =>
+  prewarmSprites: (gamePath: string, kind: 'idea' | 'goal' | 'event') =>
     ipcRenderer.invoke('prewarm-sprites', gamePath, kind),
   readModFolder: (folder: string) => ipcRenderer.invoke('read-mod-folder', folder),
   listGameFiles: (gamePath: string) => ipcRenderer.invoke('list-game-files', gamePath),

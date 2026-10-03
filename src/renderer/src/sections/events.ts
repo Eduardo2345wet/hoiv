@@ -88,13 +88,25 @@ export const deleteEvent = (p: Project, uid: string): Project => ({
 })
 
 /** Plantillas de partida (no son datos de ejemplo: solo se crean cuando el usuario las pide) */
-export type EventTemplate = 'noticias' | 'oculto' | 'eleccion'
-export const EVENT_TEMPLATES: { id: EventTemplate; label: string }[] = [
-  { id: 'noticias', label: 'Evento de noticias mundial' },
-  { id: 'oculto', label: 'Evento oculto con retraso' },
-  { id: 'eleccion', label: 'Elección con 2 caminos' }
+export type EventTemplate = 'pais' | 'noticias' | 'oculto' | 'eleccion'
+export const EVENT_TEMPLATES: { id: EventTemplate; label: string; description: string }[] = [
+  { id: 'pais', label: 'Evento de país', description: 'Una ventana con imagen, texto y opciones para el jugador.' },
+  { id: 'noticias', label: 'Noticia mundial', description: 'Un titular que ven todos los jugadores.' },
+  { id: 'eleccion', label: 'Elección con dos caminos', description: 'Dos opciones que llevan a consecuencias distintas.' },
+  { id: 'oculto', label: 'Evento oculto', description: 'No muestra ventana: ejecuta efectos en silencio.' }
 ]
-export function eventFromTemplate(p: Project, t: EventTemplate): GameEvent {
+export function eventFromTemplate(
+  p: Project,
+  t: EventTemplate,
+  over: Partial<GameEvent> = {}
+): GameEvent {
+  const e = eventFromTemplateBase(p, t, over)
+  return { ...e, ...over, uid: e.uid }
+}
+function eventFromTemplateBase(p: Project, t: EventTemplate, over: Partial<GameEvent>): GameEvent {
+  // El grupo (namespace) elegido manda para numerar el evento sin repetir
+  const ns = over.namespace
+  const mkEvent = (o: Partial<GameEvent>): GameEvent => newEvent(p, ns ? { ...o, namespace: ns } : o)
   const opt = (name: string): GameEvent['options'][number] => ({
     uid: newUid(),
     name,
@@ -103,7 +115,7 @@ export function eventFromTemplate(p: Project, t: EventTemplate): GameEvent {
     aiBase: 1
   })
   if (t === 'noticias')
-    return newEvent(p, {
+    return mkEvent({
       type: 'news_event',
       title: 'Titular',
       description: 'Texto de la noticia.',
@@ -116,8 +128,14 @@ export function eventFromTemplate(p: Project, t: EventTemplate): GameEvent {
       },
       options: [opt('Entendido')]
     })
+  if (t === 'pais')
+    return mkEvent({
+      title: 'Nuevo evento',
+      description: 'Cuenta qué está pasando.',
+      options: [opt('Entendido')]
+    })
   if (t === 'oculto')
-    return newEvent(p, {
+    return mkEvent({
       flags: {
         triggeredOnly: true,
         fireOnlyOnce: false,
@@ -127,12 +145,67 @@ export function eventFromTemplate(p: Project, t: EventTemplate): GameEvent {
       },
       options: [opt('')]
     })
-  return newEvent(p, {
+  return mkEvent({
     title: 'Una decisión',
     description: 'Elige un camino.',
     options: [opt('Camino A'), opt('Camino B')]
   })
 }
+
+// ---------------------------------------------------------------- grupos de eventos
+
+const fold = (s: string): string => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+const prettyNs = (ns: string): string => {
+  const t = ns.replace(/_/g, ' ')
+  return t.charAt(0).toUpperCase() + t.slice(1)
+}
+
+/** Grupos de eventos: los guardados + los namespaces que ya usan eventos (proyectos viejos) */
+export function eventGroupList(p: Project): { uid: string; namespace: string; name: string }[] {
+  const out = (p.eventGroups ?? []).map((g) => ({ ...g }))
+  for (const e of p.events ?? [])
+    if (!out.some((g) => g.namespace === e.namespace))
+      out.push({ uid: `ns:${e.namespace}`, namespace: e.namespace, name: prettyNs(e.namespace) })
+  return out
+}
+export const eventGroupName = (p: Project, ns: string): string =>
+  eventGroupList(p).find((g) => g.namespace === ns)?.name ?? prettyNs(ns)
+
+/** Namespace válido y único a partir del nombre del grupo (el usuario nunca lo escribe) */
+export function namespaceFromName(p: Project, name: string): string {
+  let base = fold(name)
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '')
+    .slice(0, 28)
+  if (!base) base = 'eventos'
+  if (!/^[a-z]/.test(base)) base = `e_${base}`
+  const taken = new Set(eventGroupList(p).map((g) => g.namespace))
+  let ns = base
+  for (let n = 2; taken.has(ns); n++) ns = `${base}_${n}`
+  return ns
+}
+export function createEventGroup(
+  p: Project,
+  name: string
+): { project: Project; group: { uid: string; namespace: string; name: string } } {
+  const group = { uid: newUid(), namespace: namespaceFromName(p, name), name: name.trim() || 'Eventos' }
+  return { project: { ...p, eventGroups: [...(p.eventGroups ?? []), group] }, group }
+}
+export const renameEventGroup = (p: Project, namespace: string, name: string): Project => {
+  const has = (p.eventGroups ?? []).some((g) => g.namespace === namespace)
+  return {
+    ...p,
+    eventGroups: has
+      ? p.eventGroups.map((g) => (g.namespace === namespace ? { ...g, name } : g))
+      : [...(p.eventGroups ?? []), { uid: newUid(), namespace, name }]
+  }
+}
+/** Un grupo solo se borra si no tiene eventos */
+export const deleteEventGroup = (p: Project, namespace: string): Project =>
+  p.events.some((e) => e.namespace === namespace)
+    ? p
+    : { ...p, eventGroups: (p.eventGroups ?? []).filter((g) => g.namespace !== namespace) }
 
 /** Eventos a los que apunta un script (country_event = { id = X … }) */
 export function linkedEventIds(code: string): string[] {

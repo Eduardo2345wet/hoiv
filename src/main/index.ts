@@ -193,13 +193,13 @@ app.whenReady().then(() => {
     clearCache(cacheDirPath())
     return cacheInfo(cacheDirPath())
   })
-  ipcMain.handle('list-game-sprites', async (_, gamePath: string, kind: 'idea' | 'goal') =>
+  ipcMain.handle('list-game-sprites', async (_, gamePath: string, kind: 'idea' | 'goal' | 'event') =>
     listSprites(gamePath, kind)
   )
   ipcMain.handle('get-sprite-thumbs', async (_, gamePath: string, names: string[]) =>
     spriteThumbs(gamePath, path.join(app.getPath('userData'), 'cache'), names)
   )
-  ipcMain.handle('prewarm-sprites', async (_, gamePath: string, kind: 'idea' | 'goal') =>
+  ipcMain.handle('prewarm-sprites', async (_, gamePath: string, kind: 'idea' | 'goal' | 'event') =>
     prewarm(gamePath, path.join(app.getPath('userData'), 'cache'), kind)
   )
   ipcMain.handle('read-mod-folder', async (_, folder: string) => readModFolder(folder))

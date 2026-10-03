@@ -8,7 +8,7 @@ import path from 'path'
 import { shineShape } from '../shared/shine'
 import { parseFocusFile } from '../shared/gameFocus'
 import { parseTechnologies, topLevelKeys, type GameTech } from '../shared/gameTech'
-import { listSprites } from './gameSprites'
+import { listSprites, textureSize } from './gameSprites'
 import { readIdeologyGroups } from '../shared/textPatch'
 import { parseBuildings, parseStateCategories } from '../shared/gameBuildings'
 import { parseEquipments, parseSubUnits, type GameSubUnit } from '../shared/gameUnits'
@@ -209,6 +209,8 @@ export interface GameCatalogResult {
   /** Sprites GFX_idea_* y GFX_goal_* que existen en el juego instalado */
   ideaSprites?: string[]
   goalSprites?: string[]
+  /** Tamaño real de las imágenes de evento del juego */
+  eventPictureSize?: { w: number; h: number }
   /** Archivos de common/ideologies con sus grupos y subideologías */
   ideologyFiles?: { file: string; groups: { group: string; types: string[] }[] }[]
   /** Batallones de common/units y equipos de common/units/equipment */
@@ -492,15 +494,18 @@ export function readGameCatalog(gamePath: string): GameCatalogResult | null {
 
   let ideaSprites: string[] | undefined
   let goalSprites: string[] | undefined
+  let eventPictureSize: { w: number; h: number } | undefined
   try {
     ideaSprites = listSprites(gamePath, 'idea')
     goalSprites = listSprites(gamePath, 'goal')
+    eventPictureSize = textureSize(gamePath, 'event') ?? undefined
   } catch {
     // sin interface/: no se validan los sprites
   }
   const result: GameCatalogResult = {
     ideaSprites,
     goalSprites,
+    eventPictureSize,
     ideologyFiles,
     subUnits,
     equipments,

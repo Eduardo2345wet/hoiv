@@ -62,6 +62,32 @@ export function spriteIndex(gamePath: string): Index {
   return idx
 }
 
+/** Tamaño real de la textura de un sprite (cabecera del .dds), o null */
+export function textureSize(gamePath: string, kind: SpriteKind): { w: number; h: number } | null {
+  const idx = spriteIndex(gamePath)
+  for (const name of listSprites(gamePath, kind)) {
+    const sp = idx.sprites.get(name)
+    if (!sp) continue
+    for (const r of idx.roots) {
+      const file = path.join(r, ...sp.texture.split('/'))
+      try {
+        const fd = fs.openSync(file, 'r')
+        const buf = Buffer.alloc(32)
+        fs.readSync(fd, buf, 0, 32, 0)
+        fs.closeSync(fd)
+        if (buf.readUInt32LE(0) === 0x20534444) {
+          const h = buf.readUInt32LE(12)
+          const w = buf.readUInt32LE(16)
+          if (w > 0 && h > 0) return { w: Math.round(w / Math.max(1, sp.frames)), h }
+        }
+      } catch {
+        // textura ausente
+      }
+    }
+  }
+  return null
+}
+
 export const forgetSpriteIndex = (gamePath: string): void => void indexes.delete(gamePath)
 
 /** Nombres (con prefijo GFX_) de los sprites que se ofrecen como ícono, ordenados */

@@ -84,7 +84,8 @@ export async function buildExtraFiles(
     for (const e of project.events ?? []) {
       const png = eventPng(project, e.picture)
       if (!png) continue
-      const img = await read(png, EVENT_PICTURE_SIZE.w, EVENT_PICTURE_SIZE.h)
+      const size = game?.eventPictureSize ?? EVENT_PICTURE_SIZE
+      const img = await read(png, size.w, size.h)
       files.push({
         path: eventImagePath(project, e),
         data: writeDDS(img.width, img.height, img.rgba)

@@ -111,6 +111,7 @@ export interface GameCatalogData {
   buildingMax?: Record<string, { max: number; provincial: boolean }>
   stateCategories?: string[]
   ideaSprites?: string[]
+  eventPictureSize?: { w: number; h: number }
   goalSprites?: string[]
   ideologyFiles?: { file: string; groups: { group: string; types: string[] }[] }[]
   subUnits?: { id: string; group: string }[]
@@ -155,11 +156,11 @@ export interface ElectronAPI {
   exportExists: (folder: string, modName: string) => Promise<boolean>
   /** Archivos del juego (minúsculas, con "/") para no pisarlos al exportar */
   /** Sprites del juego (GFX_idea_* o GFX_goal_*), con prefijo */
-  listGameSprites: (gamePath: string, kind: 'idea' | 'goal') => Promise<string[]>
+  listGameSprites: (gamePath: string, kind: 'idea' | 'goal' | 'event') => Promise<string[]>
   /** Miniaturas PNG (data URL) desde la caché; null = formato no soportado */
   getSpriteThumbs: (gamePath: string, names: string[]) => Promise<Record<string, string | null>>
   /** Genera en segundo plano las miniaturas que falten */
-  prewarmSprites: (gamePath: string, kind: 'idea' | 'goal') => Promise<{ done: number; total: number }>
+  prewarmSprites: (gamePath: string, kind: 'idea' | 'goal' | 'event') => Promise<{ done: number; total: number }>
   /** Lee (solo lectura) la carpeta de un mod para importarlo */
   readModFolder: (folder: string) => Promise<{
     files: { path: string; text: string }[]

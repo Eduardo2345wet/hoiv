@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react'
 import type { Project } from '../types'
 import type { NewSpec } from '../sections/ui'
 import Modal from './Modal'
+import Help from './Help'
 import { TemplateGallery } from './SectionParts'
 
 const NEW_GROUP = '__nuevo__'
@@ -98,7 +99,10 @@ export default function NewDialog({
         </div>
         {askGroup && (
           <div>
-            <label className="label">{spec.groupLabel}</label>
+            <label className="label">
+              {spec.groupLabel}
+              {spec.groupHelp && <Help id={spec.groupHelp} />}
+            </label>
             {picked ? (
               <div className="flex items-center gap-2 text-sm">
                 <span>{picked.name}</span>

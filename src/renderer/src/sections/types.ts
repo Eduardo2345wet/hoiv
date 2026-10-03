@@ -29,6 +29,13 @@ export interface EventOption {
   aiBase: number
 }
 
+/** Grupo de eventos: un namespace y un archivo (se genera solo a partir del nombre) */
+export interface EventGroup {
+  uid: string
+  namespace: string
+  name: string
+}
+
 export interface GameEvent {
   uid: string
   type: 'country_event' | 'news_event' | 'state_event'
@@ -345,6 +352,7 @@ export interface LanguageSetting {
 /** Colecciones nuevas de Project, vacías por defecto */
 export interface SectionData {
   events: GameEvent[]
+  eventGroups: EventGroup[]
   superEvents: SuperEvent[]
   decisionCategories: DecisionCategory[]
   decisions: Decision[]
@@ -361,6 +369,7 @@ export interface SectionData {
 
 export const emptySections = (): SectionData => ({
   events: [],
+  eventGroups: [],
   superEvents: [],
   decisionCategories: [],
   decisions: [],
