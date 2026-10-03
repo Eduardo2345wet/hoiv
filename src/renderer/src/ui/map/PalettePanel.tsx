@@ -1,6 +1,7 @@
 // Paleta de países tipo Paint: clic en una muestra = ese país es el pincel.
 // Secciones: Mis países (1–9), Sin nación (si aplica), Países del juego (plegable, con
 // buscador, solo los que existen en la base, por número de estados) y Recientes.
+import Help from '../Help'
 import { useMemo, useState } from 'react'
 import { ChevronDown, ChevronLeft, ChevronRight, MoreHorizontal, Plus } from 'lucide-react'
 import type { Project } from '../../types'
@@ -291,6 +292,7 @@ export default function PalettePanel({
           <>
             <div className="mb-1 mt-3 text-[11px] uppercase tracking-wide text-hoi-muted">
               Pendiente
+              <Help id="mapa.sinNacion" />
             </div>
             <button
               onClick={() => setBrush(NO_NATION)}

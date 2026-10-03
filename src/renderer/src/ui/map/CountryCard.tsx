@@ -1,4 +1,5 @@
 // Tarjeta flotante del pincel activo (arriba a la izquierda del mapa)
+import Help from '../Help'
 import { Plus, X, AlertTriangle, Star } from 'lucide-react'
 import { IDEOLOGY_LABELS, type Project } from '../../types'
 import { store, useApp } from '../../store/appStore'
@@ -144,6 +145,7 @@ export default function CountryCard({ project, gameColors, onOpenWizard }: Props
         ) : country || capNum === null ? (
           <span className="text-yellow-400">sin capital</span>
         ) : null}
+        <Help id="mapa.capital" />
       </div>
       {foreign && (
         <div className="mt-1 text-xs text-yellow-400">

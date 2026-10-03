@@ -2218,6 +2218,209 @@ describe('ejército (rediseño)', () => {
   }, 60_000)
 })
 
+// ---------- Personajes, Extras, Países y ayuda (rediseño) ----------
+describe('personajes y extras (rediseño)', () => {
+  const clearProject = async (page: Page): Promise<void> => {
+    await focusEditor(page)
+    await page.evaluate(() => {
+      const st = (window as unknown as HoiWindow).__hoiStore as never as {
+        updateProject(f: (p: object) => object): void
+      }
+      st.updateProject((p) => ({
+        ...p,
+        events: [],
+        eventGroups: [],
+        superEvents: [],
+        decisionCategories: [],
+        decisions: [],
+        characters: [],
+        countryStart: [],
+        oobs: [],
+        technologies: [],
+        ideologies: [],
+        bookmarks: [],
+        music: [],
+        loadingScreens: [],
+        cover: null,
+        languages: [{ code: 'english' }]
+      }))
+    })
+  }
+  const character = {
+    uid: 'c1',
+    id: 'NVG_ana',
+    name: 'Ana Torres',
+    country: 'NVG',
+    roles: ['advisor', 'corps_commander'],
+    portraits: { civilian: null, army: null, navy: null },
+    recruit: true,
+    leader: { ideology: 'neutrality_neutrality', traits: [], expire: '1965.1.1.1' },
+    advisor: {
+      slot: 'political_advisor',
+      ideaToken: 'NVG_ana_advisor',
+      cost: 150,
+      traits: [],
+      allowed: { blocks: null, code: '' },
+      canBeFired: true
+    },
+    army: { skill: 3, attack: 2, defense: 2, planning: 1, logistics: 1, traits: [] },
+    navy: { skill: 1, attack: 1, defense: 1, maneuvering: 1, coordination: 1, traits: [] }
+  }
+
+  it('Personajes: galería de papeles, ventana sin IDs, lista por país, tarjetas, vista previa y Ver código plegado', async ({
+    skip
+  }) => {
+    if (!browser) skip()
+    const page = await fresh()
+    await clearProject(page)
+    await page.locator('button:text-is("Personajes")').first().click()
+    await page.waitForSelector('[data-empty]')
+    expect(await page.locator('[data-empty] [data-template]').count()).toBe(5)
+    await page.locator('[data-empty] [data-template="advisor"]').click()
+    await page.waitForSelector('input[data-new-name]')
+    const idLabels = await page.evaluate(() => {
+      const dlg =
+        document.querySelector('input[data-new-name]')!.closest('.shadow-2xl') ?? document.body
+      return [...dlg.querySelectorAll('label')].filter((l) => /^ID\b/.test(l.textContent ?? ''))
+        .length
+    })
+    expect(idLabels).toBe(0)
+    await page.keyboard.press('Escape')
+    await page.evaluate(
+      (c) =>
+        (window as unknown as HoiWindow).__hoiStore.updateProject((p: object) => ({
+          ...p,
+          characters: [c]
+        })),
+      character as never
+    )
+    await page.waitForSelector('[data-group="NVG"]')
+    expect(await page.locator('[data-item]:has-text("Ana Torres")').count()).toBe(1)
+    await page.locator('[data-item]:has-text("Ana Torres")').click()
+    await page.waitForSelector('[data-character-editor]')
+    // los papeles se eligen con botones; solo se ven las tarjetas de los papeles elegidos
+    expect(await page.locator('[data-role="advisor"][aria-pressed="true"]').count()).toBe(1)
+    expect(await page.locator('[data-character-editor] >> text=Consejero').count()).toBeGreaterThan(
+      0
+    )
+    expect(
+      await page.locator('[data-character-editor] >> text=General o mariscal').count()
+    ).toBeGreaterThan(0)
+    expect(await page.locator('[data-character-editor] >> text=Almirante').count()).toBe(1) // solo el botón
+    // el identificador técnico queda en "Opciones avanzadas", plegado
+    expect(await page.locator('[data-character-editor] input.font-mono:visible').count()).toBe(0)
+    // vista previa tipo ficha y Ver código plegado
+    await page.waitForSelector('[data-character-preview]')
+    expect(await page.locator('[data-preview-name]').innerText()).toBe('Ana Torres')
+    expect(await page.locator('[data-code-view][open]').count()).toBe(0)
+    // cambiar el papel cambia las tarjetas
+    await page.locator('[data-role="navy_leader"]').click()
+    await page.waitForSelector('[data-character-editor] section:has-text("Maniobra")')
+    await page.close()
+  }, 60_000)
+
+  it('Extras: lista por grupos, crear una canción desde la ventana y editor con Opciones avanzadas plegadas', async ({
+    skip
+  }) => {
+    if (!browser) skip()
+    const page = await fresh()
+    await clearProject(page)
+    await page.locator('button:text-is("Extras")').first().click()
+    for (const g of ['idiomas', 'musica', 'carga', 'mod'])
+      await page.waitForSelector(`[data-group="${g}"]`)
+    // sin nada elegido: galería de lo que se puede crear
+    expect(await page.locator('[data-empty] [data-template]').count()).toBe(2)
+    await page.locator('[data-empty] [data-template="cancion"]').click()
+    await page.fill('input[data-new-name]', 'Marcha del amanecer')
+    await page.locator('button:text-is("Crear")').click()
+    await page.waitForSelector('[data-track-editor]')
+    expect(await page.locator('[data-group="musica"] [data-item]').count()).toBe(1)
+    await page.waitForSelector('[data-track-preview]')
+    // emisora y frecuencia están en Opciones avanzadas (plegadas)
+    expect(await page.locator('[data-track-editor] label:has-text("Emisora")').count()).toBe(0)
+    await page.locator('[data-track-editor] button:has-text("Opciones avanzadas")').click()
+    expect(await page.locator('[data-track-editor] label:has-text("Emisora")').count()).toBe(1)
+    await page.close()
+  }, 60_000)
+})
+
+describe('ayuda "?" en países, mapa y focos (rediseño)', () => {
+  it('el asistente de países tiene ayuda en tag, nombre con artículo, capital y banderas por ideología, con nombres claros', async ({
+    skip
+  }) => {
+    if (!browser) skip()
+    const page = await fresh()
+    await focusEditor(page)
+    const openStep = async (step: number): Promise<void> => {
+      await page.evaluate(
+        (n) =>
+          (window as unknown as HoiWindow).__hoiStore.set({
+            wizardRequest: { step: n, n: Date.now() }
+          }),
+        step
+      )
+    }
+    const closeWizard = async (): Promise<void> => {
+      await page.locator('button:text-is("Cancelar"):visible').first().click()
+      await page.waitForFunction(() => !document.querySelector('[data-help="pais.tag"]'))
+    }
+    await openStep(0)
+    await page.waitForSelector('[data-help="pais.tag"]')
+    expect(await page.locator('[data-help="pais.articulo"]').count()).toBe(1)
+    await closeWizard()
+    await openStep(2)
+    await page.waitForSelector('[data-help="mapa.capital"]')
+    await closeWizard()
+    await openStep(3)
+    await page.waitForSelector('[data-help="pais.banderasIdeologia"]')
+    const text = await page.locator('body').innerText()
+    for (const t of [
+      'Bandera si el país es comunista',
+      'Bandera si el país es democrático',
+      'Bandera si el país es fascista',
+      'Bandera si el país es no alineado'
+    ])
+      expect(text).toContain(t)
+    await page.close()
+  }, 60_000)
+
+  it('en un foco seleccionado aparecen sus conexiones con ayuda (prerrequisito, excluyente y saltar si)', async ({
+    skip
+  }) => {
+    if (!browser) skip()
+    const page = await fresh()
+    await focusEditor(page)
+    await page.evaluate(() => {
+      const f = (uid: string, name: string, x: number): unknown => ({
+        uid,
+        treeId: 'arbol_1',
+        id: `capas_NVG_${uid}`,
+        name,
+        description: '',
+        cost: 10,
+        icon: { kind: 'game', gfx: 'GFX_goal_unknown' },
+        iconAuto: false,
+        x,
+        y: 0,
+        prerequisites: [],
+        mutuallyExclusive: [],
+        blocks: null,
+        scripts: { available: '', bypass: '', reward: '' }
+      })
+      ;(window as unknown as HoiWindow).__hoiStore.updateProject((p: object) => ({
+        ...p,
+        treeSettings: { autoArrange: false, relativePositions: false },
+        focuses: [f('f1', 'Uno', 0), f('f2', 'Dos', 2)]
+      }))
+    })
+    await page.locator('[data-focus-uid]').filter({ hasText: 'Uno' }).click()
+    await page.waitForSelector('[data-focus-links]')
+    for (const id of ['foco.prerrequisito', 'foco.excluyente', 'foco.saltarSi'])
+      expect(await page.locator(`[data-focus-links] [data-help="${id}"]`).count()).toBe(1)
+    await page.close()
+  }, 60_000)
+})
+
 // ---------- Extras e importación (S9) ----------
 describe('extras (S9)', () => {
   const prep = async (page: Page): Promise<void> => {

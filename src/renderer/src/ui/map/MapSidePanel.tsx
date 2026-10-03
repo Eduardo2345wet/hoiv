@@ -1,4 +1,5 @@
 // Panel derecho del mapa: estado seleccionado, país activo o resumen del mod
+import Help from '../Help'
 import { useMemo } from 'react'
 import { X } from 'lucide-react'
 import type { Project } from '../../types'
@@ -15,9 +16,12 @@ interface Props {
   onGoTab: (tab: 'focos' | 'paises' | 'ideas' | 'iconos') => void
 }
 
-const Row = ({ k, v }: { k: string; v: React.ReactNode }): JSX.Element => (
+const Row = ({ k, v, help }: { k: string; v: React.ReactNode; help?: string }): JSX.Element => (
   <div className="flex gap-2 py-0.5 text-sm">
-    <span className="w-28 shrink-0 text-hoi-muted">{k}</span>
+    <span className="w-28 shrink-0 text-hoi-muted">
+      {k}
+      {help && <Help id={help} />}
+    </span>
     <span className="min-w-0 flex-1 break-words">{v}</span>
   </div>
 )
@@ -68,7 +72,7 @@ export default function MapSidePanel({ project, onOpenWizard, onGoTab }: Props):
               </span>
             }
           />
-          <Row k="Cores" v={effectiveCores(state, project).join(', ') || '—'} />
+          <Row k="Cores" help="mapa.cores" v={effectiveCores(state, project).join(', ') || '—'} />
           <Row
             k="Provincias"
             v={`${state.provinces.length}: ${state.provinces.slice(0, 20).join(', ')}${state.provinces.length > 20 ? '…' : ''}`}

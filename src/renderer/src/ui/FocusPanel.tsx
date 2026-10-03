@@ -5,11 +5,29 @@ import { ID_REGEX } from '../export/validator'
 import { store } from '../store/appStore'
 import { renameFocusId, setFocusName, updateFocus } from './projectOps'
 import IconField from './IconField'
+import Help from './Help'
 
 interface Props {
   project: Project
   focus: Focus | null
   onDelete: () => void
+}
+
+/** Nombres de los focos enlazados, o "Ninguno" */
+function NameChips({ project, uids }: { project: Project; uids: string[] }): JSX.Element {
+  const names = uids
+    .map((u) => project.focuses.find((f) => f.uid === u))
+    .filter((f): f is Focus => !!f)
+  if (!names.length) return <p className="text-xs text-hoi-muted">Ninguno</p>
+  return (
+    <div className="flex flex-wrap gap-1">
+      {names.map((f) => (
+        <span key={f.uid} className="rounded bg-hoi-card px-2 py-0.5 text-xs">
+          {f.name || 'Foco sin nombre'}
+        </span>
+      ))}
+    </div>
+  )
 }
 
 export default function FocusPanel({ project, focus, onDelete }: Props): JSX.Element {
@@ -126,6 +144,34 @@ export default function FocusPanel({ project, focus, onDelete }: Props): JSX.Ele
               value={focus.y}
               onChange={(e) => patch({ y: int(e.target.value) })}
             />
+          </div>
+        </div>
+
+        <div data-focus-links className="space-y-2">
+          <div>
+            <div className="label">
+              Se necesita antes
+              <Help id="foco.prerrequisito" />
+            </div>
+            <NameChips project={project} uids={focus.prerequisites} />
+          </div>
+          <div>
+            <div className="label">
+              Excluyente con
+              <Help id="foco.excluyente" />
+            </div>
+            <NameChips project={project} uids={focus.mutuallyExclusive} />
+          </div>
+          <div>
+            <div className="label">
+              Saltar si
+              <Help id="foco.saltarSi" />
+            </div>
+            <p className="text-xs text-hoi-muted">
+              {focus.scripts.bypass.trim()
+                ? 'Tiene una condición para saltarlo.'
+                : 'Sin condición. Se arma con bloques, abajo.'}
+            </p>
           </div>
         </div>
 

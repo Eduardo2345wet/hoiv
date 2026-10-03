@@ -14,8 +14,6 @@ export interface SectionDef {
   /** Colección principal que lista el panel izquierdo */
   collection: keyof SectionData
   createLabel: string
-  /** Sin botón de crear (la pantalla se compone de apartados fijos) */
-  noCreate?: boolean
   empty: string
   /** Grupos de la cinta */
   groups: { title: string; actions: { id: string; label: string }[] }[]
@@ -87,8 +85,7 @@ export const SECTIONS: SectionDef[] = [
     id: 'extras',
     label: 'Extras',
     collection: 'languages',
-    createLabel: 'Agregar',
-    noCreate: true,
+    createLabel: 'Crear canción o pantalla',
     empty: 'Idiomas, música, pantallas de carga y portada.',
     groups: groups('Extra')
   }

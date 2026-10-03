@@ -1,10 +1,11 @@
 // Pestaña Extras: idiomas (tabla de traducción), música propia, pantallas de carga, portada del mod
-// e importación de un mod existente (solo lectura).
+// e importación de un mod existente (solo lectura). Mismo esqueleto que las demás secciones.
 import { useMemo, useState } from 'react'
+import { Image as ImageIcon, Music as MusicIcon } from 'lucide-react'
 import type { Project } from '../types'
 import { newUid } from '../types'
 import { store } from '../store/appStore'
-import { registerSectionScreen } from '../sections/ui'
+import { registerSectionScreen, type GroupNode } from '../sections/ui'
 import { LANGUAGES } from '../export/localisation'
 import {
   COVER_SIZE,
@@ -18,7 +19,6 @@ import {
   setLanguages,
   setTranslation,
   stationOf,
-  songPath,
   translatableEntries,
   translationOf,
   extraLanguages
@@ -27,19 +27,18 @@ import type { LoadingScreen, MusicTrack } from '../sections/types'
 import BlocklyArea from './BlocklyArea'
 import ImageUploader from './ImageUploader'
 import ImportPanel from './ImportPanel'
-import { Button, Field, NumberField } from './kit'
+import { Button, Card, Field, NumberField, type CardNote } from './kit'
 
-const PARTS = [
-  { id: 'idiomas', name: 'Idiomas' },
-  { id: 'musica', name: 'Música' },
-  { id: 'carga', name: 'Pantallas de carga' },
-  { id: 'portada', name: 'Portada del mod' },
-  { id: 'importar', name: 'Importar un mod' }
-]
-
-const Title = ({ children }: { children: React.ReactNode }): JSX.Element => (
-  <h2 className="mb-2 text-sm font-semibold">{children}</h2>
-)
+// Identificadores de lo que se puede elegir en la lista
+const LANGS = 'idiomas'
+const COVER = 'portada'
+const IMPORT = 'importar'
+const trackUid = (uid: string): string => `musica:${uid}`
+const screenUid = (uid: string): string => `carga:${uid}`
+const parse = (sel: string | null): { kind: string; uid: string } => {
+  const [kind, ...rest] = (sel ?? '').split(':')
+  return { kind, uid: rest.join(':') }
+}
 
 // ---------------------------------------------------------------- idiomas
 function Languages({ project }: { project: Project }): JSX.Element {
@@ -57,36 +56,37 @@ function Languages({ project }: { project: Project }): JSX.Element {
     .filter((e) => !onlyMissing || translationOf(project, current, e.key) === undefined)
   const missing = current ? missingKeys(project, current).length : 0
   return (
-    <div>
-      <Title>Idiomas del mod</Title>
-      <p className="mb-2 text-xs text-hoi-muted">
-        El inglés es la base obligatoria. Lo que no traduzcas en otro idioma sale en inglés (así el
-        juego no muestra la clave cruda).
-      </p>
-      <div className="mb-3 flex flex-wrap gap-2 text-sm">
-        {LANGUAGES.map((l) => (
-          <label key={l.code} className="flex items-center gap-1">
-            <input
-              type="checkbox"
-              checked={l.code === 'english' || extras.includes(l.code)}
-              disabled={l.code === 'english'}
-              onChange={(e) =>
-                store.updateProject((p) =>
-                  setLanguages(
-                    p,
-                    e.target.checked
-                      ? [...extraLanguages(p), l.code]
-                      : extraLanguages(p).filter((c) => c !== l.code)
+    <div className="mx-auto max-w-3xl p-5">
+      <Card title="Idiomas del mod">
+        <p className="mb-3 text-xs text-hoi-muted">
+          El inglés es la base obligatoria. Lo que no traduzcas en otro idioma sale en inglés, así
+          el juego nunca muestra un texto vacío.
+        </p>
+        <div className="flex flex-wrap gap-3 text-sm">
+          {LANGUAGES.map((l) => (
+            <label key={l.code} className="flex items-center gap-1">
+              <input
+                type="checkbox"
+                checked={l.code === 'english' || extras.includes(l.code)}
+                disabled={l.code === 'english'}
+                onChange={(e) =>
+                  store.updateProject((p) =>
+                    setLanguages(
+                      p,
+                      e.target.checked
+                        ? [...extraLanguages(p), l.code]
+                        : extraLanguages(p).filter((c) => c !== l.code)
+                    )
                   )
-                )
-              }
-            />
-            {l.label}
-          </label>
-        ))}
-      </div>
+                }
+              />
+              {l.label}
+            </label>
+          ))}
+        </div>
+      </Card>
       {extras.length > 0 && (
-        <>
+        <Card title="Traducciones">
           <div className="mb-2 flex flex-wrap items-center gap-2">
             {extras.map((c) => (
               <button
@@ -155,7 +155,7 @@ function Languages({ project }: { project: Project }): JSX.Element {
             )}
             {!rows.length && <p className="p-2 text-xs text-hoi-muted">Nada que mostrar.</p>}
           </div>
-        </>
+        </Card>
       )}
     </div>
   )
@@ -168,184 +168,144 @@ const patchTrack = (uid: string, p: Partial<MusicTrack>, g?: string): void =>
     g ? { group: `music:${uid}:${g}` } : undefined
   )
 
-function Music({ project }: { project: Project }): JSX.Element {
+function Track({ project, t }: { project: Project; t: MusicTrack }): JSX.Element {
+  const bad = !!t.ogg && !isOgg(t.ogg.base64)
+  const notes: CardNote[] = [
+    ...(bad
+      ? [{ severity: 'error' as const, text: 'Ese archivo no es un .ogg válido (Ogg Vorbis).' }]
+      : []),
+    ...(!t.ogg ? [{ severity: 'aviso' as const, text: 'Falta el archivo de la canción.' }] : [])
+  ]
   return (
-    <div>
-      <Title>Música propia</Title>
-      <p className="mb-2 text-xs text-hoi-muted">
-        Sube archivos .ogg (Ogg Vorbis). Se escriben <code>music/&lt;mod&gt;_music.asset</code> y
-        una lista de canciones por estación, siempre con nombres propios (nunca el{' '}
-        <code>music.asset</code> del juego). La portada de una estación de radio propia queda para
-        una etapa posterior. Algunos usuarios reportan que la música de mods funciona mejor subida
-        al Workshop.
-      </p>
-      {project.music.map((t) => {
-        const bad = t.ogg && !isOgg(t.ogg.base64)
-        return (
-          <div key={t.uid} className="mb-2 space-y-2 rounded border border-hoi-border p-2">
-            <div className="flex flex-wrap items-end gap-2">
-              <Field label="Nombre">
-                <input
-                  className="input w-48"
-                  value={t.name}
-                  onChange={(e) => patchTrack(t.uid, { name: e.target.value }, 'name')}
-                />
-              </Field>
-              <Field label="Estación" help={`Vacío = la del mod (${stationOf(project, t)})`}>
-                <input
-                  className="input w-48"
-                  value={t.station}
-                  onChange={(e) => patchTrack(t.uid, { station: e.target.value.trim() }, 'st')}
-                />
-              </Field>
-              <Field label="Peso">
-                <NumberField
-                  value={t.weight}
-                  min={0}
-                  onChange={(v) => patchTrack(t.uid, { weight: v })}
-                />
-              </Field>
-              <Button
-                small
-                onClick={() =>
-                  store.updateProject((p) => ({
-                    ...p,
-                    music: p.music.filter((x) => x.uid !== t.uid)
-                  }))
-                }
-              >
-                Borrar
-              </Button>
-            </div>
-            <div className="text-xs">
-              <input
-                type="file"
-                accept=".ogg,audio/ogg"
-                onChange={(e) => {
-                  const f = e.target.files?.[0]
-                  if (!f) return
-                  const r = new FileReader()
-                  r.onload = () => {
-                    const b64 = String(r.result).split(',')[1] ?? ''
-                    if (!isOgg(b64))
-                      store.toast('Ese archivo no es un .ogg válido (Ogg Vorbis).', {
-                        kind: 'error'
-                      })
-                    patchTrack(t.uid, {
-                      ogg: { name: f.name, base64: b64 },
-                      name: t.name || f.name.replace(/\.[^.]+$/, '')
-                    })
-                  }
-                  r.readAsDataURL(f)
-                }}
-              />
-              {t.ogg && (
-                <span className={bad ? 'ml-2 text-red-400' : 'ml-2 text-hoi-muted'}>
-                  {t.ogg.name} · {Math.round((t.ogg.base64.length * 3) / 4 / 1024)} KB
-                  {bad ? ' · no es un .ogg válido' : ` → ${songPath(project, t)}`}
-                </span>
-              )}
-            </div>
-            <Field label="Condición simple (opcional)" help="Solo suena si se cumple">
-              <BlocklyArea
-                mode="condition"
-                value={t.condition}
-                onChange={(v) => patchTrack(t.uid, { condition: v })}
-                height={140}
-              />
-            </Field>
-          </div>
-        )
-      })}
-      <Button
-        onClick={() => store.updateProject((p) => ({ ...p, music: [...p.music, newTrack()] }))}
+    <div className="mx-auto max-w-3xl p-5" data-track-editor>
+      <Card
+        title="Canción"
+        notes={notes}
+        actions={
+          <Button
+            small
+            onClick={() =>
+              store.updateProject((p) => ({ ...p, music: p.music.filter((x) => x.uid !== t.uid) }))
+            }
+          >
+            Borrar canción
+          </Button>
+        }
       >
-        + Canción
-      </Button>
-      {musicFiles(project).length > 0 && (
-        <p className="mt-2 text-xs text-hoi-muted">
-          Se exportan {musicFiles(project).length} archivo(s) en music/.
-        </p>
-      )}
+        <Field label="Nombre">
+          <input
+            className="input"
+            value={t.name}
+            onChange={(e) => patchTrack(t.uid, { name: e.target.value }, 'name')}
+          />
+        </Field>
+        <Field label="Archivo de audio" help="Formato .ogg (Ogg Vorbis).">
+          <input
+            type="file"
+            accept=".ogg,audio/ogg"
+            className="text-xs"
+            onChange={(e) => {
+              const f = e.target.files?.[0]
+              if (!f) return
+              const r = new FileReader()
+              r.onload = () => {
+                const b64 = String(r.result).split(',')[1] ?? ''
+                if (!isOgg(b64))
+                  store.toast('Ese archivo no es un .ogg válido (Ogg Vorbis).', { kind: 'error' })
+                patchTrack(t.uid, {
+                  ogg: { name: f.name, base64: b64 },
+                  name: t.name || f.name.replace(/\.[^.]+$/, '')
+                })
+              }
+              r.readAsDataURL(f)
+            }}
+          />
+          {t.ogg && (
+            <span className="mt-1 block text-xs text-hoi-muted">
+              {t.ogg.name} · {Math.round((t.ogg.base64.length * 3) / 4 / 1024)} KB
+            </span>
+          )}
+        </Field>
+      </Card>
+      <Card title="Opciones avanzadas" collapsible defaultOpen={false}>
+        <div className="flex flex-wrap gap-4">
+          <Field label="Emisora" help={`Vacío: la del mod (${stationOf(project, t)}).`}>
+            <input
+              className="input w-52"
+              value={t.station}
+              onChange={(e) => patchTrack(t.uid, { station: e.target.value.trim() }, 'st')}
+            />
+          </Field>
+          <Field label="Frecuencia" help="Más alto suena más seguido.">
+            <NumberField
+              value={t.weight}
+              min={0}
+              onChange={(v) => patchTrack(t.uid, { weight: v })}
+            />
+          </Field>
+        </div>
+        <Field label="Solo suena si se cumple (opcional)">
+          <BlocklyArea
+            mode="condition"
+            value={t.condition}
+            onChange={(v) => patchTrack(t.uid, { condition: v })}
+            height={140}
+          />
+        </Field>
+      </Card>
     </div>
   )
 }
 
 // ---------------------------------------------------------------- pantallas de carga
-function Loading({ project }: { project: Project }): JSX.Element {
-  const [uploading, setUploading] = useState<string | null>(null)
-  const set = (uid: string, p: Partial<LoadingScreen>): void =>
+function Loading({ project, s }: { project: Project; s: LoadingScreen }): JSX.Element {
+  const [uploading, setUploading] = useState(false)
+  const set = (p: Partial<LoadingScreen>): void =>
     store.updateProject((pr) => ({
       ...pr,
-      loadingScreens: pr.loadingScreens.map((s) => (s.uid === uid ? { ...s, ...p } : s))
+      loadingScreens: pr.loadingScreens.map((x) => (x.uid === s.uid ? { ...x, ...p } : x))
     }))
+  const png = loadingPng(project, s)
   return (
-    <div>
-      <Title>Pantallas de carga</Title>
-      <p className="mb-2 text-xs text-hoi-muted">
-        Imágenes de {LOADING_SIZE.w}×{LOADING_SIZE.h} Se exportan como .dds en gfx/loadingscreens/.
-      </p>
-      <div className="flex flex-wrap gap-3">
-        {project.loadingScreens.map((s, i) => {
-          const png = loadingPng(project, s)
-          return (
-            <div key={s.uid} className="w-56 rounded border border-hoi-border p-2">
-              {png ? (
-                <img src={png} alt="" className="mb-1 w-full rounded" />
-              ) : (
-                <div className="mb-1 flex h-28 items-center justify-center rounded bg-hoi-card text-xs text-hoi-muted">
-                  sin imagen
-                </div>
-              )}
-              <input
-                className="input mb-1 w-full"
-                placeholder={`Pantalla ${i + 1}`}
-                value={s.name}
-                onChange={(e) => set(s.uid, { name: e.target.value })}
-              />
-              <div className="flex gap-1">
-                <Button small onClick={() => setUploading(s.uid)}>
-                  Subir…
-                </Button>
-                <Button
-                  small
-                  onClick={() =>
-                    store.updateProject((p) => ({
-                      ...p,
-                      loadingScreens: p.loadingScreens.filter((x) => x.uid !== s.uid)
-                    }))
-                  }
-                >
-                  Borrar
-                </Button>
-              </div>
-            </div>
-          )
-        })}
-      </div>
-      <div className="mt-2">
-        <Button
-          onClick={() =>
-            store.updateProject((p) => ({
-              ...p,
-              loadingScreens: [
-                ...p.loadingScreens,
-                { uid: newUid(), name: '', image: null, upload: null }
-              ]
-            }))
-          }
-        >
-          + Pantalla de carga
-        </Button>
-      </div>
+    <div className="mx-auto max-w-3xl p-5" data-loading-editor>
+      <Card
+        title="Pantalla de carga"
+        notes={png ? [] : [{ severity: 'aviso', text: 'Falta la imagen.' }]}
+        actions={
+          <Button
+            small
+            onClick={() =>
+              store.updateProject((p) => ({
+                ...p,
+                loadingScreens: p.loadingScreens.filter((x) => x.uid !== s.uid)
+              }))
+            }
+          >
+            Borrar pantalla
+          </Button>
+        }
+      >
+        <Field label="Nombre (opcional)">
+          <input
+            className="input w-72"
+            value={s.name}
+            onChange={(e) => set({ name: e.target.value })}
+          />
+        </Field>
+        <Field label="Imagen" help="Pantalla completa, en proporción 16:9.">
+          <Button small onClick={() => setUploading(true)}>
+            {png ? 'Cambiar imagen' : 'Subir imagen'}
+          </Button>
+        </Field>
+      </Card>
       {uploading && (
         <ImageUploader
           size={LOADING_SIZE}
           title="Pantalla de carga"
-          onClose={() => setUploading(null)}
-          onAcceptImage={(png) => {
-            set(uploading, { upload: { name: 'pantalla.png', png }, image: null })
-            setUploading(null)
+          onClose={() => setUploading(false)}
+          onAcceptImage={(img) => {
+            set({ upload: { name: 'pantalla.png', png: img }, image: null })
+            setUploading(false)
           }}
         />
       )}
@@ -357,34 +317,22 @@ function Loading({ project }: { project: Project }): JSX.Element {
 function Cover({ project }: { project: Project }): JSX.Element {
   const [up, setUp] = useState(false)
   return (
-    <div>
-      <Title>Portada del mod</Title>
-      <p className="mb-2 text-xs text-hoi-muted">
-        Imagen cuadrada ({COVER_SIZE}×{COVER_SIZE}). Se exporta como <code>thumbnail.png</code> y el
-        descriptor lleva <code>picture="thumbnail.png"</code>. Se publica desde el launcher (Mod
-        Tools / Workshop).
-      </p>
-      {project.cover ? (
-        <img
-          src={project.cover}
-          alt=""
-          className="mb-2 h-40 w-40 rounded border border-hoi-border"
-        />
-      ) : (
-        <div className="mb-2 flex h-40 w-40 items-center justify-center rounded border border-dashed border-hoi-border text-xs text-hoi-muted">
-          sin portada
-        </div>
-      )}
-      <div className="flex gap-2">
-        <Button onClick={() => setUp(true)}>
-          {project.cover ? 'Cambiar…' : 'Subir y recortar…'}
-        </Button>
-        {project.cover && (
-          <Button onClick={() => store.updateProject((p) => ({ ...p, cover: null }))}>
-            Quitar
+    <div className="mx-auto max-w-3xl p-5">
+      <Card title="Portada del mod">
+        <p className="mb-3 text-xs text-hoi-muted">
+          Una imagen cuadrada: es la que se ve en el lanzador del juego y en el Workshop.
+        </p>
+        <div className="flex gap-2">
+          <Button onClick={() => setUp(true)}>
+            {project.cover ? 'Cambiar imagen' : 'Subir imagen'}
           </Button>
-        )}
-      </div>
+          {project.cover && (
+            <Button onClick={() => store.updateProject((p) => ({ ...p, cover: null }))}>
+              Quitar
+            </Button>
+          )}
+        </div>
+      </Card>
       {up && (
         <ImageUploader
           size={{ w: COVER_SIZE, h: COVER_SIZE }}
@@ -400,15 +348,199 @@ function Cover({ project }: { project: Project }): JSX.Element {
   )
 }
 
+// ---------------------------------------------------------------- vista previa
+function Preview({ project, sel }: { project: Project; sel: string | null }): JSX.Element | null {
+  const { kind, uid } = parse(sel)
+  if (kind === LANGS) {
+    const extras = extraLanguages(project)
+    const total = translatableEntries(project).length
+    return (
+      <div className="space-y-1 text-xs">
+        <div className="text-hoi-text">Inglés (base): {total} textos</div>
+        {extras.map((c) => (
+          <div key={c} className="text-hoi-muted">
+            {languageLabel(c)}: faltan {missingKeys(project, c).length} de {total}
+          </div>
+        ))}
+      </div>
+    )
+  }
+  if (kind === 'musica') {
+    const t = project.music.find((x) => x.uid === uid)
+    if (!t) return null
+    return (
+      <div data-track-preview className="rounded border border-hoi-border bg-hoi-bg p-3">
+        <div className="mb-2 flex items-center gap-2 text-sm text-hoi-text">
+          <MusicIcon size={16} className="text-hoi-muted" />
+          {t.name || 'Canción sin nombre'}
+        </div>
+        {t.ogg && isOgg(t.ogg.base64) ? (
+          // eslint-disable-next-line jsx-a11y/media-has-caption
+          <audio controls className="w-full" src={`data:audio/ogg;base64,${t.ogg.base64}`} />
+        ) : (
+          <p className="text-xs text-hoi-muted">Sube un archivo para poder escucharla.</p>
+        )}
+      </div>
+    )
+  }
+  if (kind === 'carga') {
+    const s = project.loadingScreens.find((x) => x.uid === uid)
+    const png = s ? loadingPng(project, s) : null
+    return png ? (
+      <img data-loading-preview src={png} alt="" className="w-full rounded" />
+    ) : (
+      <div className="flex h-28 items-center justify-center rounded bg-hoi-card text-xs text-hoi-muted">
+        Sin imagen
+      </div>
+    )
+  }
+  if (kind === COVER)
+    return project.cover ? (
+      <img
+        src={project.cover}
+        alt=""
+        className="mx-auto h-48 w-48 rounded border border-hoi-border"
+      />
+    ) : (
+      <div className="mx-auto flex h-48 w-48 items-center justify-center rounded border border-dashed border-hoi-border text-xs text-hoi-muted">
+        Sin portada
+      </div>
+    )
+  return null
+}
+
 registerSectionScreen('extras', {
-  items: () => PARTS.map((p) => ({ uid: p.id, id: p.id, name: p.name })),
-  renderEditor: (p, sel) => (
-    <div className="p-3" data-extras={sel}>
-      {sel === 'idiomas' && <Languages project={p} />}
-      {sel === 'musica' && <Music project={p} />}
-      {sel === 'carga' && <Loading project={p} />}
-      {sel === 'portada' && <Cover project={p} />}
-      {sel === 'importar' && <ImportPanel project={p} />}
-    </div>
-  )
+  intro: 'Idiomas, música propia, pantallas de carga y portada de tu mod.',
+  newSpec: {
+    title: 'Nueva canción o pantalla',
+    nameLabel: 'Nombre',
+    defaultTemplate: 'cancion',
+    templates: [
+      {
+        id: 'cancion',
+        label: 'Canción',
+        description: 'Un archivo de audio propio que suena en el juego.',
+        thumb: <MusicIcon size={20} />
+      },
+      {
+        id: 'carga',
+        label: 'Pantalla de carga',
+        description: 'Una imagen grande que se ve mientras el juego carga.',
+        thumb: <ImageIcon size={20} />
+      }
+    ],
+    create: ({ name, template }) => {
+      if (template === 'carga') {
+        const s: LoadingScreen = { uid: newUid(), name, image: null, upload: null }
+        store.updateProject((p) => ({ ...p, loadingScreens: [...p.loadingScreens, s] }))
+        return screenUid(s.uid)
+      }
+      const t = newTrack({ name })
+      store.updateProject((p) => ({ ...p, music: [...p.music, t] }))
+      return trackUid(t.uid)
+    }
+  },
+  groups: (p): GroupNode[] => [
+    {
+      id: 'idiomas',
+      title: 'Idiomas',
+      items: [
+        {
+          uid: LANGS,
+          title: 'Idiomas del mod',
+          subtitle: `Inglés y ${extraLanguages(p).length} más`
+        }
+      ]
+    },
+    {
+      id: 'musica',
+      title: 'Música',
+      items: (p.music ?? []).map((t) => ({
+        uid: trackUid(t.uid),
+        title: t.name,
+        subtitle: stationOf(p, t),
+        thumb: <MusicIcon size={16} className="text-hoi-muted" />
+      }))
+    },
+    {
+      id: 'carga',
+      title: 'Pantallas de carga',
+      items: (p.loadingScreens ?? []).map((s, i) => {
+        const png = loadingPng(p, s)
+        return {
+          uid: screenUid(s.uid),
+          title: s.name || `Pantalla ${i + 1}`,
+          thumb: png ? (
+            <img src={png} alt="" className="h-5 rounded-sm" />
+          ) : (
+            <ImageIcon size={16} className="text-hoi-muted" />
+          )
+        }
+      })
+    },
+    {
+      id: 'mod',
+      title: 'El mod',
+      items: [
+        {
+          uid: COVER,
+          title: 'Portada del mod',
+          thumb: p.cover ? (
+            <img src={p.cover} alt="" className="h-5 w-5 rounded-sm" />
+          ) : (
+            <ImageIcon size={16} className="text-hoi-muted" />
+          )
+        },
+        { uid: IMPORT, title: 'Importar un mod' }
+      ]
+    }
+  ],
+  remove: (sel) => {
+    const { kind, uid } = parse(sel)
+    if (kind === 'musica')
+      store.updateProject((p) => ({ ...p, music: p.music.filter((x) => x.uid !== uid) }))
+    else if (kind === 'carga')
+      store.updateProject((p) => ({
+        ...p,
+        loadingScreens: p.loadingScreens.filter((x) => x.uid !== uid)
+      }))
+    else if (kind === COVER) store.updateProject((p) => ({ ...p, cover: null }))
+  },
+  renderEditor: (p, sel) => {
+    const { kind, uid } = parse(sel)
+    if (kind === LANGS)
+      return (
+        <div data-extras={LANGS}>
+          <Languages project={p} />
+        </div>
+      )
+    if (kind === 'musica') {
+      const t = p.music.find((x) => x.uid === uid)
+      return t ? <Track project={p} t={t} /> : null
+    }
+    if (kind === 'carga') {
+      const s = p.loadingScreens.find((x) => x.uid === uid)
+      return s ? <Loading project={p} s={s} /> : null
+    }
+    if (kind === COVER)
+      return (
+        <div data-extras={COVER}>
+          <Cover project={p} />
+        </div>
+      )
+    if (kind === IMPORT)
+      return (
+        <div className="mx-auto max-w-3xl p-5" data-extras={IMPORT}>
+          <Card>
+            <ImportPanel project={p} />
+          </Card>
+        </div>
+      )
+    return null
+  },
+  renderPreview: (p, sel) => <Preview project={p} sel={sel} />,
+  code: (p, sel) => {
+    if (parse(sel).kind !== 'musica') return null
+    return musicFiles(p).find((f) => f.path.endsWith('_music.asset'))?.text ?? null
+  }
 })

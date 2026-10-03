@@ -41,6 +41,7 @@ import {
 import { downloadPng } from '../downloadPng'
 import { chooseCountryTag, nameOfTag } from '../countryFlow'
 import ImageUploader from '../ImageUploader'
+import Help from '../Help'
 
 export interface StepProps {
   draft: Country
@@ -72,14 +73,20 @@ export function HistoryNotice({ draft }: { draft: Country }): JSX.Element | null
 const Field = ({
   label,
   children,
-  hint
+  hint,
+  helpId
 }: {
   label: string
   children: React.ReactNode
   hint?: string
+  /** Ayuda "?" (solo para conceptos que un principiante no entiende) */
+  helpId?: string
 }): JSX.Element => (
   <div>
-    <label className="label">{label}</label>
+    <label className="label">
+      {label}
+      {helpId && <Help id={helpId} />}
+    </label>
     {children}
     {hint && <p className="mt-1 text-[11px] text-hoi-muted">{hint}</p>}
   </div>
@@ -205,7 +212,11 @@ export function IdentityStep({
             placeholder="Nueva Granada"
           />
         </Field>
-        <Field label="Tag (3 caracteres)" hint="Una letra mayúscula y 2 letras o números.">
+        <Field
+          label="Tag (3 caracteres)"
+          helpId="pais.tag"
+          hint="Una letra mayúscula y 2 letras o números."
+        >
           <div className="flex gap-1">
             <input
               className="input font-mono uppercase"
@@ -233,7 +244,7 @@ export function IdentityStep({
             )}
           </div>
         </Field>
-        <Field label='Nombre con artículo (ej. "la República de X")'>
+        <Field label='Nombre con artículo (ej. "la República de X")' helpId="pais.articulo">
           <input
             className="input"
             value={draft.names.def}
@@ -511,8 +522,9 @@ export function CapitalStep({ draft, set, game }: StepProps): JSX.Element {
     <fieldset disabled={historyLocked(draft)} className="flex flex-col gap-4 disabled:opacity-60">
       <HistoryNotice draft={draft} />
       <Field
-        label="Capital (ID de estado)"
-        hint="Es el número del estado en el juego. Más adelante se podrá elegir en el mapa."
+        label="Capital (número de estado)"
+        helpId="mapa.capital"
+        hint="Es el número del estado en el juego. También puedes elegirlo en el mapa."
       >
         <input
           type="number"
@@ -579,9 +591,13 @@ const FLAG_SIZES = [
   [41, 26],
   [10, 7]
 ]
+/** Nombre claro de cada variante: cuándo la usa el juego */
 const VARIANT_LABEL: Record<FlagVariant, string> = {
-  main: 'Principal',
-  ...IDEOLOGY_LABELS
+  main: 'Bandera principal',
+  democratic: 'Bandera si el país es democrático',
+  fascism: 'Bandera si el país es fascista',
+  communism: 'Bandera si el país es comunista',
+  neutrality: 'Bandera si el país es no alineado'
 }
 
 export function FlagStep({ draft, set }: StepProps): JSX.Element {
@@ -604,7 +620,7 @@ export function FlagStep({ draft, set }: StepProps): JSX.Element {
       <div className="flex items-start gap-6">
         <div>
           <div className="label">
-            Bandera principal (
+            {VARIANT_LABEL.main} (
             {main.source === 'personalizada'
               ? 'personalizada'
               : main.source === 'juego'
@@ -660,12 +676,13 @@ export function FlagStep({ draft, set }: StepProps): JSX.Element {
 
       <div>
         <div className="label">
-          Bandera por ideología{' '}
+          Banderas según la ideología{' '}
           {existing
             ? '(las del juego; reemplaza solo las que quieras)'
             : '(opcional; las vacías usan la principal)'}
+          <Help id="pais.banderasIdeologia" />
         </div>
-        <div className="grid grid-cols-4 gap-2">
+        <div className="grid grid-cols-2 gap-2 xl:grid-cols-4">
           {IDEOLOGIES.map((i) => {
             const v = img(i)
             return (
@@ -724,11 +741,7 @@ export function FlagStep({ draft, set }: StepProps): JSX.Element {
 
       {upload && (
         <ImageUploader
-          title={
-            upload === 'main'
-              ? 'Bandera principal (82×52)'
-              : `Bandera: ${VARIANT_LABEL[upload]} (82×52)`
-          }
+          title={upload === 'main' ? 'Bandera principal' : VARIANT_LABEL[upload]}
           size={FLAG_SIZE}
           onAcceptImage={(png, small) => {
             if (upload === 'main') set({ flags: { ...draft.flags, main: png, mainSmall: small } })
