@@ -9,6 +9,11 @@ import {
   createIdeology,
   createTech,
   findTechCycle,
+  folderLabel,
+  GROUPS,
+  groupLabel,
+  hexToRgb,
+  rgbToHex,
   ideologyLoc,
   techFiles,
   techEdges,
@@ -248,5 +253,47 @@ describe('tecnologías e ideologías (S8)', () => {
     )
     mk('eff_set_technology', { TECH: 'infantry_a', LEVEL: 1 })
     expect(generateArea(ws)).toBe('\tset_technology = { infantry_a = 1 }\n')
+  })
+})
+
+describe('rediseño: color, grupos y carpetas en español', () => {
+  it('el selector de color da el mismo r g b que antes y el mismo parche', () => {
+    expect(hexToRgb('#336699')).toEqual([51, 102, 153])
+    expect(rgbToHex([51, 102, 153])).toBe('#336699')
+    expect(hexToRgb('azul')).toBeNull()
+    for (const c of [
+      [0, 0, 0],
+      [255, 255, 255],
+      [10, 20, 30]
+    ] as [number, number, number][])
+      expect(hexToRgb(rgbToHex(c))).toEqual(c)
+    // lo que se exporta con el valor del selector es lo mismo que con tres cajas r g b
+    const viaPicker = createIdeology(emptyProjectFor('Mi Mod', 'content'), {
+      name: 'A',
+      group: 'democratic',
+      color: hexToRgb('#0a141e')
+    }).project
+    const viaBoxes = createIdeology(emptyProjectFor('Mi Mod', 'content'), {
+      name: 'A',
+      group: 'democratic',
+      color: [10, 20, 30]
+    }).project
+    const game = {
+      ideologyFiles: [{ file: '00_ideologies.txt', groups: [{ group: 'democratic', types: [] }] }]
+    } as never
+    expect(textPatchRequests(viaPicker, game)).toEqual(textPatchRequests(viaBoxes, game))
+    expect(JSON.stringify(textPatchRequests(viaPicker, game))).toContain('color = { 10 20 30 }')
+  })
+
+  it('los grupos y las carpetas se muestran en español', () => {
+    expect(GROUPS.map((g) => g.label)).toEqual([
+      'Democracia',
+      'Comunismo',
+      'Fascismo',
+      'No alineado'
+    ])
+    expect(groupLabel('neutrality')).toBe('No alineado')
+    expect(folderLabel('infantry_folder')).toBe('Infantería')
+    expect(folderLabel('algo_raro_folder')).toBe('Algo raro')
   })
 })

@@ -1656,25 +1656,134 @@ describe('memoria del mapa (parte F)', () => {
   }, 60_000)
 })
 
-// ---------- Secciones nuevas: pestañas con estado vacío (B0) ----------
-describe('pestañas de secciones nuevas (B0)', () => {
-  it('Tecnologías: estado vacío, subideología desde el botón y Modo avanzado para tecnologías', async ({
-    skip
-  }) => {
-    if (!browser) skip()
-    const page = await fresh()
+// ---------- Tecnologías e ideologías (rediseño) ----------
+describe('tecnologías e ideologías (rediseño)', () => {
+  const prep = async (page: Page): Promise<void> => {
     await focusEditor(page)
     await page.evaluate(() => {
       const st = (window as unknown as HoiWindow).__hoiStore as never as {
         updateProject(f: (p: object) => object): void
       }
-      st.updateProject((p) => ({ ...p, technologies: [], ideologies: [] }))
+      st.updateProject((p) => ({ ...p, technologies: [], ideologies: [], techAdvanced: false }))
     })
     await page.locator('button:text-is("Tecnologías")').first().click()
-    await page.waitForSelector('text=Aún no hay subideologías')
-    expect(await page.locator('text=Modo avanzado').count()).toBeGreaterThan(0)
-    await page.locator('button:has-text("Crear subideología")').first().click()
-    await page.waitForSelector('text=Se inserta en types')
+  }
+
+  it('estado vacío con galería; crear pide el grupo de ideología y nunca un ID; Modo avanzado con "?"', async ({
+    skip
+  }) => {
+    if (!browser) skip()
+    const page = await fresh()
+    await prep(page)
+    await page.waitForSelector('[data-empty]')
+    expect(await page.locator('[data-empty] [data-template]').count()).toBe(2)
+    // el interruptor es corto y su "?" explica el riesgo; no queda el texto largo de antes
+    expect(await page.locator('[data-advanced-mode] [data-help="tech.modoAvanzado"]').count()).toBe(
+      1
+    )
+    expect(await page.locator('text=parchan archivos').count()).toBe(0)
+    await page.locator('[data-empty] [data-template="subideologia"]').click()
+    await page.waitForSelector('input[data-new-name]')
+    const opts = await page.locator('select[data-new-group] option').allInnerTexts()
+    expect(opts).toEqual(['Democracia', 'Comunismo', 'Fascismo', 'No alineado'])
+    const idLabels = await page.evaluate(() => {
+      const dlg =
+        document.querySelector('input[data-new-name]')!.closest('.shadow-2xl') ?? document.body
+      return [...dlg.querySelectorAll('label')].filter((l) => /^ID\b/.test(l.textContent ?? ''))
+        .length
+    })
+    expect(idLabels).toBe(0)
+    await page.fill('input[data-new-name]', 'Socialdemocracia')
+    await page.locator('button:text-is("Crear")').click()
+    await page.waitForSelector('[data-ideology-editor]')
+    // lista: dos grupos (Ideologías y Tecnologías) y la subideología bajo "Democracia"
+    expect(await page.locator('[data-group="ideologias"]').count()).toBe(1)
+    expect(await page.locator('[data-group="tecnologias"]').count()).toBe(1)
+    expect(
+      await page.locator('[data-group="ideologias"] >> text=Democracia').count()
+    ).toBeGreaterThan(0)
+    expect(await page.locator('[data-item]:has-text("Socialdemocracia")').count()).toBe(1)
+    // vista previa tipo ventana de gobierno y "Ver código" plegado
+    await page.waitForSelector('[data-ideology-preview]')
+    expect(await page.locator('[data-preview-name]').innerText()).toBe('Socialdemocracia')
+    expect(await page.locator('[data-code-view][open]').count()).toBe(0)
+    // el "?" de subideología está en la tarjeta
+    expect(await page.locator('[data-help="tech.subideologia"]').count()).toBe(1)
+    await page.close()
+  }, 60_000)
+
+  it('el selector de color reemplaza las cajas r g b y guarda el mismo valor', async ({ skip }) => {
+    if (!browser) skip()
+    const page = await fresh()
+    await prep(page)
+    await page.locator('[data-empty] [data-template="subideologia"]').click()
+    await page.fill('input[data-new-name]', 'Liberal social')
+    await page.locator('button:text-is("Crear")').click()
+    await page.waitForSelector('[data-ideology-editor]')
+    // ya no hay cajas r, g, b
+    expect(await page.locator('input[placeholder="r"], input[placeholder="g"]').count()).toBe(0)
+    expect(await page.locator('input[type="color"][data-ideology-color]').count()).toBe(1)
+    await page.locator('input[type="color"][data-ideology-color]').fill('#336699')
+    const color = await page.evaluate(
+      () =>
+        (
+          (window as unknown as HoiWindow).__hoiStore.get().project as unknown as {
+            ideologies: { color: number[] | null }[]
+          }
+        ).ideologies[0].color
+    )
+    expect(color).toEqual([51, 102, 153])
+    // la vista previa usa el color elegido
+    const bg = await page
+      .locator('[data-preview-color]')
+      .evaluate((e) => getComputedStyle(e).backgroundColor)
+    expect(bg).toBe('rgb(51, 102, 153)')
+    // se puede volver al color del grupo
+    await page.locator('button:has-text("Usar el del grupo")').click()
+    expect(
+      await page.evaluate(
+        () =>
+          (
+            (window as unknown as HoiWindow).__hoiStore.get().project as unknown as {
+              ideologies: { color: number[] | null }[]
+            }
+          ).ideologies[0].color
+      )
+    ).toBeNull()
+    await page.close()
+  }, 60_000)
+
+  it('Modo avanzado: interruptor; las tecnologías nuevas solo se crean con él y se ven como casilla del árbol', async ({
+    skip
+  }) => {
+    if (!browser) skip()
+    const page = await fresh()
+    await prep(page)
+    // sin Modo avanzado, crear una tecnología avisa y no crea nada
+    await page.locator('[data-empty] [data-template="tecnologia"]').click()
+    await page.fill('input[data-new-name]', 'Fusil mejorado')
+    await page.locator('button:text-is("Crear")').click()
+    await page.waitForSelector('text=Activa el Modo avanzado')
+    expect(
+      await page.evaluate(
+        () =>
+          (
+            (window as unknown as HoiWindow).__hoiStore.get().project as unknown as {
+              technologies: unknown[]
+            }
+          ).technologies.length
+      )
+    ).toBe(0)
+    await page.locator('[data-advanced-switch]').click()
+    expect(await page.locator('[data-advanced-switch]').getAttribute('aria-checked')).toBe('true')
+    await page.locator('[data-empty] [data-template="tecnologia"]').click()
+    await page.fill('input[data-new-name]', 'Fusil mejorado')
+    // para una tecnología no se pide grupo de ideología
+    expect(await page.locator('select[data-new-group]').count()).toBe(0)
+    await page.locator('button:text-is("Crear")').click()
+    await page.waitForSelector('[data-tech-editor]')
+    await page.waitForSelector('[data-tech-preview]')
+    expect(await page.locator('[data-group="tecnologias"] [data-item]').count()).toBe(1)
     await page.close()
   }, 60_000)
 })

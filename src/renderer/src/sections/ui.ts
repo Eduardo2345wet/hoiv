@@ -80,7 +80,7 @@ export const SECTIONS: SectionDef[] = [
     label: 'Tecnologías',
     collection: 'technologies',
     createLabel: 'Crear subideología',
-    empty: 'Aún no hay subideologías ni tecnologías propias. Empieza con una subideología (lo seguro); las tecnologías nuevas están en el Modo avanzado.',
+    empty: 'Aún no hay subideologías ni tecnologías propias. Crea una subideología para empezar.',
     groups: groups('Tecnología')
   },
   {

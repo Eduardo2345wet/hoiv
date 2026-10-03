@@ -21,8 +21,55 @@ export const GROUPS: { id: IdeologyDef['group']; label: string }[] = [
   { id: 'democratic', label: 'Democracia' },
   { id: 'communism', label: 'Comunismo' },
   { id: 'fascism', label: 'Fascismo' },
-  { id: 'neutrality', label: 'Neutralidad' }
+  { id: 'neutrality', label: 'No alineado' }
 ]
+/** por verificar con common/ideologies del juego: el color de cada grupo (solo para mostrarlo) */
+export const GROUP_COLORS: Record<IdeologyDef['group'], [number, number, number]> = {
+  democratic: [58, 112, 196],
+  communism: [190, 40, 40],
+  fascism: [140, 96, 52],
+  neutrality: [140, 140, 140]
+}
+export const groupLabel = (g: IdeologyDef['group']): string =>
+  GROUPS.find((x) => x.id === g)?.label ?? g
+
+/** Color r g b a "#rrggbb" y de vuelta (para el selector de color; se exporta el mismo r g b de siempre) */
+export const rgbToHex = (c: [number, number, number]): string =>
+  '#' +
+  c
+    .map((n) =>
+      Math.max(0, Math.min(255, Math.round(n)))
+        .toString(16)
+        .padStart(2, '0')
+    )
+    .join('')
+export function hexToRgb(hex: string): [number, number, number] | null {
+  const m = /^#?([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(hex.trim())
+  return m ? [parseInt(m[1], 16), parseInt(m[2], 16), parseInt(m[3], 16)] : null
+}
+
+/** por verificar con las carpetas del juego: nombres en español de las carpetas de investigación */
+const FOLDER_NAMES: Record<string, string> = {
+  infantry_folder: 'Infantería',
+  armor_folder: 'Blindados',
+  artillery_folder: 'Artillería',
+  support_folder: 'Apoyo',
+  land_doctrine_folder: 'Doctrina terrestre',
+  naval_folder: 'Marina',
+  naval_doctrine_folder: 'Doctrina naval',
+  air_techs_folder: 'Aviación',
+  air_doctrine_folder: 'Doctrina aérea',
+  industry_folder: 'Industria',
+  electronics_folder: 'Electrónica',
+  construction_folder: 'Construcción',
+  industry_tech_folder: 'Industria'
+}
+/** Nombre legible de una carpeta de investigación ("infantry_folder" → "Infantería") */
+export function folderLabel(id: string): string {
+  if (FOLDER_NAMES[id]) return FOLDER_NAMES[id]
+  const t = id.replace(/_(folder|techs)$/, '').replace(/_/g, ' ')
+  return t.charAt(0).toUpperCase() + t.slice(1)
+}
 
 const mod = (p: Project): string => safeFolderName(p.modName)
 
