@@ -122,19 +122,21 @@ function IdeaEditor({
           />
         </div>
         <div>
-          <label className="label">ID</label>
-          <input
-            className={`input font-mono ${ID_REGEX.test(idea.id) && !dup ? '' : 'border-red-500'}`}
-            value={idea.id}
-            onChange={(e) =>
-              store.updateProject((p) =>
-                updateIdea(renameIdeaId(p, uid, e.target.value.replace(/\s/g, '_')), uid, {
-                  idAuto: false
-                })
-              )
-            }
-          />
-          {dup && <p className="mt-1 text-xs text-red-400">Ese id ya está en uso</p>}
+          <div className="flex items-center gap-2 text-xs text-hoi-muted">
+            <span>ID</span>
+            <input
+              className={`min-w-0 flex-1 rounded border bg-transparent px-1.5 py-0.5 font-mono text-xs text-hoi-muted outline-none focus:border-gray-400 ${ID_REGEX.test(idea.id) && !dup ? 'border-hoi-border' : 'border-red-500'}`}
+              value={idea.id}
+              onChange={(e) =>
+                store.updateProject((p) =>
+                  updateIdea(renameIdeaId(p, uid, e.target.value.replace(/\s/g, '_')), uid, {
+                    idAuto: false
+                  })
+                )
+              }
+            />
+          </div>
+          {dup && <p className="mt-1 text-xs text-red-400">Ese ID ya está en uso</p>}
         </div>
         <div>
           <label className="label">Descripción</label>
@@ -161,7 +163,11 @@ function IdeaEditor({
                       {d.label}
                     </option>
                   ))}
-                  {!def && <option value={m.key}>{m.key}</option>}
+                  {!def && (
+                    <option value={m.key} title={m.key}>
+                      Otro modificador
+                    </option>
+                  )}
                 </select>
                 <input
                   type="number"
@@ -171,7 +177,7 @@ function IdeaEditor({
                 />
                 <span className="w-4 text-sm text-hoi-muted">{def?.percent ? '%' : ''}</span>
                 <button
-                  className="text-red-400"
+                  className="text-hoi-muted hover:text-red-400"
                   title="Quitar"
                   onClick={() =>
                     patch({
@@ -213,13 +219,13 @@ function IdeaEditor({
         )}
         {idea.picture && !idea.icon && (
           <p className="text-xs text-hoi-muted">
-            Ícono del juego: <span className="font-mono">GFX_idea_{idea.picture}</span> (no se copia
-            ningún archivo; elige otro a la derecha si quieres cambiarlo).
+            Usa el ícono del propio juego; no se copia ningún archivo. Elige otro a la derecha si
+            quieres cambiarlo.
           </p>
         )}
 
         <button
-          className="btn mt-4 w-fit text-red-400"
+          className="btn mt-4 w-fit text-hoi-muted hover:text-red-400"
           onClick={() => {
             if (!confirm(`¿Borrar el espíritu "${idea.name || idea.id}"?`)) return
             store.updateProject((p) => deleteIdea(p, uid))
