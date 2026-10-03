@@ -1,5 +1,6 @@
 // Componentes comunes de las secciones nuevas (tokens: tema oscuro, acento #e8913a).
 import { useState, type ReactNode } from 'react'
+import { AlertTriangle, ChevronDown, ChevronRight, Info } from 'lucide-react'
 
 export function Button({
   children,
@@ -164,24 +165,80 @@ export function Badge({
   return <span className={`rounded px-1.5 py-0.5 text-[10px] ${c}`}>{children}</span>
 }
 
+export interface CardNote {
+  severity: 'error' | 'aviso' | 'info'
+  text: string
+}
+
+/** Aviso pequeño con ícono, dentro de la tarjeta del campo afectado */
+export function Notes({ notes }: { notes?: CardNote[] }): JSX.Element | null {
+  if (!notes?.length) return null
+  return (
+    <ul className="mt-2 space-y-1">
+      {notes.map((n, i) => (
+        <li
+          key={i}
+          className={`flex items-start gap-1.5 text-xs ${n.severity === 'error' ? 'text-red-300' : n.severity === 'aviso' ? 'text-yellow-300' : 'text-hoi-muted'}`}
+        >
+          {n.severity === 'info' ? (
+            <Info size={12} className="mt-0.5 shrink-0" />
+          ) : (
+            <AlertTriangle size={12} className="mt-0.5 shrink-0" />
+          )}
+          <span>{n.text}</span>
+        </li>
+      ))}
+    </ul>
+  )
+}
+
 export function Card({
   title,
   children,
-  actions
+  actions,
+  collapsible,
+  defaultOpen = true,
+  notes,
+  help
 }: {
   title?: string
   children: ReactNode
   actions?: ReactNode
+  /** Tarjeta plegable (por ejemplo "Opciones avanzadas") */
+  collapsible?: boolean
+  defaultOpen?: boolean
+  /** Avisos del validador sobre esta tarjeta */
+  notes?: CardNote[]
+  /** Ayuda "?" junto al título */
+  help?: ReactNode
 }): JSX.Element {
+  const [open, setOpen] = useState(defaultOpen)
+  const shown = !collapsible || open
   return (
-    <section className="mb-3 rounded border border-hoi-border bg-hoi-panel p-3">
+    <section className="mb-3 rounded-lg border border-hoi-border bg-hoi-panel p-4">
       {(title || actions) && (
-        <div className="mb-2 flex items-center justify-between">
-          <h3 className="text-sm font-semibold">{title}</h3>
+        <div className={`flex items-center justify-between ${shown ? 'mb-3' : ''}`}>
+          {collapsible ? (
+            <button
+              className="flex items-center gap-1.5 text-sm font-medium text-hoi-text"
+              onClick={() => setOpen(!open)}
+              aria-expanded={open}
+            >
+              {open ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+              {title}
+              {help}
+            </button>
+          ) : (
+            <h3 className="flex items-center gap-1.5 text-sm font-medium text-hoi-text">
+              {title}
+              {help}
+            </h3>
+          )}
           {actions}
         </div>
       )}
-      {children}
+      {shown && children}
+      <Notes notes={notes} />
     </section>
   )
 }
@@ -257,7 +314,7 @@ export function SplitPane({
   left,
   center,
   right,
-  rightTitle = 'Propiedades y vista previa'
+  rightTitle = 'Vista previa'
 }: {
   left: ReactNode
   center: ReactNode
@@ -267,18 +324,24 @@ export function SplitPane({
   const [open, setOpen] = useState(true)
   return (
     <div className="flex h-full min-h-0">
-      <aside className="w-64 shrink-0 border-r border-hoi-border bg-hoi-panel">{left}</aside>
+      <aside className="w-72 shrink-0 border-r border-hoi-border bg-hoi-panel">{left}</aside>
       <div className="min-w-0 flex-1 overflow-y-auto">{center}</div>
       {right && (
         <aside
-          className={`shrink-0 border-l border-hoi-border bg-hoi-panel ${open ? 'w-80' : 'w-8'}`}
+          className={`shrink-0 border-l border-hoi-border bg-hoi-panel ${open ? 'w-96' : 'w-8'}`}
         >
           <button
             className="w-full px-2 py-1 text-left text-xs text-hoi-muted hover:text-hoi-text"
             title={open ? 'Plegar' : 'Mostrar'}
             onClick={() => setOpen(!open)}
           >
-            {open ? `▸ ${rightTitle}` : '◂'}
+            {open ? (
+              <span className="flex items-center gap-1">
+                <ChevronRight size={12} /> {rightTitle}
+              </span>
+            ) : (
+              <ChevronDown size={12} className="rotate-90" />
+            )}
           </button>
           {open && <div className="h-[calc(100%-28px)] overflow-y-auto p-3">{right}</div>}
         </aside>

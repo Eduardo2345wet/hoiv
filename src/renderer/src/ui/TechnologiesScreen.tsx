@@ -98,10 +98,7 @@ function IdeologyEditor({ project, i }: { project: Project; i: IdeologyDef }): J
           )}
         </div>
       </Field>
-      <Field
-        label="Ícono (opcional)"
-        help={`${IDEOLOGY_ICON_SIZE.w}×${IDEOLOGY_ICON_SIZE.h}, por verificar con el juego`}
-      >
+      <Field label="Ícono (opcional)" help="Imagen pequeña y cuadrada">
         <div className="flex items-center gap-2">
           {i.icon && <img src={i.icon} alt="" className="h-8 w-8 rounded" />}
           <Button small onClick={() => setUp(true)}>

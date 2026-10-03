@@ -21,7 +21,7 @@ export interface SectionDef {
   groups: { title: string; actions: { id: string; label: string }[] }[]
 }
 
-const groups = (create: string, view = 'Vista previa del script'): SectionDef['groups'] => [
+const groups = (create: string, view = 'Vista general'): SectionDef['groups'] => [
   { title: 'Crear', actions: [{ id: 'create', label: create }] },
   {
     title: 'Editar',
@@ -95,6 +95,55 @@ export const SECTIONS: SectionDef[] = [
 ]
 export const sectionById = (id: string): SectionDef | undefined => SECTIONS.find((s) => s.id === id)
 
+/** Un elemento de la lista de la izquierda: nombre normal, ID pequeño y miniatura opcional */
+export interface ListItem {
+  uid: string
+  title: string
+  /** Texto pequeño y gris (por ejemplo el ID) */
+  subtitle?: string
+  thumb?: ReactNode
+}
+/** Un grupo plegable de la lista (grupo de eventos, categoría, país…) */
+export interface GroupNode {
+  id: string
+  title: string
+  thumb?: ReactNode
+  /** Si se da, el título del grupo también se puede elegir (uid) para editarlo */
+  selectUid?: string
+  items: ListItem[]
+}
+/** Una plantilla de la galería (tarjeta con miniatura, nombre y una frase) */
+export interface TemplateCard {
+  id: string
+  label: string
+  description: string
+  thumb?: ReactNode
+}
+/** Ventana corta "Nuevo …": nombre, grupo y plantilla. Nunca pide un ID. */
+export interface NewSpec {
+  title: string
+  nameLabel?: string
+  namePlaceholder?: string
+  /** Plantilla elegida por omisión */
+  defaultTemplate?: string
+  templates: TemplateCard[]
+  /** Si se da, la ventana pide un grupo (existente o nuevo) */
+  groupLabel?: string
+  groups?: (p: Project) => { id: string; name: string }[]
+  /** ¿Esta plantilla necesita grupo? (por omisión sí, cuando hay groupLabel) */
+  needsGroup?: (template: string) => boolean
+  /** Texto del botón para crear un grupo nuevo ahí mismo (si no se da, no se permite) */
+  newGroupLabel?: string
+  /** Alternativa a crear un grupo: elegir uno de otro sitio (por ejemplo un país del juego) */
+  pickGroup?: { label: string; pick: () => Promise<{ id: string; name: string } | null> }
+  create: (v: {
+    name: string
+    groupId: string | null
+    newGroupName: string
+    template: string
+  }) => string | null | Promise<string | null>
+}
+
 /** Lo que cada sección registra en su etapa */
 export interface SectionScreen {
   /** Crea un elemento nuevo (con deshacer) y devuelve su uid */
@@ -116,6 +165,14 @@ export interface SectionScreen {
   items?: (project: Project) => Record<string, unknown>[]
   /** Encabezado del panel izquierdo (por ejemplo un interruptor de modo avanzado) */
   renderHeader?: (project: Project) => ReactNode
+  /** Lista por grupos plegables (si no se da, se usa `items` en una lista plana) */
+  groups?: (project: Project) => GroupNode[]
+  /** 1 o 2 líneas de para qué sirve la sección (estado vacío) */
+  intro?: string
+  /** Ventana "Nuevo …" y galería de plantillas del estado vacío */
+  newSpec?: NewSpec
+  /** Script generado del elemento elegido (botón "Ver código", plegado) */
+  code?: (project: Project, selected: string | null) => string | null
 }
 const screens = new Map<string, SectionScreen>()
 export function registerSectionScreen(id: SectionDef['id'], s: SectionScreen): void {

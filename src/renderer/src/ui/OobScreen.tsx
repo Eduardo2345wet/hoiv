@@ -347,7 +347,7 @@ function Production({ oob }: { oob: Oob }): JSX.Element {
   return (
     <div className="space-y-2">
       <p className="text-xs text-hoi-muted">
-        Opcional. Fábricas asignadas al empezar (instant_effect). Por verificar con un OOB real.
+        Opcional. Fábricas que ya producen este equipo al empezar la partida.
       </p>
       {oob.production.map((x, i) => (
         <div key={i} className="flex items-center gap-2">

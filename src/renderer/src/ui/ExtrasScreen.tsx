@@ -283,8 +283,7 @@ function Loading({ project }: { project: Project }): JSX.Element {
     <div>
       <Title>Pantallas de carga</Title>
       <p className="mb-2 text-xs text-hoi-muted">
-        Imágenes de {LOADING_SIZE.w}×{LOADING_SIZE.h} (por verificar con archivos del juego). Se
-        exportan como .dds en gfx/loadingscreens/.
+        Imágenes de {LOADING_SIZE.w}×{LOADING_SIZE.h} Se exportan como .dds en gfx/loadingscreens/.
       </p>
       <div className="flex flex-wrap gap-3">
         {project.loadingScreens.map((s, i) => {

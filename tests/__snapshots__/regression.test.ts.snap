@@ -1,0 +1,237 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`regresión del rediseño de la interfaz > los archivos exportados de cada sección son idénticos al formato original 1`] = `
+{
+  "common/decisions/categories/mi_mod_categories.txt": "mi_mod_politica = {
+}
+",
+  "common/decisions/mi_mod_decisions.txt": "mi_mod_politica = {
+	mi_mod_reformar = {
+		cost = 50
+		complete_effect = {
+			add_stability = 0.05
+		}
+		ai_will_do = {
+			base = 1
+		}
+	}
+	mi_mod_mision = {
+		days_mission_timeout = 60
+		is_good = yes
+	}
+}
+",
+  "common/scripted_effects/mi_mod_super_events.txt": "mi_mod_caida_show = {
+	if = {
+		limit = {
+			is_ai = no
+		}
+		set_country_flag = mi_mod_caida
+	}
+}
+",
+  "common/scripted_guis/mi_mod_super_events.txt": "scripted_gui = {
+	mi_mod_caida_gui = {
+		context_type = player_context
+		window_name = "mi_mod_caida_window"
+		visible = {
+			has_country_flag = mi_mod_caida
+		}
+		triggers = {
+			mi_mod_caida_close_click_enabled = {
+				always = yes
+			}
+		}
+		effects = {
+			mi_mod_caida_close_click = {
+				clr_country_flag = mi_mod_caida
+			}
+		}
+	}
+}
+",
+  "common/technologies/mi_mod_technologies.txt": "technologies = {
+	mi_mod_fusil = {
+		research_cost = 2
+		start_year = 1938
+		folder = {
+			name = infantry_folder
+			position = {
+				x = 1
+				y = 2
+			}
+		}
+	}
+}
+",
+  "events/mi_mod_guerra.txt": "add_namespace = guerra
+country_event = {
+	id = guerra.1
+	title = guerra.1.t
+	desc = guerra.1.d
+	picture = GFX_report_event_generic
+	is_triggered_only = yes
+	fire_only_once = yes
+	immediate = {
+		add_stability = -0.1
+	}
+	option = {
+		name = guerra.1.a
+		ai_chance = {
+			base = 2
+		}
+		add_war_support = 0.1
+	}
+	option = {
+		name = guerra.1.b
+	}
+}
+news_event = {
+	id = guerra.2
+	title = guerra.2.t
+	desc = guerra.2.d
+	is_triggered_only = yes
+	major = yes
+	option = {
+		name = guerra.2.a
+		ai_chance = {
+			base = 1
+		}
+	}
+}
+",
+  "history/units/mi_mod_NVG_1936.txt": "division_template = {
+	name = "Infantería"
+	regiments = {
+		infantry = {
+			x = 0
+			y = 0
+		}
+		infantry = {
+			x = 0
+			y = 1
+		}
+	}
+	support = {
+		engineer = {
+			x = 0
+			y = 0
+		}
+	}
+}
+units = {
+	division = {
+		name = "1ª"
+		location = 3030
+		division_template = "Infantería"
+		start_experience_factor = 0
+		start_equipment_factor = 1
+	}
+}
+",
+  "interface/mi_mod_super_events.gfx": "spriteTypes = {
+	SpriteType = {
+		name = "GFX_mi_mod_caida_image"
+		texturefile = "gfx/super_events/mi_mod_caida.dds"
+	}
+}
+",
+  "interface/mi_mod_super_events.gui": "guiTypes = {
+	containerWindowType = {
+		name = "mi_mod_caida_window"
+		position = {
+			x = -400
+			y = -260
+		}
+		size = {
+			width = 800
+			height = 520
+		}
+		orientation = "CENTER"
+		origo = "CENTER"
+		iconType = {
+			name = "frame"
+			spriteType = "GFX_tiled_window"
+			position = {
+				x = 0
+				y = 0
+			}
+		}
+		iconType = {
+			name = "image"
+			spriteType = "GFX_mi_mod_caida_image"
+			position = {
+				x = 20
+				y = 20
+			}
+		}
+		instantTextBoxType = {
+			name = "title"
+			position = {
+				x = 20
+				y = 330
+			}
+			textBoxSize = {
+				x = 760
+				y = 40
+			}
+			text = "mi_mod_caida_title"
+			font = "hoi_20mb"
+		}
+		instantTextBoxType = {
+			name = "quote"
+			position = {
+				x = 20
+				y = 380
+			}
+			textBoxSize = {
+				x = 760
+				y = 80
+			}
+			text = "mi_mod_caida_quote"
+			font = "hoi_18mbs"
+		}
+		buttonType = {
+			name = "mi_mod_caida_close"
+			position = {
+				x = 330
+				y = 470
+			}
+			quadTextureSprite = "GFX_tiny_button"
+			buttonText = "mi_mod_caida_button"
+			buttonFont = "hoi_18mbs"
+		}
+	}
+}
+",
+  "localisation/english/mi_mod_decisions_l_english.yml": "l_english:
+ mi_mod_politica:0 "Política"
+ mi_mod_politica_desc:0 "Cosas"
+ mi_mod_reformar:0 "Reformar"
+ mi_mod_reformar_desc:0 ""
+ mi_mod_mision:0 "Misión"
+ mi_mod_mision_desc:0 ""
+",
+  "localisation/english/mi_mod_events_l_english.yml": "l_english:
+ guerra.1.t:0 "Estalla la guerra"
+ guerra.1.d:0 "Todo\\nempieza."
+ guerra.1.a:0 "Resistir"
+ guerra.1.b:0 "Huir"
+ guerra.2.t:0 "Noticia"
+ guerra.2.d:0 "Se supo."
+ guerra.2.a:0 ""
+",
+  "localisation/english/mi_mod_super_events_l_english.yml": "l_english:
+ mi_mod_caida_title:0 "Caída"
+ mi_mod_caida_quote:0 "Adiós\\n- Alguien"
+ mi_mod_caida_button:0 "Seguir"
+",
+  "localisation/english/mi_mod_technologies_l_english.yml": "l_english:
+ mi_mod_fusil:0 "Fusil"
+ mi_mod_liberal_social:0 "Liberal social"
+ mi_mod_liberal_social_desc:0 "Liberal social"
+ NVG_mi_mod_liberal_social_party:0 "Demócratas"
+ NVG_mi_mod_liberal_social_party_long:0 "Partido Demócrata"
+",
+}
+`;
