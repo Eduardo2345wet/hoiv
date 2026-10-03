@@ -38,7 +38,7 @@ import { SECTIONS, screenOf } from '../sections/ui'
 const sectionHas = (id: string, action: string): boolean => {
   const s = screenOf(id)
   if (!s) return false
-  if (action === 'create') return !!s.create
+  if (action === 'create') return !!s.create || !!s.newSpec
   if (action === 'duplicate') return !!s.duplicate
   if (action === 'delete') return !!s.remove
   if (action === 'preview') return !!s.renderOverview
@@ -314,7 +314,7 @@ export default function Ribbon(): JSX.Element {
               title={
                 sectionHas(def.id, a.id) || a.id === 'validate'
                   ? undefined
-                  : 'Disponible cuando se construya esta sección'
+                  : 'No disponible en esta sección'
               }
               onClick={() =>
                 runCommand(a.id === 'validate' ? 'validate' : `section:${def.id}:${a.id}`)

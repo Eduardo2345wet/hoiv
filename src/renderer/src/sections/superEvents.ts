@@ -3,6 +3,7 @@
 import type { Project } from '../types'
 import { newUid } from '../types'
 import { safeFolderName } from '../../../shared/names'
+import { base64ToBytes, latin1, readU16, readU32 } from '../../../shared/base64'
 import { block, file, kv, raw, str, type Node } from '../export/clausewitz'
 import { localisationFiles, type LocText } from '../export/localisation'
 import type { ModFile } from '../export/exportMod'
@@ -64,18 +65,13 @@ export const deleteSuperEvent = (p: Project, uid: string): Project => ({
 /** ¿Es un WAV PCM sin comprimir? (los efectos de sonido del juego solo aceptan .wav) */
 export function isPcmWav(base64: string): boolean {
   try {
-    const b = Buffer.from(base64, 'base64')
-    if (
-      b.length < 44 ||
-      b.toString('latin1', 0, 4) !== 'RIFF' ||
-      b.toString('latin1', 8, 12) !== 'WAVE'
-    )
-      return false
+    const b = base64ToBytes(base64)
+    if (b.length < 44 || latin1(b, 0, 4) !== 'RIFF' || latin1(b, 8, 12) !== 'WAVE') return false
     let i = 12
     while (i + 8 <= b.length) {
-      const id = b.toString('latin1', i, i + 4)
-      const size = b.readUInt32LE(i + 4)
-      if (id === 'fmt ') return b.readUInt16LE(i + 8) === 1
+      const id = latin1(b, i, i + 4)
+      const size = readU32(b, i + 4)
+      if (id === 'fmt ') return readU16(b, i + 8) === 1
       i += 8 + size + (size % 2)
     }
   } catch {
@@ -221,7 +217,7 @@ export function superEventFiles(p: Project): ModFile[] {
     for (const s of withSound)
       out.push({
         path: superSoundPath(s),
-        data: new Uint8Array(Buffer.from(s.sound!.base64, 'base64'))
+        data: base64ToBytes(s.sound!.base64)
       })
   }
   // Localización
@@ -269,10 +265,8 @@ export function validateSuperEvents(p: Project, scripts: string[] = []): SuperIs
     if (s.sound) {
       if (!isPcmWav(s.sound.base64))
         at('aviso', 'el sonido no es un WAV PCM: el juego solo acepta .wav sin comprimir.')
-      at(
-        'aviso',
-        'la sintaxis del efecto de sonido está sin verificar en el juego (comprueba effects_documentation).'
-      )
+      // por verificar en el juego: la sintaxis del efecto de sonido (effects_documentation)
+      at('aviso', 'prueba el sonido dentro del juego para confirmar que suena como esperas.')
     }
   }
   const ids = new Set((p.superEvents ?? []).map((s) => s.id))

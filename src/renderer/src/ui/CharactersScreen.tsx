@@ -495,12 +495,12 @@ function CharacterPreview({ project, c }: { project: Project; c: Character }): J
           )}
           {mil && (
             <div className="mt-1 text-[11px] text-hoi-text">
-              Nivel {c.army.skill} · ataque {c.army.attack} · defensa {c.army.defense}
+              Ejército: nivel {c.army.skill} · ataque {c.army.attack} · defensa {c.army.defense}
             </div>
           )}
           {c.roles.includes('navy_leader') && (
             <div className="mt-1 text-[11px] text-hoi-text">
-              Nivel {c.navy.skill} · ataque {c.navy.attack} · defensa {c.navy.defense}
+              Armada: nivel {c.navy.skill} · ataque {c.navy.attack} · defensa {c.navy.defense}
             </div>
           )}
         </div>

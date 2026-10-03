@@ -524,14 +524,13 @@ zoom sin animación ni inercia y liberar las texturas al minimizar.
 - **BlocklyArea** (`ui/BlocklyArea.tsx`, `blocks/area.ts`): ranura reutilizable de efectos o
   condiciones (país o estado), con la caja de herramientas de los focos filtrada y el mismo
   generador PDX.
-- **Interfaz común:** pestañas Eventos · Decisiones · Personajes · Ejército · Tecnologías · Extras con
-  grupos Crear / Editar / Ver / Probar, el mismo esqueleto (lista con buscador · editor ·
-  propiedades y vista previa plegable) y componentes únicos en `ui/kit`. Sin datos de ejemplo: el
-  botón «Crear …» se habilita cuando cada sección registra su acción.
+- **Interfaz común:** pestañas Eventos · Súper eventos · Decisiones · Personajes · Ejército ·
+  Tecnologías · Extras con grupos Crear / Editar / Ver / Probar y el mismo esqueleto de tres
+  columnas (ver «Rediseño de la interfaz» más abajo). Sin datos de ejemplo.
 
 ## Eventos
-Pestaña **Eventos**: lista, editor (General · Texto · Opciones · Avanzado) con vista previa al estilo
-del juego, opciones con bloques (condición y efectos) y ai_chance, imagen (del juego, subida o de la
+Pestaña **Eventos**: lista por grupos, editor en tarjetas (Básico · Opciones · Avanzado) con vista
+previa al estilo del juego (evento de país o noticia mundial), opciones con bloques (condición y efectos) y ai_chance, imagen (del juego, subida o de la
 biblioteca; DDS + sprite en `interface/<mod>_events.gfx`), variantes condicionales de título y
 descripción, y **cadena** de eventos (grafo). El bloque «Lanzar evento» (país, noticias o estado, con
 días, aleatorio y país destino) funciona en focos, eventos y decisiones; «Enlazar a otro evento» lo
@@ -558,7 +557,7 @@ scripted GUI y la sintaxis del efecto de sonido (`SOUND_EFFECT`; el validador av
 
 ## Decisiones y misiones (S3)
 
-Pestaña **Decisiones**: categorías y decisiones normales, misiones (con temporizador y `activate_mission`) y decisiones con objetivo (países o estados). Editor con General · Condiciones · Efectos · Costo y tiempo · IA · Objetivos. Exporta `common/decisions/categories/<mod>_categories.txt`, `common/decisions/<mod>_decisions.txt`, `interface/<mod>_decisions.gfx`, `gfx/interface/decisions/*.dds` y la localización. El validador avisa de misiones con `visible`, costos personalizados sin restar, decisiones sin `ai_will_do`, imágenes de categoría sin descripción y misiones que nadie activa.
+Pestaña **Decisiones**: categorías y decisiones normales, misiones (con temporizador y `activate_mission`) y decisiones con objetivo (países o estados). Editor en tarjetas (Básico · Cuándo se puede tomar · Qué pasa al tomarla · Duración · Opciones avanzadas). Exporta `common/decisions/categories/<mod>_categories.txt`, `common/decisions/<mod>_decisions.txt`, `interface/<mod>_decisions.gfx`, `gfx/interface/decisions/*.dds` y la localización. El validador avisa de misiones con `visible`, costos personalizados sin restar, decisiones sin `ai_will_do`, imágenes de categoría sin descripción y misiones que nadie activa.
 
 Por verificar (constantes marcadas en `sections/decisions.ts`): tamaño de íconos de decisión (66×66) y de imagen de categoría (460×150), nombre completo en `picture` de la categoría, y que `highlight_states`/`on_map_area` lleven la forma usada.
 
@@ -582,7 +581,7 @@ Por verificar: clave `province_based` en `common/buildings` (`PROVINCE_BASED_KEY
 
 ## Ejército inicial (S7)
 
-Pestaña **Ejército**: se elige un país y se diseñan sus **plantillas de división** (cuadrícula de combate 5×5 + columna de apoyo; arrastra batallones desde la paleta, que sale de `common/units` del juego), sus **divisiones** (provincia elegida en el mini mapa en modo **provincia**, solo tierra; nombre u orden, experiencia y equipo) y una **producción inicial** opcional. Exporta `history/units/<mod>_<TAG>_1936.txt` (archivo NUEVO; nunca `<TAG>_1936.txt` del juego) y la historia del país apunta a él con el parche mínimo de la línea `oob`. Un país del juego con ejército propio **reemplaza todo su ejército original** (el validador lo avisa). Además se corrigió que, con un árbol de focos abierto, la barra de bloques de Blockly se veía por encima de las pestañas nuevas.
+Pestaña **Ejército**: la lista va por país → plantillas → divisiones. Las **plantillas de división** (cuadrícula de combate 5×5 + columna de apoyo) se llenan arrastrando batallones desde la paleta o con un clic; cada casilla muestra el ícono y el nombre del juego. Las **divisiones** (provincia elegida en el mini mapa en modo **provincia**, solo tierra; nombre u orden, experiencia y equipo) y la **producción inicial** (opcional) están en el mismo esqueleto. Exporta `history/units/<mod>_<TAG>_1936.txt` (archivo NUEVO; nunca `<TAG>_1936.txt` del juego) y la historia del país apunta a él con el parche mínimo de la línea `oob`. Un país del juego con ejército propio **reemplaza todo su ejército original** (el validador lo avisa). Además se corrigió que, con un árbol de focos abierto, la barra de bloques de Blockly se veía por encima de las pestañas nuevas.
 
 Pendiente: flotas y aviación (formato sin verificar), estadísticas de la plantilla y `common/units/names_divisions`. Por verificar: cuadrícula 5×5 / apoyo de 5, `division_name` ordenado, producción en `instant_effect` y el nombre de grupo `support` en `common/units`.
 
@@ -612,3 +611,74 @@ Por verificar: forma exacta de `add_tech_bonus`, `research_cost_coeff = 1`, que 
 - **Editor de espíritu**: nombre, ID (pequeño y gris), descripción, modificadores en español con % y el ícono a la derecha (Emoji, Subir imagen, Mi biblioteca, Del juego).
 - **Íconos «Del juego»** (espíritus y focos): se leen los sprites `GFX_idea_*` y `GFX_goal_*` de `interface/*.gfx` de tu instalación y sus texturas `.dds` con un decodificador DDS propio en JavaScript (DXT1, DXT3, DXT5 y sin comprimir; un formato no soportado, como BC7, da una miniatura genérica). Las miniaturas PNG se guardan solo en la caché (`userData`) y se generan en segundo plano por lotes. Al elegir uno, el espíritu exporta `picture` = nombre del sprite sin `GFX_idea_`; no se copia ningún archivo. El validador avisa si el sprite no existe en tu versión del juego.
 - **Ventana «Elegir del juego»**: miniatura real de cada espíritu, nombre normal y debajo, pequeño y gris, el ID y un resumen en español («Estabilidad +10 %»). Los nombres resuelven `$OTRA_CLAVE$`, quitan los códigos de color `§` y los textos dinámicos `[ … ]`. La vista previa muestra icono, nombre, descripción y modificadores; el código del juego queda en «Ver código», plegado.
+
+## Rediseño de la interfaz
+
+Todas las secciones (Eventos, Súper eventos, Decisiones, Personajes, Ejército, Tecnologías y Extras)
+comparten el mismo esqueleto (`ui/SectionScreen.tsx` y `ui/SectionParts.tsx`); cada sección solo
+registra su contenido con `registerSectionScreen`. **El formato de los archivos exportados no cambió**:
+`tests/regression.test.ts` compara el texto exportado de todas las secciones con una copia guardada y
+se comprobó además contra el commit anterior al rediseño.
+
+- **Tres columnas.** Izquierda: lista por grupos plegables con buscador, miniaturas y el ID pequeño y
+  gris. Centro: el editor en tarjetas, con «Opciones avanzadas» plegadas (el ID casi siempre está ahí).
+  Derecha: vista previa visual en vivo y, plegado al final, «Ver código».
+- **Estado vacío.** Una o dos líneas que explican la sección, una galería de plantillas con tarjetas
+  (miniatura, nombre y una frase) y el botón principal «Crear …». Nunca hay datos de ejemplo.
+- **Ventana «Nuevo …».** Pide el nombre, el grupo (uno existente o uno nuevo ahí mismo; en Ejército y
+  Personajes, el país) y la plantilla. Nunca pide un ID: se genera solo. Los avisos del validador
+  van en texto pequeño con un ícono dentro de la tarjeta del campo afectado; el resumen completo sigue
+  en Exportar.
+- **Ayuda «?»** (`ui/Help.tsx`; todos los textos en `ui/helpTexts.ts`). Solo está en los conceptos
+  difíciles: grupo de eventos, activación, una sola vez, noticia, oculto, tiempo promedio y de
+  respuesta, súper evento y sonido, categoría, misión, contra países, sobre estados y costo de las
+  decisiones, banderas por ideología, nombre con artículo y tag, cores, sin nación y capital, saltar
+  si, excluyente y prerrequisito de los focos, plantilla, batallones de línea y apoyo, subideología y
+  Modo avanzado. Se abre al pasar el mouse (o con un clic) y se cierra al quitarlo o con Esc.
+  `tests/help.test.ts` impide agregar «?» fuera de la lista sin decirlo.
+- **Eventos.** Los eventos se agrupan en **grupos de eventos**: el nombre del grupo genera solo el
+  namespace del script. Vista previa visual de un evento de país o de una noticia mundial.
+- **Decisiones.** Toda decisión pertenece a una categoría (la ventana obliga a elegirla o crearla). Los
+  cuatro tipos se eligen con tarjetas; la vista previa muestra la categoría como en el juego, con
+  ícono, nombre, costo y días de cada decisión. Los íconos de decisiones y categorías pueden ser del
+  juego (miniaturas reales) o propios.
+- **Ejército.** Solo unidades **terrestres**, agrupadas en Infantería, Móviles, Blindados, Artillería,
+  antitanque y antiaérea, y Apoyo (las aéreas y navales no aparecen). El nombre sale de la
+  localización del juego (español primero, luego una tabla propia y por último el inglés del juego) y
+  el ícono, del sprite del batallón en `interface/*.gfx` con miniaturas en la caché; si no se
+  encuentra, se usa un ícono genérico por tipo. Plantillas de arranque: en blanco, infantería,
+  motorizada y blindada (se omiten los batallones que el juego no tiene).
+- **Tecnologías e ideologías.** La lista tiene dos grupos: «Ideologías» (subideologías agrupadas en
+  Democracia, Comunismo, Fascismo y No alineado) y «Tecnologías». El color se elige con un **selector
+  de color** (en vez de tres cajas r g b) y exporta el mismo valor. El ícono se sube o se toma de la
+  biblioteca. El Modo avanzado es un interruptor con una frase corta y su «?». La vista previa muestra
+  la subideología como en la ventana de gobierno y la tecnología como una casilla del árbol.
+- **Países.** En el paso de banderas cada variante lleva un nombre claro («Bandera si el país es
+  comunista»…) y un «?» que explica cuándo la usa el juego.
+- **Personajes y Extras.** Mismo esqueleto: Personajes se agrupa por país (papeles como botones y una
+  ficha de vista previa); Extras se agrupa en Idiomas, Música, Pantallas de carga y El mod (portada e
+  importar), y las canciones se pueden escuchar en la vista previa.
+
+### Arreglos que salieron al probar
+- La **cinta** tenía deshabilitado el botón «Crear …» en las secciones nuevas; ahora se activa y abre
+  la misma ventana «Nuevo …» (lo cubre `tests/ui.test.ts`).
+- La interfaz de Electron **no tiene `Buffer`**: al subir un `.ogg` siempre se marcaba como inválido y
+  exportar música, sonidos de súper eventos o la portada habría fallado en la app real (en las pruebas
+  de Node sí existía). Ahora se usa `shared/base64.ts` (`atob`), y `tests/noBuffer.test.ts` quita
+  `Buffer` durante la prueba y vigila que no vuelva a usarse.
+- El aviso de sonido de los súper eventos mostraba «por verificar» en pantalla; ahora lo dice con
+  otras palabras (`tests/style.test.ts` revisa todos los textos de la interfaz).
+
+### Constantes por verificar (solo en comentarios del código)
+- `shared/gameUnits.ts`: grupos reales de `common/units` (`infantry`, `mobile`, `armor`, `artillery`,
+  `support`), cómo se reconocen las unidades aéreas y navales, y los nombres de sprite de los
+  batallones (`GFX_unit_<sprite>_icon_strip`…); nombres en español de reserva.
+- `sections/oob.ts`: cuadrícula 5×5 y apoyo de 5, formaciones de las plantillas de arranque, nombre
+  ordenado de división y producción en `instant_effect`.
+- `sections/technologies.ts`: color de cada grupo de ideología y nombres en español de las carpetas
+  de investigación; tamaño del ícono de subideología (32×32), nombre del sprite, `research_cost_coeff`
+  y partidos por país.
+- `sections/superEvents.ts`: sintaxis del efecto de sonido, tamaños de ventana y botones.
+- Las ya existentes: tamaño de imagen de evento (si el juego no se puede leer), íconos y categorías de
+  decisiones, edificios y categorías de estado de reserva, `chance` de la música, tamaños de pantallas
+  de carga y de portada, retratos y `legacy_id`.

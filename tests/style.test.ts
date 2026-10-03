@@ -3,6 +3,7 @@
 import { describe, expect, it } from 'vitest'
 import fs from 'fs'
 import path from 'path'
+import ts from 'typescript'
 
 const ROOT = path.join(__dirname, '..', 'src', 'renderer', 'src')
 function files(dir: string, out: string[] = []): string[] {
@@ -64,6 +65,41 @@ describe('estilo general', () => {
         if (m && /\(([a-z]+_[a-z0-9_]+|available|bypass)\)/.test(m[2]))
           bad.push(`${rel(f)}:${i + 1}: ${m[2].slice(0, 80)}`)
       })
+    expect(bad).toEqual([])
+  })
+  it('no aparece "por verificar" en ningún texto de la interfaz (solo en comentarios del código)', () => {
+    const bad: string[] = []
+    const scan = (dir: string): void => {
+      for (const f of files(dir)) {
+        const sf = ts.createSourceFile(
+          f,
+          fs.readFileSync(f, 'utf-8'),
+          ts.ScriptTarget.Latest,
+          true,
+          f.endsWith('.tsx') ? ts.ScriptKind.TSX : ts.ScriptKind.TS
+        )
+        const visit = (n: ts.Node): void => {
+          const text =
+            ts.isStringLiteral(n) || ts.isNoSubstitutionTemplateLiteral(n)
+              ? n.text
+              : ts.isTemplateHead(n) || ts.isTemplateMiddle(n) || ts.isTemplateTail(n)
+                ? n.text
+                : ts.isJsxText(n)
+                  ? n.text
+                  : null
+          if (text !== null && /verificar/i.test(text)) {
+            const { line } = sf.getLineAndCharacterOfPosition(n.getStart())
+            bad.push(
+              `${path.relative(path.join(__dirname, '..'), f)}:${line + 1}: ${text.trim().slice(0, 70)}`
+            )
+          }
+          ts.forEachChild(n, visit)
+        }
+        visit(sf)
+      }
+    }
+    scan(ROOT)
+    scan(path.join(__dirname, '..', 'src', 'shared'))
     expect(bad).toEqual([])
   })
 })

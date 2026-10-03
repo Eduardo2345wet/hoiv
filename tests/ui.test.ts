@@ -2,6 +2,7 @@
 // Sin navegador se saltan. La app corre sin Electron: sin carpeta del juego → mapa de demostración.
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import path from 'path'
+import { sample } from './sampleProject'
 import react from '@vitejs/plugin-react'
 import { createServer, type ViteDevServer } from 'vite'
 import type { Browser, Page } from 'playwright-core'
@@ -2419,6 +2420,107 @@ describe('ayuda "?" en países, mapa y focos (rediseño)', () => {
       expect(await page.locator(`[data-focus-links] [data-help="${id}"]`).count()).toBe(1)
     await page.close()
   }, 60_000)
+})
+
+// ---------- Esqueleto común en todas las secciones (rediseño) ----------
+describe('esqueleto común en todas las secciones (rediseño)', () => {
+  const SECTIONS = [
+    'Eventos',
+    'Súper eventos',
+    'Decisiones',
+    'Personajes',
+    'Ejército',
+    'Tecnologías',
+    'Extras'
+  ]
+
+  it('vacías: 3 columnas, estado vacío con galería de plantillas y botón principal "Crear …"', async ({
+    skip
+  }) => {
+    if (!browser) skip()
+    const page = await fresh()
+    await focusEditor(page)
+    await page.evaluate(() =>
+      (window as unknown as HoiWindow).__hoiStore.updateProject((p: object) => ({
+        ...p,
+        events: [],
+        eventGroups: [],
+        superEvents: [],
+        decisionCategories: [],
+        decisions: [],
+        characters: [],
+        oobs: [],
+        technologies: [],
+        ideologies: [],
+        music: [],
+        loadingScreens: [],
+        cover: null
+      }))
+    )
+    for (const name of SECTIONS) {
+      await page.locator(`button:text-is("${name}")`).first().click()
+      await page.waitForSelector('[data-empty]')
+      for (const pane of ['left', 'center', 'right'])
+        expect(await page.locator(`[data-pane="${pane}"]`).count(), `${name} ${pane}`).toBe(1)
+      expect(await page.locator('[data-group-tree]').count(), name).toBe(1)
+      expect(
+        await page.locator('[data-empty] [data-template]').count(),
+        `${name}: galería`
+      ).toBeGreaterThanOrEqual(2)
+      expect(await page.locator('button[data-create]').count(), `${name}: crear`).toBe(1)
+      expect(await page.locator('[data-create]').innerText(), name).toMatch(/^\s*Crear /)
+      // el botón "Crear …" de la cinta también está activo y abre la ventana Nuevo
+      const ribbonCreate = page
+        .locator('button:not([data-create])')
+        .filter({ hasText: /^Crear / })
+        .first()
+      expect(await ribbonCreate.isDisabled(), `${name}: cinta`).toBe(false)
+      await ribbonCreate.click()
+      await page.waitForSelector('input[data-new-name]')
+      await page.keyboard.press('Escape')
+      await page.waitForFunction(() => !document.querySelector('input[data-new-name]'))
+    }
+    await page.close()
+  }, 90_000)
+
+  it('con contenido: lista por grupos con nombres normales (sin ID en inglés) y "Ver código" plegado', async ({
+    skip
+  }) => {
+    if (!browser) skip()
+    const page = await fresh()
+    await focusEditor(page)
+    await page.evaluate(
+      (pj) => (window as unknown as HoiWindow).__hoiStore.updateProject(() => pj),
+      sample() as never
+    )
+    for (const name of SECTIONS) {
+      await page.locator(`button:text-is("${name}")`).first().click()
+      await page.waitForSelector('[data-group-tree] [data-item]')
+      expect(await page.locator('[data-group]').count(), `${name}: grupos`).toBeGreaterThan(0)
+      const titles = await page.locator('[data-item] .truncate.text-sm').allInnerTexts()
+      expect(titles.length, name).toBeGreaterThan(0)
+      for (const t of titles) {
+        expect(t.trim().length, `${name}: título vacío`).toBeGreaterThan(0)
+        expect(/^[a-z0-9]+(_[a-z0-9]+)+$/.test(t.trim()), `${name}: "${t}" parece un ID`).toBe(
+          false
+        )
+      }
+      // elegir el primer elemento (en Extras, una canción) y mirar el código
+      const first =
+        name === 'Extras'
+          ? page.locator('[data-group="musica"] [data-item]').first()
+          : page.locator('[data-group-tree] [data-item]').first()
+      await first.click()
+      await page
+        .waitForSelector('[data-pane="right"] [data-code-view]', { timeout: 5000 })
+        .catch(() => {
+          throw new Error(`${name}: no aparece "Ver código" al elegir el primer elemento`)
+        })
+      expect(await page.locator('[data-code-view]').count(), name).toBe(1)
+      expect(await page.locator('[data-code-view][open]').count(), `${name}: plegado`).toBe(0)
+    }
+    await page.close()
+  }, 120_000)
 })
 
 // ---------- Extras e importación (S9) ----------

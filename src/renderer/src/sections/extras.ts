@@ -1,5 +1,6 @@
 // Extras: idiomas (traducciones por clave), música propia, pantallas de carga y portada del mod.
 import type { Project } from '../types'
+import { base64ToBytes, latin1 } from '../../../shared/base64'
 import { newUid } from '../types'
 import { safeFolderName } from '../../../shared/names'
 import { block, file, kv, raw, str, type Node } from '../export/clausewitz'
@@ -146,7 +147,7 @@ export const songPath = (p: Project, t: MusicTrack): string => `music/${songId(p
 /** ¿Empieza con la firma de un contenedor Ogg? */
 export function isOgg(base64: string): boolean {
   try {
-    return Buffer.from(base64.slice(0, 16), 'base64').toString('latin1', 0, 4) === 'OggS'
+    return latin1(base64ToBytes(base64.slice(0, 16)), 0, 4) === 'OggS'
   } catch {
     return false
   }
@@ -193,8 +194,7 @@ export function musicFiles(p: Project): ModFile[] {
     }
     out.push({ path: `music/${mod(p)}_${safeFolderName(st)}_songs.txt`, text: file(nodes) })
   }
-  for (const t of tracks)
-    out.push({ path: songPath(p, t), data: new Uint8Array(Buffer.from(t.ogg!.base64, 'base64')) })
+  for (const t of tracks) out.push({ path: songPath(p, t), data: base64ToBytes(t.ogg!.base64) })
   return out
 }
 
@@ -237,7 +237,7 @@ export function loadingFiles(p: Project): ModFile[] {
 
 export function coverBytes(p: Project): Uint8Array | null {
   const m = /^data:image\/png;base64,(.+)$/.exec(p.cover ?? '')
-  return m ? new Uint8Array(Buffer.from(m[1], 'base64')) : null
+  return m ? base64ToBytes(m[1]) : null
 }
 
 registerSectionGenerator({

@@ -331,10 +331,15 @@ export function SplitPane({
   const [open, setOpen] = useState(true)
   return (
     <div className="flex h-full min-h-0">
-      <aside className="w-72 shrink-0 border-r border-hoi-border bg-hoi-panel">{left}</aside>
-      <div className="min-w-0 flex-1 overflow-y-auto">{center}</div>
+      <aside data-pane="left" className="w-72 shrink-0 border-r border-hoi-border bg-hoi-panel">
+        {left}
+      </aside>
+      <div data-pane="center" className="min-w-0 flex-1 overflow-y-auto">
+        {center}
+      </div>
       {right && (
         <aside
+          data-pane="right"
           className={`shrink-0 border-l border-hoi-border bg-hoi-panel ${open ? 'w-96' : 'w-8'}`}
         >
           <button

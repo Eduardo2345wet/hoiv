@@ -200,31 +200,38 @@ function Track({ project, t }: { project: Project; t: MusicTrack }): JSX.Element
           />
         </Field>
         <Field label="Archivo de audio" help="Formato .ogg (Ogg Vorbis).">
-          <input
-            type="file"
-            accept=".ogg,audio/ogg"
-            className="text-xs"
-            onChange={(e) => {
-              const f = e.target.files?.[0]
-              if (!f) return
-              const r = new FileReader()
-              r.onload = () => {
-                const b64 = String(r.result).split(',')[1] ?? ''
-                if (!isOgg(b64))
-                  store.toast('Ese archivo no es un .ogg válido (Ogg Vorbis).', { kind: 'error' })
-                patchTrack(t.uid, {
-                  ogg: { name: f.name, base64: b64 },
-                  name: t.name || f.name.replace(/\.[^.]+$/, '')
-                })
-              }
-              r.readAsDataURL(f)
-            }}
-          />
-          {t.ogg && (
-            <span className="mt-1 block text-xs text-hoi-muted">
-              {t.ogg.name} · {Math.round((t.ogg.base64.length * 3) / 4 / 1024)} KB
-            </span>
-          )}
+          <div className="flex items-center gap-2">
+            <label className="btn cursor-pointer px-2 py-0.5 text-xs">
+              {t.ogg ? 'Cambiar archivo' : 'Subir archivo'}
+              <input
+                type="file"
+                accept=".ogg,audio/ogg"
+                className="hidden"
+                onChange={(e) => {
+                  const f = e.target.files?.[0]
+                  if (!f) return
+                  const r = new FileReader()
+                  r.onload = () => {
+                    const b64 = String(r.result).split(',')[1] ?? ''
+                    if (!isOgg(b64))
+                      store.toast('Ese archivo no es un .ogg válido (Ogg Vorbis).', {
+                        kind: 'error'
+                      })
+                    patchTrack(t.uid, {
+                      ogg: { name: f.name, base64: b64 },
+                      name: t.name || f.name.replace(/\.[^.]+$/, '')
+                    })
+                  }
+                  r.readAsDataURL(f)
+                }}
+              />
+            </label>
+            {t.ogg && (
+              <span className="text-xs text-hoi-muted">
+                {t.ogg.name} · {Math.round((t.ogg.base64.length * 3) / 4 / 1024)} KB
+              </span>
+            )}
+          </div>
         </Field>
       </Card>
       <Card title="Opciones avanzadas" collapsible defaultOpen={false}>
@@ -458,7 +465,7 @@ registerSectionScreen('extras', {
       items: (p.music ?? []).map((t) => ({
         uid: trackUid(t.uid),
         title: t.name,
-        subtitle: stationOf(p, t),
+        subtitle: t.ogg ? t.ogg.name : 'Falta el archivo',
         thumb: <MusicIcon size={16} className="text-hoi-muted" />
       }))
     },
