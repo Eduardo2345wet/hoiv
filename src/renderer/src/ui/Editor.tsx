@@ -22,6 +22,7 @@ import SectionScreen from './SectionScreen'
 import './EventsScreen'
 import './SuperEventsScreen'
 import './DecisionsScreen'
+import './OobScreen'
 import './CharactersScreen'
 import { sectionById } from '../sections/ui'
 import { autoLayout, dropFocus, repairTree } from '../focus/layout'
@@ -320,7 +321,7 @@ export default function Editor(): JSX.Element {
       <Navigator project={project} />
       <div className="relative flex min-h-0 min-w-0 flex-1 flex-col">
         {sectionDef && (
-          <div className="absolute inset-0 z-20 bg-hoi-bg">
+          <div className="absolute inset-0 z-[80] bg-hoi-bg">
             <SectionScreen def={sectionDef} project={project} />
           </div>
         )}

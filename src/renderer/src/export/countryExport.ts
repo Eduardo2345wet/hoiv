@@ -16,6 +16,7 @@ import {
 import { locText } from '../generator/focusTree'
 import '../sections/characters'
 import '../sections/start'
+import { hasOob } from '../sections/oob'
 import { patchHistory } from '../countries/history'
 import {
   datedBlocks,
@@ -184,7 +185,9 @@ export function countryTextFiles(project: Project, game: GameCatalog | null = nu
         path: `history/countries/${historyFileName(c)}`,
         text: historyText(c, historyExtras(project, c))
       })
-      files.push({ path: `history/units/${c.tag}_1936.txt`, text: BASIC_DIVISION_TEMPLATE })
+      // Con ejército propio (sección Ejército) el OOB lo escribe esa sección
+      if (!hasOob(project, c.tag))
+        files.push({ path: `history/units/${c.tag}_1936.txt`, text: BASIC_DIVISION_TEMPLATE })
       loc.push(...nameLoc(c), ...partyLoc(c))
     } else {
       files.push(...existingCountryTextFiles(c, historyExtras(project, c)))

@@ -25,3 +25,19 @@ export function chooseState(opts: StatePickOptions = {}): Promise<number | null>
     })
   )
 }
+
+/** Mini mapa en modo PROVINCIA: devuelve el id de una provincia de tierra (null = cancelado) */
+export function chooseProvince(opts: StatePickOptions = {}): Promise<number | null> {
+  const s = store.get()
+  if (!s.map && !s.mapLoading) void store.loadMap()
+  return new Promise((resolve) =>
+    store.set({
+      statePicker: {
+        current: opts.current ?? null,
+        onlyOwner: opts.onlyOwner ?? null,
+        mode: 'province',
+        resolve
+      }
+    })
+  )
+}

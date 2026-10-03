@@ -8,7 +8,7 @@ export interface GameBuilding {
 }
 
 /** Entradas `clave = { … }` que están directamente dentro de `outer = { … }` */
-function entries(text: string, outer: string): { key: string; body: string }[] {
+export function entries(text: string, outer: string): { key: string; body: string }[] {
   const clean = text.replace(/#[^\n]*/g, '')
   const m = new RegExp(`(?:^|\\s)${outer}\\s*=\\s*\\{`).exec(clean)
   if (!m) return []
@@ -43,7 +43,7 @@ function entries(text: string, outer: string): { key: string; body: string }[] {
 }
 
 /** Valor de una clave numérica o `yes` de primer nivel dentro del cuerpo de una entrada */
-function topValue(body: string, key: string): string | null {
+export function topValue(body: string, key: string): string | null {
   let depth = 0
   let flat = ''
   for (const c of body) {

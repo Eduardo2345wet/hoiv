@@ -110,6 +110,8 @@ export interface GameCatalogData {
   eventPictures?: string[]
   buildingMax?: Record<string, { max: number; provincial: boolean }>
   stateCategories?: string[]
+  subUnits?: { id: string; group: string }[]
+  equipments?: string[]
   decisionIcons?: string[]
   technologies?: {
     id: string

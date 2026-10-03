@@ -3,6 +3,7 @@
 // contexto WebGL ni texturas), así que gasta unos pocos MB.
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { store, useApp } from '../store/appStore'
+import { PROVINCE_TYPE } from '../../../shared/map/types'
 import { buildPalette } from '../map/colors'
 import { effectiveCores, effectiveOwner } from '../map/mapOps'
 import { treeCountry } from '../countries/countryOps'
@@ -16,6 +17,7 @@ const SEA: [number, number, number] = [68, 107, 163]
 
 export default function StatePicker(): JSX.Element | null {
   const req = useApp((s) => s.statePicker)
+  const prov = req?.mode === 'province'
   const map = useApp((s) => s.map)
   const loading = useApp((s) => s.mapLoading)
   const project = useApp((s) => s.project)
@@ -53,11 +55,19 @@ export default function StatePicker(): JSX.Element | null {
   const restrict = req?.onlyOwner ?? (onlyTree ? (treeTag ?? null) : null)
   const allowed = useCallback(
     (id: number): boolean => {
-      if (!restrict || !map || !project) return true
-      const s = map.states[posById.get(id) ?? -1]
+      if (!map) return false
+      // Provincia: solo de tierra (y, si se pide, de un estado del país)
+      const st = prov
+        ? map.provinceType[id] === PROVINCE_TYPE.land
+          ? map.provinceToState[id]
+          : 0
+        : id
+      if (prov && !st) return false
+      if (!restrict || !project) return true
+      const s = map.states[posById.get(st) ?? -1]
       return !!s && effectiveOwner(s, project) === restrict
     },
-    [restrict, map, project, posById]
+    [restrict, map, project, posById, prov]
   )
 
   // Al abrir: estado actual seleccionado y centrado; si no, el mapa entero
@@ -65,8 +75,9 @@ export default function StatePicker(): JSX.Element | null {
     if (!req || !map) return
     setQuery('')
     setOnlyTree(false)
-    setSel(req.current && posById.has(req.current) ? req.current : null)
-    const c = req.current ? map.stateCenters[req.current] : null
+    const curState = req.current ? (prov ? map.provinceToState[req.current] : req.current) : 0
+    setSel(req.current && (prov ? curState > 0 : posById.has(req.current)) ? req.current : null)
+    const c = curState ? map.stateCenters[curState] : null
     if (c) setView({ x: c[0], y: c[1], z: Math.min(W / map.width, H / map.height) * 6 })
     else
       setView({
@@ -74,7 +85,7 @@ export default function StatePicker(): JSX.Element | null {
         y: map.height / 2,
         z: Math.min(W / map.width, H / map.height)
       })
-  }, [req, map, posById])
+  }, [req, map, posById, prov])
 
   const stateAt = useCallback(
     (px: number, py: number): number => {
@@ -82,9 +93,10 @@ export default function StatePicker(): JSX.Element | null {
       const mx = Math.floor(view.x + (px - W / 2) / view.z)
       const my = Math.floor(view.y + (py - H / 2) / view.z)
       if (mx < 0 || my < 0 || mx >= map.width || my >= map.height) return 0
-      return map.provinceToState[map.provinceIndex[my * map.width + mx]]
+      const pid = map.provinceIndex[my * map.width + mx]
+      return prov ? pid : map.provinceToState[pid]
     },
-    [map, view]
+    [map, view, prov]
   )
 
   // Dibujo: solo los píxeles visibles, muestreando provinceIndex (sin copiar nada)
@@ -108,14 +120,17 @@ export default function StatePicker(): JSX.Element | null {
         rowState[x] =
           mx < 0 || my < 0 || mx >= width || my >= height
             ? -1
-            : provinceToState[provinceIndex[my * width + mx]]
+            : prov
+              ? provinceIndex[my * width + mx]
+              : provinceToState[provinceIndex[my * width + mx]]
       }
       for (let x = 0; x < W; x++) {
         const st = rowState[x]
         let c: number
-        if (st <= 0) c = st < 0 ? pack(24, 24, 28) : seaC
+        const stId = st > 0 && prov ? provinceToState[st] : st
+        if (stId <= 0) c = st < 0 ? pack(24, 24, 28) : seaC
         else {
-          const p = (posById.get(st) ?? 0) * 4
+          const p = (posById.get(stId) ?? 0) * 4
           let r = palette.rgba[p]
           let g = palette.rgba[p + 1]
           let b = palette.rgba[p + 2]
@@ -133,7 +148,7 @@ export default function StatePicker(): JSX.Element | null {
       prevRow = Int32Array.from(rowState)
     }
     ctx.putImageData(img, 0, 0)
-  }, [map, palette, view, hover, sel, allowed, req, posById])
+  }, [map, palette, view, hover, sel, allowed, req, posById, prov])
 
   const results = useMemo(() => {
     const q = fold(query.trim())
@@ -152,36 +167,42 @@ export default function StatePicker(): JSX.Element | null {
   ): (typeof map extends null ? never : NonNullable<typeof map>['states'][number]) | undefined =>
     id && map ? map.states[posById.get(id) ?? -1] : undefined
   const label = (id: number): string => {
+    if (prov) {
+      const st = map ? stateOf(map.provinceToState[id]) : undefined
+      return map && map.provinceType[id] === PROVINCE_TYPE.land
+        ? `📍 Provincia ${id}${st ? ` · ${st.name} #${st.id}` : ''}${map.provinceCoastal[id] ? ' (costera)' : ''}`
+        : `⚠ La provincia ${id} no es de tierra`
+    }
     const s = stateOf(id)
     return s && project
       ? `📍 ${s.name} (${effectiveOwner(s, project) || '—'}) · ${id}`
       : `⚠ Estado ${id} (no existe)`
   }
   const center = (id: number): void => {
-    const c = map?.stateCenters[id]
+    const c = map?.stateCenters[prov ? map.provinceToState[id] : id]
     if (c) setView((v) => ({ x: c[0], y: c[1], z: Math.max(v.z, 2) }))
   }
   const pick = (id: number): void => {
     setSel(id)
     center(id)
   }
-  const hs = stateOf(hover)
+  const hs = stateOf(prov && hover && map ? map.provinceToState[hover] : hover)
 
   return (
     <Modal
-      title="Elegir estado"
+      title={prov ? 'Elegir provincia' : 'Elegir estado'}
       width={900}
       onClose={() => close(null)}
       footer={
         <>
           <span className="mr-auto truncate text-sm" data-state-selected>
-            {sel ? label(sel) : 'Ningún estado elegido'}
+            {sel ? label(sel) : prov ? 'Ninguna provincia elegida' : 'Ningún estado elegido'}
           </span>
           <button
             className="btn"
             onClick={() =>
               store.openPrompt({
-                message: 'Número del estado:',
+                message: prov ? 'Número de la provincia:' : 'Número del estado:',
                 defaultValue: sel ? String(sel) : '',
                 validate: (t) =>
                   /^[1-9]\d*$/.test(t)
@@ -201,7 +222,7 @@ export default function StatePicker(): JSX.Element | null {
             disabled={!sel || !allowed(sel)}
             onClick={() => sel && close(sel)}
           >
-            Usar este estado
+            {prov ? 'Usar esta provincia' : 'Usar este estado'}
           </button>
         </>
       }
@@ -217,18 +238,25 @@ export default function StatePicker(): JSX.Element | null {
           }}
         >
           <div className="mb-2 flex flex-wrap items-center gap-2">
-            <input
-              autoFocus
-              className="input w-64"
-              placeholder="Buscar por nombre o ID…"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && results[0])
-                  (e.preventDefault(), e.stopPropagation(), pick(results[0].id))
-              }}
-            />
-            {treeTag && !req.onlyOwner && (
+            {prov && (
+              <span className="text-xs text-hoi-muted">
+                Haz clic en una provincia de tierra (se ven sus bordes).
+              </span>
+            )}
+            {!prov && (
+              <input
+                autoFocus
+                className="input w-64"
+                placeholder="Buscar por nombre o ID…"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && results[0])
+                    (e.preventDefault(), e.stopPropagation(), pick(results[0].id))
+                }}
+              />
+            )}
+            {!prov && treeTag && !req.onlyOwner && (
               <label className="flex items-center gap-1 text-xs">
                 <input
                   type="checkbox"
@@ -241,7 +269,7 @@ export default function StatePicker(): JSX.Element | null {
             {req.onlyOwner && (
               <span className="text-xs text-yellow-300">Solo estados de {req.onlyOwner}</span>
             )}
-            {recents.length > 0 && (
+            {!prov && recents.length > 0 && (
               <span className="flex flex-wrap items-center gap-1 text-xs">
                 Recientes:
                 {recents.map((id) => (
@@ -344,7 +372,10 @@ export default function StatePicker(): JSX.Element | null {
                 }}
               >
                 <div className="font-semibold">{hs.name}</div>
-                <div className="font-mono text-hoi-muted">#{hs.id}</div>
+                <div className="font-mono text-hoi-muted">
+                  #{hs.id}
+                  {prov && hover ? ` · provincia ${hover}` : ''}
+                </div>
                 <div className="flex items-center gap-1">
                   {effectiveOwner(hs, project) && (
                     <img

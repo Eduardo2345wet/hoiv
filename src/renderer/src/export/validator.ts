@@ -12,6 +12,7 @@ import { pathProblems } from './registry'
 import { validateEvents } from '../sections/events'
 import { validateCharacters } from '../sections/characters'
 import { validateStart } from '../sections/start'
+import { validateOob } from '../sections/oob'
 import { validateDecisions } from '../sections/decisions'
 import { validateSuperEvents } from '../sections/superEvents'
 import { sectionFiles } from '../sections/generators'
@@ -424,6 +425,10 @@ export function validateProject(
   // ---- Situación inicial y escenarios ----
   for (const i of validateStart(project, game))
     issues.push({ severity: i.severity, kind: 'Situación inicial', message: i.message })
+
+  // ---- Ejército inicial ----
+  for (const i of validateOob(project, mapCtx?.map, game))
+    issues.push({ severity: i.severity, kind: 'Ejército', message: i.message })
 
   // ---- Seguridad de rutas: lista negra, carpetas permitidas y archivos del juego ----
   const regCtx = { gameFiles: opts.gameFiles }

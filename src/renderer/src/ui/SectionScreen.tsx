@@ -44,8 +44,7 @@ export default function SectionScreen({
     [def.id, selected, screen]
   )
   const doCreate = (): void => {
-    const uid = create?.()
-    if (uid) setSelected(uid)
+    void Promise.resolve(create?.()).then((uid) => uid && setSelected(uid))
   }
   return (
     <SplitPane
@@ -69,10 +68,7 @@ export default function SectionScreen({
                 <button
                   key={t.id}
                   className="mt-1 w-full text-left text-xs text-hoi-muted underline hover:text-hoi-accent"
-                  onClick={() => {
-                    const uid = t.create()
-                    if (uid) setSelected(uid)
-                  }}
+                  onClick={() => void Promise.resolve(t.create()).then((u) => u && setSelected(u))}
                 >
                   + {t.label}
                 </button>

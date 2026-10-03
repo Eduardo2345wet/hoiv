@@ -1655,7 +1655,6 @@ describe('pestañas de secciones nuevas (B0)', () => {
     const page = await fresh()
     await focusEditor(page)
     for (const [tab, texto, crear] of [
-      ['Ejército', 'Aún no hay ejército', 'Crear plantilla de división'],
       ['Tecnologías', 'Aún no hay tecnologías', 'Crear tecnología'],
       ['Extras', 'Idiomas, música', 'Agregar']
     ] as const) {
@@ -1798,6 +1797,72 @@ describe('estados a fondo (S6)', () => {
     await page.evaluate(() =>
       (window as unknown as HoiWindow).__hoiStore.setUi({ mapMode: 'edificios' })
     )
+    await page.close()
+  }, 60_000)
+})
+
+// ---------- Ejército inicial (S7) ----------
+describe('ejército inicial (S7)', () => {
+  it('colocar un batallón en la cuadrícula y abrir el mini mapa en modo provincia', async ({
+    skip
+  }) => {
+    if (!browser) skip()
+    const page = await fresh()
+    await focusEditor(page)
+    const demoUrl = '/@fs' + path.resolve('src/shared/map/demo.ts')
+    await page.evaluate(async (url) => {
+      const { generateDemoMap } = await new Function('u', 'return import(u)')(url)
+      const st = (window as unknown as HoiWindow).__hoiStore as never as {
+        set(p: unknown): void
+        updateProject(f: (p: object) => object): void
+      }
+      st.updateProject((p) => ({
+        ...p,
+        events: [],
+        superEvents: [],
+        decisionCategories: [],
+        decisions: [],
+        characters: [],
+        countryStart: [],
+        technologies: [],
+        ideologies: [],
+        bookmarks: [],
+        music: [],
+        loadingScreens: [],
+        languages: [{ code: 'english' }],
+        oobs: [
+          {
+            country: 'NVG',
+            templates: [{ name: 'Inf', regiments: [], support: [] }],
+            divisions: [],
+            production: []
+          }
+        ]
+      }))
+      st.set({ map: generateDemoMap(), mapKey: 'demo' })
+    }, demoUrl)
+    await page.locator('button:text-is("Ejército")').first().click()
+    await page.locator('li:has-text("NVG")').first().click()
+    await page.waitForSelector('[data-cell="combat:0:0"]')
+    await page.locator('span:text-is("infantry")').click()
+    await page.locator('[data-cell="combat:0:0"]').click()
+    await page.locator('[data-cell="combat:1:0"]').click()
+    await page.waitForSelector('text=division_template = {')
+    const regs = await page.evaluate(
+      () =>
+        (
+          (window as unknown as HoiWindow).__hoiStore.get().project as unknown as {
+            oobs: { templates: { regiments: unknown[] }[] }[]
+          }
+        ).oobs[0].templates[0].regiments
+    )
+    expect(regs).toEqual([
+      { type: 'infantry', x: 0, y: 0 },
+      { type: 'infantry', x: 1, y: 0 }
+    ])
+    await page.locator('button[role="tab"]:has-text("Divisiones")').click()
+    await page.locator('button:has-text("+ División")').click()
+    await page.waitForSelector('text=Elegir provincia')
     await page.close()
   }, 60_000)
 })

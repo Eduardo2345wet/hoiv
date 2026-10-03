@@ -9,6 +9,7 @@ import { shineShape } from '../shared/shine'
 import { parseFocusFile } from '../shared/gameFocus'
 import { parseTechnologies, topLevelKeys, type GameTech } from '../shared/gameTech'
 import { parseBuildings, parseStateCategories } from '../shared/gameBuildings'
+import { parseEquipments, parseSubUnits, type GameSubUnit } from '../shared/gameUnits'
 import { parseTraits, type GameTrait } from '../shared/gameTraits'
 
 export interface Settings {
@@ -203,6 +204,9 @@ export interface GameCatalogResult {
   buildingMax?: Record<string, { max: number; provincial: boolean }>
   /** Categorías de estado (common/state_category) */
   stateCategories?: string[]
+  /** Batallones de common/units y equipos de common/units/equipment */
+  subUnits?: GameSubUnit[]
+  equipments?: string[]
   unitTraits?: GameTrait[]
   decisionCategoryIcons?: string[]
   /** Cuadrícula del árbol de focos (interface/nationalfocusview.gui) */
@@ -441,10 +445,34 @@ export function readGameCatalog(gamePath: string): GameCatalogResult | null {
   } catch {
     // sin la carpeta: lista de reserva
   }
+  let subUnits: GameSubUnit[] | undefined
+  let equipments: string[] | undefined
+  try {
+    const dir = path.join(gamePath, 'common', 'units')
+    const all = new Map<string, GameSubUnit>()
+    for (const f of fs.readdirSync(dir))
+      if (f.endsWith('.txt'))
+        for (const u of parseSubUnits(fs.readFileSync(path.join(dir, f), 'utf-8'))) all.set(u.id, u)
+    if (all.size) subUnits = [...all.values()]
+  } catch {
+    // sin la carpeta: lista de reserva
+  }
+  try {
+    const dir = path.join(gamePath, 'common', 'units', 'equipment')
+    const all = new Set<string>()
+    for (const f of fs.readdirSync(dir))
+      if (f.endsWith('.txt'))
+        for (const e of parseEquipments(fs.readFileSync(path.join(dir, f), 'utf-8'))) all.add(e)
+    if (all.size) equipments = [...all].sort()
+  } catch {
+    // sin la carpeta: producción libre
+  }
   const leaderTraits = readTraits('country_leader')
   const unitTraits = readTraits('unit_leader')
 
   const result: GameCatalogResult = {
+    subUnits,
+    equipments,
     buildingMax,
     stateCategories,
     leaderTraits,

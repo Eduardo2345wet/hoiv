@@ -34,7 +34,13 @@ export function stateRequests(project: Project, map: MapData): StatePatchRequest
     const owner = exportOwner(s, project)
     const cores = exportCores(s, project)
     const pending = noNation && !painted
-    if (!pending && !props && owner === s.owner && cores.join(',') === [...s.cores].sort().join(',')) continue
+    if (
+      !pending &&
+      !props &&
+      owner === s.owner &&
+      cores.join(',') === [...s.cores].sort().join(',')
+    )
+      continue
     const req = byFile.get(s.file) ?? { file: s.file, targets: [] }
     req.targets.push(
       pending

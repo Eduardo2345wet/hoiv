@@ -221,15 +221,37 @@ export interface CountryStart {
   startDate: '1936' | '1939'
 }
 
+/** Plantilla de división: batallones en la cuadrícula de combate y compañías de apoyo */
+export interface OobTemplate {
+  name: string
+  regiments: { type: string; x: number; y: number }[]
+  /** Columna de apoyo: y = posición (x siempre 0) */
+  support: { type: string; y: number }[]
+}
+
+export interface OobDivision {
+  uid: string
+  /** Nombre de la plantilla */
+  template: string
+  /** Provincia de TIERRA donde empieza */
+  province: number
+  /** Nombre propio; vacío = el del juego */
+  name: string
+  /** Número de orden (division_name ordenado); null = no se usa */
+  ordinal: number | null
+  /** Experiencia inicial 0–1 (start_experience_factor) */
+  experience: number
+  /** Equipo inicial 0–1 (start_equipment_factor) */
+  equipment: number
+}
+
 /** Ejército inicial de un país */
 export interface Oob {
   country: string
-  templates: {
-    name: string
-    regiments: { type: string; x: number; y: number }[]
-    support: string[]
-  }[]
-  divisions: { template: string; province: number; name: string }[]
+  templates: OobTemplate[]
+  divisions: OobDivision[]
+  /** Producción inicial opcional (instant_effect) */
+  production: { equipment: string; factories: number }[]
 }
 
 export interface Technology {

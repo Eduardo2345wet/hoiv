@@ -69,8 +69,8 @@ export const SECTIONS: SectionDef[] = [
     id: 'ejercito',
     label: 'Ejército',
     collection: 'oobs',
-    createLabel: 'Crear plantilla de división',
-    empty: 'Aún no hay ejército inicial. Diseña una plantilla de división.',
+    createLabel: 'Ejército de un país',
+    empty: 'Aún no hay ejército inicial. Elige un país y diseña sus plantillas de división.',
     groups: groups('Plantilla')
   },
   {
@@ -95,11 +95,11 @@ export const sectionById = (id: string): SectionDef | undefined => SECTIONS.find
 /** Lo que cada sección registra en su etapa */
 export interface SectionScreen {
   /** Crea un elemento nuevo (con deshacer) y devuelve su uid */
-  create?: () => string | null
+  create?: () => string | null | Promise<string | null>
   duplicate?: (uid: string) => string | null
   remove?: (uid: string) => void
   /** Plantillas de partida del menú de crear */
-  templates?: { id: string; label: string; create: () => string | null }[]
+  templates?: { id: string; label: string; create: () => string | null | Promise<string | null> }[]
   /** Vista alternativa de toda la sección (por ejemplo la cadena de eventos) */
   renderOverview?: (
     project: Project,

@@ -231,6 +231,8 @@ export interface AppState {
   statePicker: {
     current: number | null
     onlyOwner: string | null
+    /** 'province' = elige una provincia de TIERRA (devuelve el id de provincia) */
+    mode?: 'state' | 'province'
     resolve: (id: number | null) => void
   } | null
   /** Espíritu a seleccionar al abrir la pestaña Espíritus */
