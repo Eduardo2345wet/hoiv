@@ -4,6 +4,7 @@ import fs from 'fs'
 import path from 'path'
 import crypto from 'crypto'
 import { parseGameIdeas, type GameIdea } from '../shared/ideasParse'
+import { cleanLoc } from '../shared/locText'
 
 export const ideasCatalogStats = {
   reads: 0,
@@ -41,7 +42,8 @@ export function readIdeasCatalog(gamePath: string, cacheDir: string | null): Gam
   const ideaFiles = walk(path.join(gamePath, 'common', 'ideas'), '.txt')
   // Localización: TODOS los .yml en inglés (incluidos replace/ y los de DLC)
   const locFiles = walk(path.join(gamePath, 'localisation', 'english'), '.yml')
-  const fp = fingerprint([...ideaFiles, ...locFiles])
+  // v2: nombres resueltos ($CLAVE$, §, [ ])
+  const fp = 'v2|' + fingerprint([...ideaFiles, ...locFiles])
   const mem = ideasCatalogStats.memory.get(gamePath)
   if (mem && mem.fp === fp) return mem.ideas
   ideasCatalogStats.reads++
@@ -73,6 +75,8 @@ export function readIdeasCatalog(gamePath: string, cacheDir: string | null): Gam
   }
   const want = new Map<string, GameIdea>()
   for (const i of ideas) want.set(i.id, i)
+  // Todas las claves (para resolver $OTRA_CLAVE$); los textos se limpian al final
+  const all = new Map<string, string>()
   for (const f of locFiles) {
     let text = ''
     try {
@@ -80,15 +84,14 @@ export function readIdeasCatalog(gamePath: string, cacheDir: string | null): Gam
     } catch {
       continue
     }
-    for (const m of text.matchAll(/^\s*([A-Za-z0-9_.-]+):\d*\s*"(.*)"\s*$/gm)) {
-      const k = m[1]
-      const direct = want.get(k)
-      if (direct) direct.name = m[2]
-      else if (k.endsWith('_desc')) {
-        const base = want.get(k.slice(0, -5))
-        if (base) base.desc = m[2]
-      }
-    }
+    for (const m of text.matchAll(/^\s*([A-Za-z0-9_.-]+):\d*\s*"(.*)"\s*(?:#.*)?$/gm)) all.set(m[1], m[2])
+  }
+  const look = (k: string): string | undefined => all.get(k)
+  for (const [id, i] of want) {
+    const n = all.get(id)
+    if (n !== undefined) i.name = cleanLoc(n, look)
+    const d = all.get(`${id}_desc`)
+    if (d !== undefined) i.desc = cleanLoc(d, look)
   }
   ideasCatalogStats.memory.set(gamePath, { fp, ideas })
   if (diskFile) {

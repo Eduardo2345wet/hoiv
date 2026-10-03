@@ -1463,7 +1463,7 @@ describe('elegir ideas del juego (parte D)', () => {
         desc: '',
         modifiers: [['stability_factor', 5]],
         extraModifierText: '',
-        extraText: ''
+        extraText: i === 7 ? 'allowed = { original_tag = AFG }' : ''
       }))
       w.__reads = 0
       w.electronAPI = {
@@ -1498,6 +1498,16 @@ describe('elegir ideas del juego (parte D)', () => {
     // Búsqueda sin acentos por nombre localizado
     await page.fill('input[placeholder^="Buscar"]', 'union atica')
     await page.waitForFunction(() => document.querySelectorAll('[data-idea-row]').length === 1)
+    // «Ver código» está plegado por defecto y el modificador sale en español
+    await page.waitForSelector('[data-idea-code]')
+    expect(
+      await page.locator('[data-idea-code]').evaluate((d) => (d as HTMLDetailsElement).open)
+    ).toBe(false)
+    expect(await page.locator('[data-idea-code] pre').isVisible()).toBe(false)
+    expect(await page.locator('[data-idea-preview]').textContent()).toContain('Estabilidad +5 %')
+    expect(await page.locator('[data-idea-preview]').textContent()).not.toContain(
+      'stability_factor'
+    )
     await page.click('button:text-is("Usar este")')
     expect(await page.evaluate(() => (window as unknown as Record<string, unknown>).__used)).toBe(
       'idea_7'

@@ -605,3 +605,10 @@ Pestaña **Tecnologías**, «lo seguro primero»:
 - Validador: sin ciclos, referencias y carpetas existentes, ID que no pisa al juego, nombre (localización) obligatorio; un archivo parchado se vuelve a leer con jomini antes de exportarlo y los originales del juego jamás se modifican.
 
 Por verificar: forma exacta de `add_tech_bonus`, `research_cost_coeff = 1`, que una carpeta existente muestre tecnologías nuevas sin tocar el .gui, el sprite/tamaño del ícono de subideología y los nombres de partido (`<TAG>_<id>_party`) con un ejemplo real.
+
+## Espíritus, íconos del juego y estilo general
+
+- **Estilo**: la interfaz no usa emojis (solo íconos de línea; los emojis que eliges como ícono de un foco o espíritu son contenido y se conservan), las etiquetas están en español sin nombres de código, y el tono es más tranquilo (el naranja solo para la acción principal y lo seleccionado). La cinta nunca parte el nombre de una pestaña: las que no caben van al menú «Más».
+- **Editor de espíritu**: nombre, ID (pequeño y gris), descripción, modificadores en español con % y el ícono a la derecha (Emoji, Subir imagen, Mi biblioteca, Del juego).
+- **Íconos «Del juego»** (espíritus y focos): se leen los sprites `GFX_idea_*` y `GFX_goal_*` de `interface/*.gfx` de tu instalación y sus texturas `.dds` con un decodificador DDS propio en JavaScript (DXT1, DXT3, DXT5 y sin comprimir; un formato no soportado, como BC7, da una miniatura genérica). Las miniaturas PNG se guardan solo en la caché (`userData`) y se generan en segundo plano por lotes. Al elegir uno, el espíritu exporta `picture` = nombre del sprite sin `GFX_idea_`; no se copia ningún archivo. El validador avisa si el sprite no existe en tu versión del juego.
+- **Ventana «Elegir del juego»**: miniatura real de cada espíritu, nombre normal y debajo, pequeño y gris, el ID y un resumen en español («Estabilidad +10 %»). Los nombres resuelven `$OTRA_CLAVE$`, quitan los códigos de color `§` y los textos dinámicos `[ … ]`. La vista previa muestra icono, nombre, descripción y modificadores; el código del juego queda en «Ver código», plegado.

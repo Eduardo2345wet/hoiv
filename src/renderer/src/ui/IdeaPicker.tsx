@@ -2,9 +2,10 @@
 // (solo se dibujan las filas visibles), con vista previa y botones para usar o copiar la idea.
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { GameIdea, IdeaTab } from '../../../shared/ideasParse'
-import { fold, loadGameIdeas, modifierSummary } from '../catalog/gameIdeas'
+import { fold, loadGameIdeas, modifierLines, modifierSummary } from '../catalog/gameIdeas'
 import { store, useApp } from '../store/appStore'
 import Modal from './Modal'
+import GameSprite from './GameSprite'
 
 export const IDEA_TABS: [IdeaTab, string][] = [
   ['espiritus', 'Espíritus nacionales'],
@@ -12,7 +13,7 @@ export const IDEA_TABS: [IdeaTab, string][] = [
   ['asesores', 'Asesores y diseñadores'],
   ['otros', 'Otros']
 ]
-const ROW_H = 44
+const ROW_H = 52
 const OVERSCAN = 6
 
 export default function IdeaPicker(): JSX.Element | null {
@@ -149,12 +150,20 @@ export default function IdeaPicker(): JSX.Element | null {
                       className={`absolute left-0 right-0 cursor-pointer overflow-hidden px-2 py-1 ${n === sel ? 'bg-hoi-accent/25' : 'hover:bg-hoi-card'}`}
                       style={{ top: n * ROW_H, height: ROW_H }}
                     >
-                      <div className="truncate text-sm">
-                        {i.name || i.id}{' '}
-                        <span className="font-mono text-[11px] text-hoi-muted">{i.id}</span>
-                      </div>
-                      <div className="truncate text-[11px] text-hoi-muted">
-                        {i.category} · {modifierSummary(i) || 'sin modificadores simples'}
+                      <div className="flex items-center gap-2">
+                        <div className="flex w-10 shrink-0 justify-center">
+                          <GameSprite
+                            name={i.picture ? `GFX_idea_${i.picture}` : null}
+                            height={36}
+                          />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="truncate text-sm">{i.name || i.id}</div>
+                          <div className="truncate text-[11px] text-hoi-muted">
+                            <span className="font-mono">{i.id}</span>
+                            {modifierSummary(i) ? ` · ${modifierSummary(i)}` : ''}
+                          </div>
+                        </div>
                       </div>
                     </div>
                   )
@@ -165,28 +174,41 @@ export default function IdeaPicker(): JSX.Element | null {
             <div className="min-w-0 flex-1 text-sm" data-idea-preview>
               {cur ? (
                 <>
-                  <div className="font-semibold">{cur.name || cur.id}</div>
-                  <div className="font-mono text-xs text-hoi-muted">
-                    {cur.id} · {cur.category} · {cur.file}
+                  <div className="flex items-center gap-3">
+                    <GameSprite name={cur.picture ? `GFX_idea_${cur.picture}` : null} height={64} />
+                    <div className="min-w-0">
+                      <div className="text-base font-medium">{cur.name || cur.id}</div>
+                      <div className="font-mono text-[11px] text-hoi-muted">{cur.id}</div>
+                    </div>
                   </div>
-                  {cur.desc && <p className="mt-2 text-xs">{cur.desc}</p>}
-                  <div className="mt-2 text-xs font-semibold text-hoi-muted">Modificadores</div>
-                  <ul className="text-xs">
-                    {cur.modifiers.map(([k, v]) => (
-                      <li key={k} className="font-mono">
-                        {k} = {v}
-                      </li>
-                    ))}
-                  </ul>
-                  {cur.extraModifierText && (
-                    <pre className="mt-1 max-h-28 overflow-auto rounded bg-hoi-card p-1 text-[11px]">
-                      {cur.extraModifierText}
-                    </pre>
-                  )}
-                  {cur.extraText && (
-                    <pre className="mt-1 max-h-28 overflow-auto rounded bg-hoi-card p-1 text-[11px]">
-                      {cur.extraText}
-                    </pre>
+                  {cur.desc && <p className="mt-3 text-xs text-gray-300">{cur.desc}</p>}
+                  {(() => {
+                    const m = modifierLines(cur)
+                    return (
+                      <ul className="mt-3 space-y-0.5 text-xs">
+                        {m.rows.map((r, n) => (
+                          <li key={n}>{r}</li>
+                        ))}
+                        {m.others > 0 && (
+                          <li className="text-hoi-muted">
+                            y {m.others} efecto{m.others === 1 ? '' : 's'} más
+                          </li>
+                        )}
+                        {!m.rows.length && !m.others && (
+                          <li className="text-hoi-muted">Sin modificadores simples</li>
+                        )}
+                      </ul>
+                    )
+                  })()}
+                  {(cur.extraModifierText || cur.extraText) && (
+                    <details data-idea-code className="mt-3">
+                      <summary className="cursor-pointer text-[11px] text-hoi-muted">
+                        Ver código
+                      </summary>
+                      <pre className="mt-1 max-h-32 overflow-auto rounded bg-hoi-card p-1 font-mono text-[10px] text-hoi-muted">
+                        {[cur.extraModifierText, cur.extraText].filter(Boolean).join('\n')}
+                      </pre>
+                    </details>
                   )}
                 </>
               ) : (
