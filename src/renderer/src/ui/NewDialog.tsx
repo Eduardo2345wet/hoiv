@@ -25,13 +25,21 @@ export default function NewDialog({
   onCreated: (uid: string | null) => void
   onClose: () => void
 }): JSX.Element {
-  const existing = useMemo(() => spec.groups?.(project) ?? [], [spec, project])
+  const existing = useMemo(
+    () => [
+      ...(spec.groupOptional ? [{ id: '', name: 'Sin grupo' }] : []),
+      ...(spec.groups?.(project) ?? [])
+    ],
+    [spec, project]
+  )
   const [template, setTemplate] = useState(
     initialTemplate ?? spec.defaultTemplate ?? spec.templates[0]?.id ?? ''
   )
   const [name, setName] = useState('')
   const [group, setGroup] = useState<string>(
-    initialGroup && existing.some((g) => g.id === initialGroup)
+    initialGroup !== undefined &&
+      initialGroup !== null &&
+      existing.some((g) => g.id === initialGroup)
       ? initialGroup
       : (existing[0]?.id ?? (spec.newGroupLabel ? NEW_GROUP : ''))
   )
@@ -41,7 +49,9 @@ export default function NewDialog({
   const askGroup = !!spec.groupLabel && (spec.needsGroup ? spec.needsGroup(template) : true)
   const groupOk =
     !askGroup ||
-    (group === NEW_GROUP ? newGroup.trim().length > 0 : group !== '' || !!picked) ||
+    (group === NEW_GROUP
+      ? newGroup.trim().length > 0
+      : group !== '' || !!picked || !!spec.groupOptional) ||
     !!picked
   const ok = name.trim().length > 0 && groupOk && !busy
   const submit = async (): Promise<void> => {
@@ -49,7 +59,7 @@ export default function NewDialog({
     setBusy(true)
     const uid = await spec.create({
       name: name.trim(),
-      groupId: picked ? picked.id : group === NEW_GROUP || !askGroup ? null : group,
+      groupId: picked ? picked.id : group === NEW_GROUP || !askGroup ? null : group || null,
       newGroupName: group === NEW_GROUP && !picked ? newGroup.trim() : '',
       template
     })

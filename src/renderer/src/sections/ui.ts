@@ -131,6 +131,8 @@ export interface NewSpec {
   groupLabel?: string
   /** Ayuda "?" junto al nombre del grupo */
   groupHelp?: string
+  /** El grupo es opcional: se ofrece "Sin grupo" */
+  groupOptional?: boolean
   groups?: (p: Project) => { id: string; name: string }[]
   /** ¿Esta plantilla necesita grupo? (por omisión sí, cuando hay groupLabel) */
   needsGroup?: (template: string) => boolean

@@ -1722,8 +1722,10 @@ describe('eventos (rediseño)', () => {
     await page.waitForSelector('input[data-new-name]')
     // la ventana nunca pide un ID (ninguna etiqueta de campo empieza por ID)
     const idLabels = await page.evaluate(() => {
-      const dlg = document.querySelector('input[data-new-name]')!.closest('.shadow-2xl') ?? document.body
-      return [...dlg.querySelectorAll('label')].filter((l) => /^ID\b/.test(l.textContent ?? '')).length
+      const dlg =
+        document.querySelector('input[data-new-name]')!.closest('.shadow-2xl') ?? document.body
+      return [...dlg.querySelectorAll('label')].filter((l) => /^ID\b/.test(l.textContent ?? ''))
+        .length
     })
     expect(idLabels).toBe(0)
     await page.fill('input[data-new-name]', 'Gran titular')
@@ -2166,6 +2168,46 @@ describe('íconos del juego (espíritus)', () => {
     expect(await btn.isDisabled()).toBe(false)
     await btn.click()
     await page.waitForSelector('input[placeholder="Buscar por nombre…"]')
+    await page.close()
+  }, 60_000)
+})
+
+describe('súper eventos (rediseño)', () => {
+  it('galería, vista previa en vivo de la ventana, selector de sonido propio y Ver código plegado', async ({
+    skip
+  }) => {
+    if (!browser) skip()
+    const page = await fresh()
+    await focusEditor(page)
+    await page.evaluate(() => {
+      const st = (window as unknown as HoiWindow).__hoiStore as never as {
+        updateProject(f: (p: object) => object): void
+      }
+      st.updateProject((p) => ({
+        ...p,
+        superEvents: [],
+        events: [],
+        eventGroups: [],
+        languages: [{ code: 'english' }]
+      }))
+    })
+    await page.locator('button:text-is("Súper eventos")').first().click()
+    await page.waitForSelector('[data-empty] [data-template="cita"]')
+    expect(await page.locator('text=No ofrece opciones').count()).toBeGreaterThan(0)
+    await page.locator('[data-empty] [data-template="cita"]').click()
+    await page.fill('input[data-new-name]', 'La caída')
+    await page.locator('button:text-is("Crear")').click()
+    await page.waitForSelector('[data-super-editor]')
+    expect(await page.locator('[data-item]:has-text("La caída")').count()).toBe(1)
+    expect(await page.locator('[data-preview-title]').textContent()).toBe('La caída')
+    await page.locator('[data-super-editor] input').first().fill('Otro título')
+    expect(await page.locator('[data-preview-title]').textContent()).toBe('Otro título')
+    // el sonido se elige con un botón propio (no con el campo de archivo del navegador)
+    await page.waitForSelector('button:text-is("Elegir archivo .wav")')
+    expect(await page.locator('[data-help="super.sonido"]').count()).toBe(1)
+    expect(
+      await page.locator('[data-code-view]').evaluate((d) => (d as HTMLDetailsElement).open)
+    ).toBe(false)
     await page.close()
   }, 60_000)
 })

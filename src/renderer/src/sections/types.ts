@@ -90,6 +90,8 @@ export interface SuperEvent {
   countries: string[]
   /** true = si ya hay una abierta, la nueva espera su turno; false = la reemplaza */
   queue: boolean
+  /** Grupo opcional para ordenar la lista ('' o ausente = sin grupo) */
+  group?: string
 }
 
 /** Categoría de decisiones (common/decisions/categories) */
