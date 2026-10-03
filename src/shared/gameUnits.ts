@@ -1,12 +1,14 @@
 // Batallones (common/units) y equipos (common/units/equipment) del juego, para el editor de ejército.
 import { entries, topValue } from './gameBuildings'
+import { tokenizePdx } from './countryHistory'
 
 export interface GameSubUnit {
   id: string
-  /** group = support para las compañías de apoyo */
+  /** `group` del archivo (infantry, mobile, armor, support, combat_support…); vacío en aéreas y navales */
   group: string
-  /** `type` y `map_icon_category` del archivo, para reconocer las terrestres */
+  /** `type` del archivo, con sus palabras separadas por espacio ("infantry artillery"; en el juego es un bloque) */
   type?: string
+  /** `map_icon_category` del archivo (infantry, armored, ship, other…) */
   mapIcon?: string
   /** `sprite` del archivo (nombre del dibujo del batallón) */
   sprite?: string
@@ -14,18 +16,49 @@ export interface GameSubUnit {
   gfx?: string | null
 }
 
-/** por verificar con common/units del juego: sub_units = { infantry = { group = infantry … } } */
+const unquote = (v: string): string => v.replace(/^"|"$/g, '')
+
+/**
+ * Confirmado en common/units de 1.19.3: `sub_units = { infantry = { group = infantry … } }`, y
+ * `type` puede ser un valor (`type = infantry`) o un bloque (`type = { infantry artillery }`).
+ * Lector tolerante: un archivo puede traer varios `sub_units`.
+ */
 export function parseSubUnits(text: string): GameSubUnit[] {
-  return entries(text, 'sub_units').map(({ key, body }) => {
-    const u: GameSubUnit = { id: key, group: topValue(body, 'group') ?? '' }
-    const type = topValue(body, 'type')
-    const mapIcon = topValue(body, 'map_icon_category')
-    const sprite = topValue(body, 'sprite')
-    if (type) u.type = type
-    if (mapIcon) u.mapIcon = mapIcon
-    if (sprite) u.sprite = sprite
-    return u
-  })
+  const t = tokenizePdx(text)
+  const out: GameSubUnit[] = []
+  for (let i = 0; i + 2 < t.length; i++) {
+    if (t[i].v !== 'sub_units' || t[i + 1].v !== '=' || t[i + 2].v !== '{') continue
+    const outer = t[i + 2].depth
+    let j = i + 3
+    for (; j < t.length && !(t[j].v === '}' && t[j].depth === outer); j++) {
+      // una unidad: `id = {` justo dentro de sub_units
+      if (t[j].depth !== outer + 1 || t[j + 1]?.v !== '=' || t[j + 2]?.v !== '{') continue
+      const d = t[j + 2].depth
+      const u: GameSubUnit = { id: t[j].v, group: '' }
+      let k = j + 3
+      for (; k < t.length && !(t[k].v === '}' && t[k].depth === d); k++) {
+        if (t[k].depth !== d + 1 || t[k + 1]?.v !== '=' || !t[k + 2]) continue
+        const key = t[k].v
+        const val = t[k + 2]
+        if (val.v === '{' && key === 'type') {
+          const words: string[] = []
+          for (let m = k + 3; m < t.length && !(t[m].v === '}' && t[m].depth === val.depth); m++)
+            if (t[m].depth === val.depth + 1) words.push(unquote(t[m].v))
+          if (words.length) u.type = words.join(' ')
+        } else if (val.v !== '{' && val.v !== '}') {
+          const v = unquote(val.v)
+          if (key === 'group') u.group = v
+          else if (key === 'type') u.type = v
+          else if (key === 'map_icon_category') u.mapIcon = v
+          else if (key === 'sprite') u.sprite = v
+        }
+      }
+      out.push(u)
+      j = k
+    }
+    i = j
+  }
+  return out
 }
 
 /** Equipos: claves de `equipments = { … }` que no son solo arquetipos */
@@ -48,40 +81,54 @@ export const UNIT_CATEGORIES: { id: UnitCategory; label: string }[] = [
   { id: 'support', label: 'Apoyo' }
 ]
 
-/** por verificar con common/units: el `group` real de cada batallón terrestre */
+/**
+ * Los `group` de las unidades terrestres, leídos de TODOS los archivos de common/units de 1.19.3
+ * (122 terrestres): infantry (13), mobile (9), armor (11), support (68), combat_support (4: artillería,
+ * antitanque y antiaérea de línea), mobile_combat_support (5: las motorizadas) y armor_combat_support
+ * (12: autopropulsadas y cazacarros). Las 36 sin `group` son aéreas (25), navales (9) y cañones de tren (2).
+ */
 const LAND_GROUPS: Record<string, UnitCategory> = {
   infantry: 'infantry',
   mobile: 'mobile',
   armor: 'armor',
-  artillery: 'artillery',
-  support: 'support'
+  support: 'support',
+  combat_support: 'artillery',
+  mobile_combat_support: 'artillery',
+  armor_combat_support: 'artillery'
 }
-/** por verificar: tipos y categorías de mapa de las unidades aéreas y navales, que se excluyen */
-const NOT_LAND = /(^|_)(air|naval|ship|ships|fleet|carrier|submarine|plane|planes|aircraft)(_|$)/i
-/** por verificar: tipo del batallón cuando su grupo no es de los conocidos */
-const LAND_TYPES: Record<string, UnitCategory> = {
-  infantry: 'infantry',
-  cavalry: 'infantry',
-  motorized: 'mobile',
-  mechanized: 'mobile',
-  armor: 'armor',
-  artillery: 'artillery',
-  anti_air: 'artillery',
-  anti_tank: 'artillery'
+/** `map_icon_category` de los barcos; las terrestres usan infantry o armored (y other la caballería) */
+const NAVAL_ICON = 'ship'
+const LAND_ICONS = new Set(['infantry', 'armored'])
+
+/** Categoría por las palabras de `type` (grupos que no conocemos, p. ej. los de un mod) */
+function categoryByType(words: string[]): UnitCategory | null {
+  const has = (...w: string[]): boolean => w.some((x) => words.includes(x))
+  if (has('support')) return 'support'
+  if (has('artillery', 'anti_air', 'anti_tank')) return 'artillery'
+  if (has('armor')) return 'armor'
+  if (has('motorized', 'mechanized')) return 'mobile'
+  if (has('infantry', 'cavalry')) return 'infantry'
+  return null
 }
 
-/** Categoría terrestre de un batallón, o null si no es terrestre (aéreo, naval o desconocido) */
+/**
+ * Categoría terrestre de un batallón, o null si no es terrestre (aéreo, naval, misil o cañón de tren).
+ * 1) un `group` conocido manda; 2) con otro `group`, se decide por las palabras de `type`;
+ * 3) sin `group`, solo cuenta si su ícono de mapa es terrestre. Un `map_icon_category = ship` nunca es terrestre.
+ */
 export function unitCategory(u: {
   id?: string
   group: string
   type?: string
   mapIcon?: string
 }): UnitCategory | null {
-  if (NOT_LAND.test(u.group) || NOT_LAND.test(u.type ?? '') || NOT_LAND.test(u.mapIcon ?? ''))
-    return null
-  const byGroup = LAND_GROUPS[u.group.toLowerCase()]
+  const icon = (u.mapIcon ?? '').toLowerCase()
+  if (icon === NAVAL_ICON) return null
+  const group = u.group.toLowerCase()
+  const byGroup = LAND_GROUPS[group]
   if (byGroup) return byGroup
-  return LAND_TYPES[(u.type ?? '').toLowerCase()] ?? null
+  if (!group && !LAND_ICONS.has(icon)) return null
+  return categoryByType((u.type ?? '').toLowerCase().split(/\s+/).filter(Boolean))
 }
 
 // ---------------------------------------------------------------- nombres
@@ -151,15 +198,16 @@ export function parseUnitNames(text: string, ids: Set<string>): Map<string, stri
 // ---------------------------------------------------------------- íconos
 
 /**
- * Sprite del batallón: confirmado en 1.19.3, GFX_unit_<sprite>_icon_medium (interface/subuniticons.gfx).
- * Se dejan nombres de reserva por si algún mod usa otro.
+ * Ícono del batallón, confirmado en 1.19.3 (interface/subuniticons.gfx): GFX_unit_<ID de la unidad>_icon_medium.
+ * El campo `sprite` NO va primero: artillery_brigade tiene sprite = artillery, y ese nombre es el ícono de
+ * la artillería de APOYO. Solo si no existe el ícono con el ID se prueba el del sprite; si tampoco, el
+ * llamador usa el ícono genérico del tipo.
  */
 export function unitSpriteCandidates(u: { id: string; sprite?: string }): string[] {
   const out: string[] = []
-  for (const s of [u.sprite, u.id]) {
-    if (!s) continue
-    for (const c of [`GFX_unit_${s}_icon_medium`, `GFX_unit_${s}_icon_strip`, `GFX_unit_${s}_icon`])
-      if (!out.includes(c)) out.push(c)
+  for (const s of [u.id, u.sprite]) {
+    const c = s ? `GFX_unit_${s}_icon_medium` : ''
+    if (c && !out.includes(c)) out.push(c)
   }
   return out
 }

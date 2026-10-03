@@ -16,6 +16,7 @@
     "test:build": "electron-vite build && node scripts/test-build.cjs",
     "bench:map": "vite-node scripts/bench-map.ts",
     "bench:render": "node scripts/bench-render.mjs",
+    "report:army": "vite-node scripts/army-report.ts",
     "typecheck": "tsc --noEmit -p tsconfig.node.json --composite false && tsc --noEmit -p tsconfig.web.json --composite false"
   },
   "dependencies": {

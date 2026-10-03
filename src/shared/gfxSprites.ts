@@ -1,4 +1,5 @@
 // Sprites de interface/*.gfx: nombre, textura y cuadros (noOfFrames). Solo lectura de texto.
+import { tokenizePdx } from './countryHistory'
 
 export interface GfxSprite {
   name: string
@@ -7,25 +8,34 @@ export interface GfxSprite {
   frames: number
 }
 
-/** Los bloques `spriteType = { … }` de un .gfx (lectura simple por llaves; ignora comentarios) */
+const unquote = (v: string): string => (v.startsWith('"') ? v.replace(/^"|"$/g, '') : v)
+
+/**
+ * Los bloques `spriteType = { … }` de un .gfx. Lector TOLERANTE (el mismo de las historias): acepta
+ * rutas con o sin comillas, la llave pegada al valor (`noOfFrames = 2}`), tabuladores, BOM, claves en
+ * cualquier mayúscula y comentarios. Solo se leen las claves de primer nivel de cada bloque.
+ */
 export function parseGfxSprites(text: string): GfxSprite[] {
-  const clean = text.replace(/^﻿/, '').replace(/#[^\n]*/g, '')
+  const t = tokenizePdx(text)
   const out: GfxSprite[] = []
-  const re = /\bspriteType\s*=\s*\{/gi
-  let m: RegExpExecArray | null
-  while ((m = re.exec(clean))) {
-    let i = m.index + m[0].length
-    let depth = 1
-    const start = i
-    for (; i < clean.length && depth > 0; i++) {
-      if (clean[i] === '{') depth++
-      else if (clean[i] === '}') depth--
+  for (let i = 0; i + 2 < t.length; i++) {
+    if (t[i].v.toLowerCase() !== 'spritetype' || t[i + 1].v !== '=' || t[i + 2].v !== '{') continue
+    const depth = t[i + 2].depth
+    let name: string | undefined
+    let tex: string | undefined
+    let frames = 1
+    let j = i + 3
+    for (; j < t.length && !(t[j].v === '}' && t[j].depth === depth); j++) {
+      if (t[j].depth !== depth + 1 || t[j + 1]?.v !== '=' || !t[j + 2]) continue
+      const key = t[j].v.toLowerCase()
+      const val = t[j + 2].v
+      if (val === '{' || val === '}') continue
+      if (key === 'name') name = unquote(val)
+      else if (key === 'texturefile') tex = unquote(val)
+      else if (key === 'noofframes') frames = Number(unquote(val)) || 1
     }
-    const body = clean.slice(start, i - 1)
-    const name = /\bname\s*=\s*"?([A-Za-z0-9_.\-]+)"?/i.exec(body)?.[1]
-    const tex = /\btexturefile\s*=\s*"([^"]+)"/i.exec(body)?.[1]
+    i = j
     if (!name || !tex) continue
-    const frames = Number(/\bnoOfFrames\s*=\s*(\d+)/i.exec(body)?.[1] ?? 1) || 1
     out.push({
       name,
       texture: tex
@@ -34,7 +44,6 @@ export function parseGfxSprites(text: string): GfxSprite[] {
         .replace(/^\//, ''),
       frames
     })
-    re.lastIndex = i
   }
   return out
 }

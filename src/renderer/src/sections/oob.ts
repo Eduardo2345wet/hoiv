@@ -361,6 +361,9 @@ export function validateOob(
   const units = unitLists(game)
   const knownCombat = new Set(units.combat)
   const knownSupport = new Set(units.support)
+  // "Existe" = aparece en CUALQUIER sub_units de common/units, sea cual sea su grupo (también las
+  // aéreas y navales: esas existen, pero no caben en una división)
+  const inGame = game?.subUnits ? new Set(game.subUnits.map((u) => u.id)) : null
   for (const o of p.oobs ?? []) {
     const at = (
       severity: OobIssue['severity'],
@@ -397,8 +400,10 @@ export function validateOob(
         const k = `${r.x},${r.y}`
         if (seen.has(k)) tt(`tiene dos batallones en la posición ${k}.`)
         seen.add(k)
-        if (game?.subUnits && !knownCombat.has(r.type) && !knownSupport.has(r.type))
+        if (inGame && !inGame.has(r.type))
           tt(`usa el batallón ${r.type}, que no existe en el juego.`)
+        else if (inGame && !knownCombat.has(r.type) && !knownSupport.has(r.type))
+          tt(`usa el batallón ${r.type}, que no es una unidad terrestre y no cabe en una división.`)
       }
       const sy = new Set<number>()
       for (const s of t.support) {
@@ -406,7 +411,9 @@ export function validateOob(
           tt(`tiene una compañía de apoyo fuera de la columna (0–${SUPPORT_SLOTS - 1}).`)
         if (sy.has(s.y)) tt(`tiene dos compañías de apoyo en la posición ${s.y}.`)
         sy.add(s.y)
-        if (game?.subUnits && !knownSupport.has(s.type))
+        if (inGame && !inGame.has(s.type))
+          tt(`usa la compañía ${s.type}, que no existe en el juego.`)
+        else if (inGame && !knownSupport.has(s.type))
           tt(`usa la compañía ${s.type}, que no existe como apoyo en el juego.`)
       }
     }

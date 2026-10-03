@@ -36,6 +36,7 @@ import {
 import { readGameCatalog } from '../src/main/game'
 import { spriteThumb } from '../src/main/gameSprites'
 import { decodeDds, thumbnail } from '../src/shared/dds'
+import { parseGfxSprites } from '../src/shared/gfxSprites'
 import type { Project } from '../src/renderer/src/types'
 
 const map = generateDemoMap()
@@ -252,10 +253,10 @@ describe('Ejército: solo unidades terrestres, nombres e íconos del juego', () 
   infantry = { sprite = infantry map_icon_category = infantry type = infantry group = infantry }
   motorized = { sprite = motorized type = motorized group = mobile }
   light_armor = { sprite = light_armor type = armor group = armor }
-  artillery_brigade = { sprite = artillery type = artillery group = artillery }
+  artillery_brigade = { sprite = artillery map_icon_category = infantry type = { infantry artillery } group = combat_support }
   engineer = { sprite = engineer group = support }
-  destroyer = { sprite = destroyer map_icon_category = ship type = naval group = ships }
-  fighter = { sprite = fighter map_icon_category = air type = air group = air }
+  destroyer = { sprite = destroyer map_icon_category = ship type = screen_ship }
+  fighter = { sprite = fighter type = fighter }
 }`
     )
     w(
@@ -285,10 +286,12 @@ describe('Ejército: solo unidades terrestres, nombres e íconos del juego', () 
     expect(unitCategory({ group: 'infantry' })).toBe('infantry')
     expect(unitCategory({ group: 'mobile' })).toBe('mobile')
     expect(unitCategory({ group: 'armor' })).toBe('armor')
-    expect(unitCategory({ group: 'artillery' })).toBe('artillery')
+    // los group reales de la artillería son combat_support, mobile_combat_support y armor_combat_support
+    expect(unitCategory({ group: 'combat_support', type: 'infantry artillery' })).toBe('artillery')
     expect(unitCategory({ group: 'support' })).toBe('support')
-    expect(unitCategory({ group: 'ships', type: 'naval' })).toBeNull()
-    expect(unitCategory({ group: 'air', mapIcon: 'air' })).toBeNull()
+    // aéreas y navales: sin group (o con un ícono de barco)
+    expect(unitCategory({ group: '', type: 'fighter' })).toBeNull()
+    expect(unitCategory({ group: '', type: 'screen_ship', mapIcon: 'ship' })).toBeNull()
     expect(unitCategory({ group: 'x', mapIcon: 'ship' })).toBeNull()
     // grupo desconocido: se decide por el tipo
     expect(unitCategory({ group: 'otro', type: 'cavalry' })).toBe('infantry')
@@ -462,5 +465,312 @@ describe('íconos reales de los batallones (subuniticons.gfx)', () => {
     expect(t.width).toBe(8)
     expect([...t.rgba.slice(0, 4)]).toEqual([255, 0, 0, 255])
     expect(decodeDds(new Uint8Array(bc7())).ok).toBe(false)
+  })
+})
+
+// ---------------------------------------------------------------------------------------------
+// Ronda del ejército: íconos por ID, .gfx tolerante y reconocer bien las unidades terrestres.
+// Los fixtures los escribí yo imitando el FORMATO real (grupos, type como bloque, .gfx sin comillas);
+// no hay texto del juego aquí.
+// ---------------------------------------------------------------------------------------------
+describe('ronda del ejército: íconos por ID, .gfx tolerante y unidades terrestres', () => {
+  const armyGame = (): string => {
+    const g = fs.mkdtempSync(path.join(os.tmpdir(), 'hoi-army-'))
+    const w = (rel: string, text: string): void => {
+      fs.mkdirSync(path.dirname(path.join(g, rel)), { recursive: true })
+      fs.writeFileSync(path.join(g, rel), text)
+    }
+    w('common/country_tags/00_countries.txt', 'GER = "countries/Germany.txt"\n')
+    // Cada archivo tiene su propio sub_units. `type` puede ser un valor o un bloque.
+    w(
+      'common/units/infantry.txt',
+      `sub_units = {
+\tinfantry = {
+\t\tsprite = infantry
+\t\tmap_icon_category = infantry
+\t\ttype = infantry
+\t\tgroup = infantry
+\t}
+}`
+    )
+    w(
+      'common/units/artillery_brigade.txt',
+      `sub_units = {
+\tartillery_brigade = {
+\t\tsprite = artillery
+\t\tmap_icon_category = infantry
+\t\ttype = { infantry artillery }
+\t\tgroup = combat_support
+\t\tcombat_width = 2
+\t}
+}`
+    )
+    w(
+      'common/units/artillery.txt',
+      `sub_units = {
+\tartillery = {
+\t\tsprite = artillery
+\t\tmap_icon_category = infantry
+\t\ttype = { infantry support }
+\t\tgroup = support
+\t}
+}`
+    )
+    w(
+      'common/units/motorized.txt',
+      `sub_units = {
+\tmot_artillery_brigade = {
+\t\tsprite = artillery
+\t\tmap_icon_category = infantry
+\t\ttype = { motorized artillery }
+\t\tgroup = mobile_combat_support
+\t}
+\tlight_sp_artillery_brigade = {
+\t\tsprite = light_sp_artillery
+\t\tmap_icon_category = armored
+\t\ttype = { armor artillery }
+\t\tgroup = armor_combat_support
+\t}
+\tlight_tank_destroyer_support = {
+\t\tsprite = light_tank_destroyer
+\t\tmap_icon_category = armored
+\t\ttype = { support armor anti_tank }
+\t\tgroup = support
+\t}
+\tfalta_el_icono = {
+\t\tsprite = infantry
+\t\tmap_icon_category = infantry
+\t\ttype = infantry
+\t\tgroup = infantry
+\t}
+\tsin_ningun_icono = {
+\t\tsprite = nada_de_nada
+\t\tmap_icon_category = infantry
+\t\ttype = infantry
+\t\tgroup = infantry
+\t}
+}`
+    )
+    // Aéreas, navales y cañones de tren: sin group (o con map_icon_category = ship)
+    w(
+      'common/units/air.txt',
+      `sub_units = {
+\tfighter = { sprite = fighter type = fighter }
+\tstrat_bomber = { sprite = bomber type = strategic_bomber }
+\tguided_missile = { sprite = missile type = missile }
+}`
+    )
+    w(
+      'common/units/destroyer.txt',
+      `sub_units = {
+\tdestroyer = { sprite = destroyer map_icon_category = ship type = screen_ship }
+\tcarrier = { sprite = carrier map_icon_category = ship type = carrier }
+\tsubmarine = { sprite = submarine map_icon_category = ship type = submarine }
+\trailway_gun = { sprite = railway_gun map_icon_category = other type = railway_gun }
+}`
+    )
+    w(
+      'interface/subuniticons.gfx',
+      `spriteTypes = {
+\tspriteType = { name = "GFX_unit_infantry_icon_medium" textureFile = "gfx/interface/counters/divisions_large/unit_inf_icon.dds" noOfFrames = 2 }
+\tspriteType = { name = "GFX_unit_artillery_brigade_icon_medium" textureFile = "gfx/interface/counters/divisions_large/unit_art_icon.dds" noOfFrames = 2 }
+\tspriteType = { name = "GFX_unit_artillery_icon_medium" textureFile = "gfx/interface/counters/divisions_large/support_unit_art_icon.dds" noOfFrames = 2 }
+\tspriteType = { name = "GFX_unit_mot_artillery_brigade_icon_medium" textureFile = "gfx/interface/counters/divisions_large/unit_mot_art_icon.dds" noOfFrames = 2 }
+\tspriteType = { name = "GFX_unit_light_sp_artillery_brigade_icon_medium" textureFile = "gfx/interface/counters/divisions_large/unit_sp_art_icon.dds" noOfFrames = 2 }
+\t# comentario en medio
+\tspriteType = { name = "GFX_unit_light_tank_destroyer_support_icon_medium" textureFile = gfx/interface/counters/divisions_large/support_unit_light_td_icon.dds noOfFrames = 2}
+}`
+    )
+    return g
+  }
+
+  it('lee un .gfx con ruta sin comillas, llave pegada ("2}"), tabuladores y comentarios', () => {
+    const sprites = parseGfxSprites(
+      `spriteTypes = {
+\tspriteType = { name = "GFX_a_icon_medium" textureFile = gfx/interface/counters/a.dds noOfFrames = 2}
+\tspriteType = {
+\t\tname = GFX_b_icon_medium\t# nombre sin comillas
+\t\tTextureFile = "gfx//interface//b.dds"\t
+\t\tnoOfFrames=2}
+\tspriteType = { name = "GFX_c_icon_medium" textureFile = "gfx/interface/c.dds" }
+\tspriteType = { name = "GFX_sin_textura" }
+}`
+    )
+    expect(sprites).toEqual([
+      { name: 'GFX_a_icon_medium', texture: 'gfx/interface/counters/a.dds', frames: 2 },
+      { name: 'GFX_b_icon_medium', texture: 'gfx/interface/b.dds', frames: 2 },
+      { name: 'GFX_c_icon_medium', texture: 'gfx/interface/c.dds', frames: 1 }
+    ])
+  })
+
+  it('el ícono se busca por el ID de la unidad y solo después por su sprite', () => {
+    expect(unitSpriteCandidates({ id: 'artillery_brigade', sprite: 'artillery' })).toEqual([
+      'GFX_unit_artillery_brigade_icon_medium',
+      'GFX_unit_artillery_icon_medium'
+    ])
+    const cat = readGameCatalog(armyGame())!
+    const gfx = Object.fromEntries(cat.subUnits!.map((u) => [u.id, u.gfx ?? null]))
+    // artillería de línea ≠ artillería de apoyo (aunque las dos tengan sprite = artillery)
+    expect(gfx.artillery_brigade).toBe('GFX_unit_artillery_brigade_icon_medium')
+    expect(gfx.artillery).toBe('GFX_unit_artillery_icon_medium')
+    // el nombre del ícono usa el ID, no el campo sprite
+    expect(gfx.mot_artillery_brigade).toBe('GFX_unit_mot_artillery_brigade_icon_medium')
+    expect(gfx.light_sp_artillery_brigade).toBe('GFX_unit_light_sp_artillery_brigade_icon_medium')
+    // respaldo: sin ícono con su ID, el del sprite
+    expect(gfx.falta_el_icono).toBe('GFX_unit_infantry_icon_medium')
+    // sin ninguno: ícono genérico por tipo (gfx null)
+    expect(gfx.sin_ningun_icono).toBeNull()
+  })
+
+  it('el apoyo de cazacarros con la línea sin comillas del .gfx ya tiene su ícono', () => {
+    const cat = readGameCatalog(armyGame())!
+    const td = cat.subUnits!.find((u) => u.id === 'light_tank_destroyer_support')
+    expect(td?.gfx).toBe('GFX_unit_light_tank_destroyer_support_icon_medium')
+  })
+
+  it('lee type como valor o como bloque { … }', () => {
+    const u = parseSubUnits(
+      `sub_units = {
+\ta = { type = infantry group = infantry }
+\tb = {
+\t\tsprite = artillery
+\t\ttype = { infantry artillery }
+\t\tgroup = combat_support
+\t\tmap_icon_category = infantry
+\t}
+\tc = { group = support }
+}`
+    )
+    expect(u).toEqual([
+      { id: 'a', group: 'infantry', type: 'infantry' },
+      {
+        id: 'b',
+        group: 'combat_support',
+        type: 'infantry artillery',
+        mapIcon: 'infantry',
+        sprite: 'artillery'
+      },
+      { id: 'c', group: 'support' }
+    ])
+  })
+
+  it('reconoce la categoría con group (incluidos los *_combat_support), type y map_icon_category', () => {
+    const c = unitCategory
+    expect(c({ group: 'combat_support', type: 'infantry artillery', mapIcon: 'infantry' })).toBe(
+      'artillery'
+    )
+    expect(c({ group: 'mobile_combat_support', type: 'motorized artillery' })).toBe('artillery')
+    expect(c({ group: 'armor_combat_support', type: 'armor artillery', mapIcon: 'armored' })).toBe(
+      'artillery'
+    )
+    expect(c({ group: 'armor_combat_support', type: 'armor anti_tank' })).toBe('artillery')
+    expect(c({ group: 'support', type: 'support armor anti_tank' })).toBe('support')
+    expect(c({ group: 'armor', type: 'armor' })).toBe('armor')
+    expect(c({ group: 'mobile', type: 'motorized' })).toBe('mobile')
+    // aéreas, misiles, barcos y cañones de tren: sin group
+    expect(c({ group: '', type: 'fighter' })).toBeNull()
+    expect(c({ group: '', type: 'missile' })).toBeNull()
+    expect(c({ group: '', type: 'screen_ship', mapIcon: 'ship' })).toBeNull()
+    expect(c({ group: '', type: 'railway_gun', mapIcon: 'other' })).toBeNull()
+    // un group que no conocemos: se decide por type y map_icon_category
+    expect(c({ group: 'otro_apoyo', type: 'support infantry', mapIcon: 'infantry' })).toBe(
+      'support'
+    )
+    expect(c({ group: 'otro', type: 'armor artillery', mapIcon: 'armored' })).toBe('artillery')
+    expect(c({ group: 'otro', type: 'carrier', mapIcon: 'ship' })).toBeNull()
+    expect(c({ group: 'otro', type: 'raro' })).toBeNull()
+  })
+
+  it('artillery_brigade (combat_support) existe y es terrestre; no sale el aviso falso', () => {
+    const cat = readGameCatalog(armyGame())!
+    expect(cat.subUnits!.find((u) => u.id === 'artillery_brigade')).toMatchObject({
+      group: 'combat_support',
+      type: 'infantry artillery'
+    })
+    const land = landUnits(cat).map((u) => u.id)
+    expect(land).toContain('artillery_brigade')
+    expect(unitLists(cat).combat).toContain('artillery_brigade')
+    // una plantilla con artillería de línea (dos veces) y un cazacarros de apoyo
+    let p = withOob()
+    p = updateOob(p, 'NVG', (o) => ({
+      ...o,
+      templates: [
+        {
+          name: 'Infantería',
+          regiments: [
+            { type: 'infantry', x: 0, y: 0 },
+            { type: 'artillery_brigade', x: 1, y: 0 },
+            { type: 'artillery_brigade', x: 1, y: 1 }
+          ],
+          support: [{ type: 'light_tank_destroyer_support', y: 0 }]
+        }
+      ],
+      divisions: []
+    }))
+    const m = validateOob(p, null, cat).map((i) => i.message)
+    expect(m.filter((x) => /que no existe/.test(x))).toEqual([])
+  })
+
+  it('no se cuelan aéreas ni navales y no falta ninguna terrestre', () => {
+    const cat = readGameCatalog(armyGame())!
+    const land = landUnits(cat).map((u) => u.id)
+    for (const x of [
+      'fighter',
+      'strat_bomber',
+      'guided_missile',
+      'destroyer',
+      'carrier',
+      'submarine',
+      'railway_gun'
+    ])
+      expect(land).not.toContain(x)
+    expect(land.sort()).toEqual(
+      [
+        'infantry',
+        'artillery_brigade',
+        'artillery',
+        'mot_artillery_brigade',
+        'light_sp_artillery_brigade',
+        'light_tank_destroyer_support',
+        'falta_el_icono',
+        'sin_ningun_icono'
+      ].sort()
+    )
+    const byCategory = Object.fromEntries(landUnits(cat).map((u) => [u.id, u.category]))
+    expect(byCategory.artillery_brigade).toBe('artillery')
+    expect(byCategory.light_sp_artillery_brigade).toBe('artillery')
+    expect(byCategory.artillery).toBe('support')
+  })
+
+  it('una unidad aérea o naval existe en el juego pero no cabe en una división: aviso distinto', () => {
+    const cat = readGameCatalog(armyGame())!
+    let p = withOob()
+    p = updateOob(p, 'NVG', (o) => ({
+      ...o,
+      templates: [
+        {
+          name: 'Rara',
+          regiments: [
+            { type: 'fighter', x: 0, y: 0 },
+            { type: 'no_existe_nunca', x: 0, y: 1 }
+          ],
+          support: []
+        }
+      ],
+      divisions: []
+    }))
+    const m = validateOob(p, null, cat).map((i) => i.message)
+    expect(m.some((x) => /fighter, que no es una unidad terrestre/.test(x))).toBe(true)
+    expect(m.some((x) => /no_existe_nunca, que no existe en el juego/.test(x))).toBe(true)
+    expect(m.some((x) => /fighter, que no existe/.test(x))).toBe(false)
+  })
+
+  it('la exportación de una plantilla sale idéntica con o sin los datos del juego', () => {
+    const p = withOob()
+    const text = oobText('NVG', p.oobs[0])
+    expect(text.trimEnd()).toBe(FIXTURE.trimEnd())
+    // el catálogo solo valida y muestra íconos: no cambia ni una letra del script
+    expect(oobText('NVG', p.oobs[0])).toBe(text)
+    expect(sectionFiles(p).files.find((f) => f.path.includes('history/units'))?.text).toBe(text)
   })
 })

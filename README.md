@@ -697,8 +697,10 @@ se comprobó además contra el commit anterior al rediseño.
   ID) y vista previa con el espíritu como en la pantalla de gobierno y su globo de información. La galería
   ofrece «Espíritu en blanco», «Copiar uno del juego» (abre «Elegir del juego»), «Bonificación económica» y
   «Penalización temporal».
-- **Íconos del ejército.** El sprite de cada batallón es `GFX_unit_<sprite>_icon_medium` (confirmado en
-  1.19.3, `interface/subuniticons.gfx`), se busca en todos los `interface/*.gfx` y se usa el `textureFile`
+- **Íconos del ejército.** El sprite de cada batallón es `GFX_unit_<ID de la unidad>_icon_medium`
+  (confirmado en 1.19.3, `interface/subuniticons.gfx`); solo si no existe se prueba con el campo `sprite`
+  (ver «Ronda del ejército» más abajo: `artillery_brigade` tiene `sprite = artillery`, que es el ícono de la
+  artillería de apoyo). Se busca en todos los `interface/*.gfx` y se usa el `textureFile`
   del `.gfx` (nunca se adivina la ruta), con rutas normalizadas (`//`) y sin distinguir mayúsculas.
   Con `noOfFrames = 2` se muestra solo el primer cuadro. El lector DDS ya aceptaba sin compresión
   (máscaras de 16, 24 y 32 bits) y DXT1/3/5; un formato no soportado da el ícono genérico del tipo.
@@ -732,3 +734,48 @@ en `common/technology_tags` y los nombres de las claves de localización de las 
 nombres de los DLC; el espaciado de la cuadrícula del árbol frente al del juego (`TREE_CELL`). El fondo de
 la carpeta del juego no se dibuja (fondo neutro) y la caché de nombres de tecnologías es la del catálogo del
 juego en memoria, no un archivo en `userData`.
+
+## Ronda del ejército: íconos y unidades leídos del juego real
+
+Esta ronda se hizo **leyendo tu juego** (1.19.3, solo lectura) en vez de adivinar. Para repetir la
+comprobación en tu PC: `npm run report:army` (acepta la ruta del juego como argumento).
+
+**Qué fallaba y por qué**
+1. *Aviso falso «usa el batallón artillery_brigade, que no existe».* La lista de unidades solo aceptaba
+   los `group` `infantry`, `mobile`, `armor`, `artillery` y `support`, pero la artillería de línea tiene
+   `group = combat_support`. Además `type` es un bloque (`type = { infantry artillery }`) y el lector lo
+   leía mal. Resultado: la unidad se descartaba y el validador decía que no existía.
+2. *Artillería con el ícono genérico.* Se buscaba primero `GFX_unit_<sprite>_icon_medium`, y
+   `artillery_brigade` tiene `sprite = artillery`, que es el ícono de la artillería de **apoyo**.
+   El nombre del ícono usa el **ID de la unidad**, no el campo `sprite`.
+3. *Apoyos de cazacarros con el ícono genérico.* Su línea en `subuniticons.gfx` trae la ruta sin comillas
+   y la llave pegada (`noOfFrames = 2}`), y el lector exigía comillas, así que esos sprites no existían
+   para la app.
+
+**Cómo funciona ahora**
+- **Ícono (Parte 1).** Se busca `GFX_unit_<ID>_icon_medium`; si no existe, `GFX_unit_<sprite>_icon_medium`;
+  si tampoco, el ícono genérico del tipo.
+- **Lector de `.gfx` (Parte 2).** Usa el mismo lector tolerante que las historias de país
+  (`tokenizePdx`): acepta rutas con o sin comillas, la llave pegada al valor, tabuladores, BOM, claves en
+  cualquier mayúscula y comentarios. Con tu juego lee 26 202 sprites (el lector anterior se saltaba 1 548 y
+  cortaba los nombres con `@` o con letras acentuadas).
+- **Unidades terrestres (Parte 3).** Una unidad *existe* si aparece en **cualquier** `sub_units` de
+  `common/units`, sea cual sea su grupo. Es *terrestre* según su `group`:
+
+  | `group` en el juego | Unidades | Categoría en la app |
+  |---|---|---|
+  | `infantry` | 13 | Infantería |
+  | `mobile` | 9 | Móviles |
+  | `armor` | 11 | Blindados |
+  | `combat_support` | 4 | Artillería, antitanque y antiaérea |
+  | `mobile_combat_support` | 5 | Artillería, antitanque y antiaérea |
+  | `armor_combat_support` | 12 | Artillería, antitanque y antiaérea |
+  | `support` | 68 | Apoyo |
+  | *(sin `group`)* | 36 | No terrestres: 25 aéreas y misiles, 9 navales y 2 cañones de tren |
+
+  Si un mod usa un `group` que no conocemos, se decide por las palabras de `type` (`support`, `artillery`,
+  `armor`, `motorized`, `infantry`…), y un `map_icon_category = ship` nunca cuenta como terrestre. Una unidad
+  aérea o naval que se cuele en una plantilla da un aviso distinto («existe, pero no es una unidad
+  terrestre»), no el de «no existe».
+- **Resultado en tu juego:** de las 122 unidades terrestres, **las 122 tienen ícono real** (todas por su ID;
+  ninguna necesitó el respaldo del `sprite` y ninguna queda con el genérico).
